@@ -10,16 +10,13 @@ export interface Member {
   tier: Tier
 }
 
-/** 클랜원 메뉴(공개 명단) */
+/** 클랜원 메뉴(관리자 전용 명단) — 전적 · ELO는 ELO 보드에서 다룬다 */
 export interface RosterMember extends Member {
-  elo: number
-  wins: number
-  losses: number
-  /** +면 연승, -면 연패 */
-  streak: number
   isActive: boolean
   usesLauncher: boolean
   joinedAt: string | null
+  /** 편집 권한이 있을 때만 채워짐 (손님 계정은 undefined) */
+  adminMemo?: string | null
 }
 
 export interface Season {

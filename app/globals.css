@@ -1788,6 +1788,174 @@
     font-size: 11.5px;
   }
 
+  /* ---------- 관리자 메모 ---------- */
+  .memo-cell {
+    max-width: 280px;
+  }
+  .memo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    border: 0;
+    background: none;
+    padding: 4px 6px;
+    margin-left: -6px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .memo-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .memo-btn svg {
+    flex: none;
+  }
+  .memo-btn.has {
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .memo-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+
+  /* 팝업 (native dialog) */
+  .modal {
+    width: min(560px, calc(100vw - 32px));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 22px 22px 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  }
+  .modal::backdrop {
+    background: rgba(10, 9, 8, 0.55);
+    backdrop-filter: blur(2px);
+  }
+  .modal form {
+    display: grid;
+    gap: 12px;
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .modal-head h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+  .modal-sub {
+    margin: 4px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .memo-input {
+    height: auto;
+    min-height: 180px;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+  .modal-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .modal-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .form-error {
+    color: var(--up);
+    font-size: 13px;
+    margin: 0;
+  }
+
+  /* 관리 열 (수정 · 탈퇴 · 복귀 · 완전 삭제) */
+  .t th.actions-col,
+  .t td.actions-col {
+    text-align: center;
+  }
+  .row-actions {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .icon-action {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--ink-3);
+  }
+  .icon-action:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .icon-action.danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--up) 12%, transparent);
+    color: var(--up);
+  }
+  .icon-action:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .btn.danger {
+    background: var(--up);
+    color: #fff;
+  }
+  .confirm-text {
+    display: grid;
+    gap: 8px;
+  }
+  .confirm-text p {
+    margin: 0;
+    line-height: 1.6;
+  }
+  .danger-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--up);
+    font-weight: 700;
+  }
+  .form-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .form-row {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .form-row .seg {
+    justify-self: start;
+  }
+  .memo-locked {
+    display: inline-flex;
+    color: var(--ink-3);
+    opacity: 0.6;
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
   /* ---------- ELO dashboard ---------- */
   .stat-row {
     display: grid;

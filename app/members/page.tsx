@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { RosterTable } from "@/components/members/roster-table"
 import { DbError } from "@/components/ui/db-error"
-import { fetchRoster } from "@/lib/data/members"
+import { ADMIN_MEMO_MAX_LEN, fetchRoster } from "@/lib/data/members"
+import { getMemberManager } from "@/lib/permissions"
 import type { Race, RosterMember } from "@/lib/types"
 import { seoulDate } from "@/lib/utils"
 
@@ -16,14 +17,17 @@ const RACES: { key: Race; label: string }[] = [
   { key: "Z", label: "저그" },
 ]
 
+/** 클랜원 명단 관리 */
 export default async function MembersPage() {
+  const editable = (await getMemberManager()) !== null
+
   let members: RosterMember[]
   try {
-    members = await fetchRoster()
+    members = await fetchRoster({ includeMemo: editable })
   } catch (error) {
     return (
       <main className="content">
-        <PageHead />
+        <PageHead readOnly={!editable} />
         <DbError error={error} />
       </main>
     )
@@ -38,14 +42,16 @@ export default async function MembersPage() {
 
   return (
     <main className="content">
-      <PageHead />
+      <PageHead readOnly={!editable} />
 
       <section className="panel">
         <div className="stat-row">
           <div className="stat">
             <small>활동 클랜원</small>
             <b>{active.length.toLocaleString()}</b>
-            <em>{newThisMonth > 0 ? `이번 달 신규 ${newThisMonth}명` : "이번 달 신규 없음"}</em>
+            <em>
+              탈퇴 {members.length - active.length}명 · {newThisMonth > 0 ? `이번 달 신규 ${newThisMonth}명` : "이번 달 신규 없음"}
+            </em>
           </div>
           <div className="stat">
             <small>종족 분포</small>
@@ -81,16 +87,17 @@ export default async function MembersPage() {
         </div>
       </section>
 
-      <RosterTable members={members} />
+      <RosterTable members={members} canEdit={editable} memoMaxLength={ADMIN_MEMO_MAX_LEN} />
     </main>
   )
 }
 
-function PageHead() {
+function PageHead({ readOnly }: { readOnly: boolean }) {
   return (
     <div className="page-head">
       <div className="eyebrow">MEMBERS</div>
       <h1>클랜원</h1>
+      {readOnly && <p className="note">관리자 메모는 관리자 로그인 후에 보이고 작성할 수 있어요.</p>}
     </div>
   )
 }

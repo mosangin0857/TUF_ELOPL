@@ -1,21 +1,16 @@
 import Link from "next/link"
 import { Bell } from "lucide-react"
-import { HeroSearch } from "@/components/home/hero-search"
+import { HeroSearch, type SearchIndex } from "@/components/home/hero-search"
 import { LiveSection } from "@/components/home/live-section"
 import { RailSection } from "@/components/home/rail-section"
+import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
-import {
-  SAMPLE_BJS,
-  SAMPLE_LEAGUES,
-  SAMPLE_MAPS,
-  SAMPLE_NOTICES,
-  SAMPLE_PLAYERS,
-  SAMPLE_STANDINGS,
-  SAMPLE_TEAMS,
-  SAMPLE_UPCOMING,
-  TEAM_COLORS,
-} from "@/lib/sample/home"
+import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
+import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
+
+/** 대문은 5분마다 새로 만든다 (검색용 선수 목록) */
+export const revalidate = 300
 
 const DOW = "일월화수목금토"
 function mdDow(ymd: string) {
@@ -23,124 +18,168 @@ function mdDow(ymd: string) {
   return `${m}/${d}(${DOW[new Date(y, m - 1, d).getDay()]})`
 }
 
-export default function ClanHousePage() {
+async function loadSearchPlayers(): Promise<SearchIndex["players"]> {
+  try {
+    return await fetchSearchPlayers()
+  } catch {
+    return [] // DB 연결 실패 시 검색만 비우고 대문은 그대로 보여준다
+  }
+}
+
+export default async function ClanHousePage() {
+  const players = await loadSearchPlayers()
+
+  // TODO(공지): 공지 · 건의에서 '대문 노출'을 켠 공지, 최신순 최대 3개
+  const notices: HomeNotice[] = []
+  // TODO(PL): 프로리그 다가오는 경기 (최대 8개)
+  const upcoming: UpcomingMatch[] = []
+  // TODO(관리자 · BJ): 등록된 클랜 BJ + SOOP 방송 상태
+  const bjs: ClanBj[] = []
+  // TODO(PL): 프로리그 팀 순위 · 팀 소개
+  const standings: TeamStanding[] = []
+  const teams: TeamIntro[] = []
+  // TODO(ELO): ELO TOP 8 · 이번 주 ELO 변동
+  const eloTop: EloEntry[] = []
+  const eloWeekly: EloEntry[] = []
+
   return (
     <main className="content">
-      <HeroSearch index={{ players: SAMPLE_PLAYERS, leagues: SAMPLE_LEAGUES, maps: SAMPLE_MAPS }} />
+      <HeroSearch index={{ players, leagues: [], maps: [] }} />
 
       <div className="notice-list">
-        {SAMPLE_NOTICES.map((n) => (
-          <Link key={n.id} className="notice" href="/notice">
+        {notices.length ? (
+          notices.map((n) => (
+            <Link key={n.id} className="notice" href="/notice">
+              <span className="n-tag">
+                <Bell strokeWidth={1.8} aria-hidden />
+                공지
+              </span>
+              <span className="n-text">{n.title}</span>
+              <span className="n-date num">{n.date}</span>
+            </Link>
+          ))
+        ) : (
+          <div className="notice">
             <span className="n-tag">
               <Bell strokeWidth={1.8} aria-hidden />
               공지
             </span>
-            <span className="n-text">{n.title}</span>
-            <span className="n-date num">{n.date}</span>
-          </Link>
-        ))}
+            <span className="n-text text-ink-3">대문에 노출 중인 공지가 없어요.</span>
+          </div>
+        )}
       </div>
 
       <RailSection
-        eyebrow="NEXT MATCH · TFPL4"
+        eyebrow="NEXT MATCH"
         title="다가오는 경기"
         label="경기"
+        empty="예정된 경기가 없어요."
+        emptyHint="프로리그 일정을 등록하면 여기에 표시돼요."
         action={
           <Link className="more" href="/schedule">
             전체 일정 →
           </Link>
         }
       >
-        {SAMPLE_UPCOMING.map((m) => (
-          <Link key={`${m.date}-${m.a}`} className="ev-card bounce" href="/pl">
+        {upcoming.map((m) => (
+          <Link key={m.id} className="ev-card bounce" href="/pl">
             <span className="crests">
-              <Crest team={m.a} color={TEAM_COLORS[m.a]} />
-              <Crest team={m.b} color={TEAM_COLORS[m.b]} />
+              <Crest team={m.teamA.name} color={m.teamA.color} />
+              <Crest team={m.teamB.name} color={m.teamB.color} />
             </span>
             <span className="ev-body">
               <span className="ev-title">
-                {m.a}
+                {m.teamA.name}
                 <span className="v">vs</span>
-                {m.b}
+                {m.teamB.name}
               </span>
               <span className="ev-meta">
                 <b>
                   {mdDow(m.date)} {m.time}
                 </b>{" "}
-                · TFPL4 {m.r}
+                · {m.round}
               </span>
             </span>
           </Link>
         ))}
       </RailSection>
 
-      <LiveSection bjs={SAMPLE_BJS} />
+      <LiveSection bjs={bjs} />
 
       <div className="grid-2">
         <section className="panel fill">
           <div className="panel-head">
             <div>
-              <div className="eyebrow">TFPL4 · 1라운드 종료 · 1~4위 PO</div>
+              <div className="eyebrow">TFPL · 1~4위 플레이오프</div>
               <h2>프로리그 팀 순위</h2>
             </div>
             <Link className="more" href="/pl/standings">
               전체 순위 →
             </Link>
           </div>
-          <div className="table-wrap">
-            <table className="st-table">
-              <thead>
-                <tr>
-                  <th>순위</th>
-                  <th>팀</th>
-                  <th className="hide-sm">경기</th>
-                  <th>승</th>
-                  <th>패</th>
-                  <th>세트 득실</th>
-                  <th>승점</th>
-                  <th className="hide-sm">최근 5경기</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SAMPLE_STANDINGS.map((s, i) => {
-                  const diff = s.sw - s.sl
-                  return (
-                    <tr key={s.t} className={i === 3 ? "cut" : undefined}>
-                      <td>
-                        <span className={cn("rk g", i < 4 ? `g${i + 1}` : "g0")} title={i < 4 ? "플레이오프 진출권" : "플레이오프 진출권 밖"}>
-                          {i + 1}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="st-team">
-                          <Crest team={s.t} color={TEAM_COLORS[s.t]} />
-                          {s.t}
-                        </span>
-                      </td>
-                      <td className="hide-sm">{s.w + s.l}</td>
-                      <td>{s.w}</td>
-                      <td>{s.l}</td>
-                      <td className={diff > 0 ? "down" : diff < 0 ? "up" : undefined}>{diff > 0 ? `+${diff}` : diff}</td>
-                      <td className="pts">{s.w * 3}</td>
-                      <td className="hide-sm">
-                        <span className="form">
-                          {[...s.f].map((c, j) => (
-                            <i key={j} className={c}>
-                              {c === "W" ? "승" : "패"}
-                            </i>
-                          ))}
-                        </span>
-                      </td>
+          {standings.length ? (
+            <>
+              <div className="table-wrap">
+                <table className="st-table">
+                  <thead>
+                    <tr>
+                      <th>순위</th>
+                      <th>팀</th>
+                      <th className="hide-sm">경기</th>
+                      <th>승</th>
+                      <th>패</th>
+                      <th>세트 득실</th>
+                      <th>승점</th>
+                      <th className="hide-sm">최근 5경기</th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="po-note">
-            <i />
-            1~4위 플레이오프 진출 · 점선 아래는 진출권 밖 · 최근 5경기는 오른쪽이 가장 최근
-          </div>
+                  </thead>
+                  <tbody>
+                    {standings.map((s, i) => {
+                      const diff = s.setsWon - s.setsLost
+                      return (
+                        <tr key={s.team} className={i === 3 ? "cut" : undefined}>
+                          <td>
+                            <span
+                              className={cn("rk g", i < 4 ? `g${i + 1}` : "g0")}
+                              title={i < 4 ? "플레이오프 진출권" : "플레이오프 진출권 밖"}
+                            >
+                              {i + 1}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="st-team">
+                              <Crest team={s.team} color={s.color} />
+                              {s.team}
+                            </span>
+                          </td>
+                          <td className="hide-sm">{s.wins + s.losses}</td>
+                          <td>{s.wins}</td>
+                          <td>{s.losses}</td>
+                          <td className={diff > 0 ? "down" : diff < 0 ? "up" : undefined}>{diff > 0 ? `+${diff}` : diff}</td>
+                          <td className="pts">{s.wins * 3}</td>
+                          <td className="hide-sm">
+                            <span className="form">
+                              {s.form.slice(-5).map((c, j) => (
+                                <i key={j} className={c}>
+                                  {c === "W" ? "승" : "패"}
+                                </i>
+                              ))}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="po-note">
+                <i />
+                1~4위 플레이오프 진출 · 점선 아래는 진출권 밖 · 최근 5경기는 오른쪽이 가장 최근
+              </div>
+            </>
+          ) : (
+            <Empty hint="프로리그 경기 결과가 등록되면 순위가 계산돼요.">아직 순위 데이터가 없어요.</Empty>
+          )}
         </section>
 
         <section className="panel">
@@ -153,16 +192,20 @@ export default function ClanHousePage() {
               전체 →
             </Link>
           </div>
-          {SAMPLE_PLAYERS.slice(0, 8).map((p, i) => (
-            <div key={p.n} className="rank-row">
-              <span className={cn("rk", i < 3 && "top")}>{i + 1}</span>
-              <RaceBadge race={p.r} />
-              <span className="rank-name">
-                {p.n} <span className="tier">· {p.t}티어</span>
-              </span>
-              <span className="rank-elo">{p.e.toLocaleString()}</span>
-            </div>
-          ))}
+          {eloTop.length ? (
+            eloTop.slice(0, 8).map((p, i) => (
+              <div key={p.name} className="rank-row">
+                <span className={cn("rk", i < 3 && "top")}>{i + 1}</span>
+                <RaceBadge race={p.race} />
+                <span className="rank-name">
+                  {p.name} <span className="tier">· {p.tier}티어</span>
+                </span>
+                <span className="rank-elo">{p.elo.toLocaleString()}</span>
+              </div>
+            ))
+          ) : (
+            <Empty hint="ELO 랭킹을 연결하면 표시돼요.">랭킹 준비 중이에요.</Empty>
+          )}
         </section>
       </div>
 
@@ -176,64 +219,69 @@ export default function ClanHousePage() {
             위클리 베스트 →
           </Link>
         </div>
-        <div className="ticker">
-          {[...SAMPLE_PLAYERS]
-            .sort((a, b) => b.d - a.d)
-            .map((p) => (
-              <div key={p.n} className="tk">
-                <div className="tk-top">
-                  {p.n}
-                  <small>· {p.t}티어</small>
+        {eloWeekly.length ? (
+          <div className="ticker">
+            {eloWeekly.map((p) => {
+              const d = p.weeklyDelta ?? 0
+              return (
+                <div key={p.name} className="tk">
+                  <div className="tk-top">
+                    {p.name}
+                    <small>· {p.tier}티어</small>
+                  </div>
+                  <div className="tk-elo">{p.elo.toLocaleString()}</div>
+                  <div className={cn("tk-d", d > 0 ? "up" : d < 0 ? "down" : undefined)}>
+                    {d > 0 ? "▲ " : d < 0 ? "▼ " : ""}
+                    {Math.abs(d)}
+                  </div>
                 </div>
-                <div className="tk-elo">{p.e.toLocaleString()}</div>
-                <div className={cn("tk-d", p.d > 0 ? "up" : p.d < 0 ? "down" : undefined)}>
-                  {p.d > 0 ? "▲ " : p.d < 0 ? "▼ " : ""}
-                  {Math.abs(p.d)}
-                </div>
-              </div>
-            ))}
-        </div>
+              )
+            })}
+          </div>
+        ) : (
+          <Empty hint="주간 ELO 변동을 연결하면 표시돼요.">이번 주 데이터 준비 중이에요.</Empty>
+        )}
       </section>
 
       <RailSection
-        eyebrow="TFPL4 TEAMS"
+        eyebrow="TFPL TEAMS"
         title="프로리그 팀 소개"
         label="팀"
+        empty="등록된 팀이 없어요."
+        emptyHint="프로리그 › 팀 · 선수단에서 팀을 등록하면 여기에 표시돼요."
         action={
           <Link className="more" href="/pl/teams">
             전체 팀 →
           </Link>
         }
       >
-        {SAMPLE_STANDINGS.map((s, i) => {
-          const team = SAMPLE_TEAMS[s.t]
-          return (
-            <Link key={s.t} className="team-card bounce" href="/pl/teams">
-              <span className="tc-top">
-                <span className="team-logo" style={{ ["--c" as string]: TEAM_COLORS[s.t] }}>
-                  {s.t[0]}
-                </span>
-                <span className="tc-line">
-                  <b>{s.t}</b>
-                  <span>{team.slogan}</span>
-                </span>
+        {teams.map((t) => (
+          <Link key={t.team} className="team-card bounce" href="/pl/teams">
+            <span className="tc-top">
+              <span className="team-logo" style={{ ["--c" as string]: t.color }}>
+                {t.team[0]}
               </span>
-              <span className="tc-foot">
-                <div>
-                  팀장 <b>{team.leader}</b> · 부팀장 <b>{team.vice}</b>
-                </div>
-                <div>
-                  현재 <b>{i + 1}위</b> · <span className="hon">{team.prev}</span>
-                </div>
+              <span className="tc-line">
+                <b>{t.team}</b>
+                <span>{t.slogan}</span>
               </span>
-            </Link>
-          )
-        })}
+            </span>
+            <span className="tc-foot">
+              <div>
+                팀장 <b>{t.leader}</b> · 부팀장 <b>{t.vice}</b>
+              </div>
+              <div>
+                {t.rank !== null && (
+                  <>
+                    현재 <b>{t.rank}위</b> ·{" "}
+                  </>
+                )}
+                <span className="hon">{t.honor}</span>
+              </div>
+            </span>
+          </Link>
+        ))}
       </RailSection>
-
-      <p className="sample-note">
-        클랜하우스는 아직 예시 데이터예요. 실제 DB로 연결된 화면은 ELO 보드 › 대시보드입니다.
-      </p>
     </main>
   )
 }

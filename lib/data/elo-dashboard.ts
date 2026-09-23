@@ -35,6 +35,23 @@ export async function fetchMembers(): Promise<Member[]> {
   }))
 }
 
+/** 대문 검색용: 활동 중인 클랜원 이름 · 종족 · 티어 · ELO */
+export async function fetchSearchPlayers(): Promise<{ name: string; race: Race; tier: Tier; elo: number }[]> {
+  const supabase = createReadClient()
+  const { data, error } = await supabase
+    .from("members")
+    .select("name, race, tier, elo")
+    .eq("is_active", true)
+    .order("elo", { ascending: false })
+  if (error) throw new Error(`members 조회 실패: ${error.message}`)
+  return (data ?? []).map((r) => ({
+    name: r.name as string,
+    race: r.race as Race,
+    tier: r.tier as Tier,
+    elo: r.elo as number,
+  }))
+}
+
 export interface DashboardStats {
   season: Season | null
   seasonMatches: number | null

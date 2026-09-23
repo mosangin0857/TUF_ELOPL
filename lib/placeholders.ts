@@ -29,5 +29,4 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
 
   notice: { title: "공지 · 건의", body: "게시판. 공지 작성 시 '대문 노출'을 켜면 클랜하우스에 최신순으로 표시됩니다." },
   schedule: { title: "일정", body: "월간 달력. 프로리그 · 클랜 행사 · ELO 일정을 한눈에." },
-  members: { title: "클랜원", body: "공개용 클랜원 명단." },
 }

@@ -61,13 +61,7 @@ export function Sidebar({ open }: { open: boolean }) {
       </nav>
 
       <div className="side-foot">
-        <div className="season-card">
-          <span className="live-dot" aria-hidden />
-          <div>
-            <b>2026 SEASON</b>
-            <span>TFPL4 · 예시</span>
-          </div>
-        </div>
+        {/* TODO: 현재 시즌 카드 (ELO 시즌 · 프로리그 시즌 연결 후) — CSS는 .season-card 에 준비됨 */}
         <div className="side-actions">
           <ThemeToggle />
           {/* 로그인은 관리자 권한 설계 후 연결 */}

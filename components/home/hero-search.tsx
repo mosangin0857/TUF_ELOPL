@@ -8,9 +8,19 @@ import { RaceBadge } from "@/components/ui/race"
 import type { Race } from "@/lib/types"
 
 export interface SearchIndex {
-  players: { n: string; r: Race; t: number; e: number }[]
-  leagues: { n: string; m: string }[]
-  maps: { n: string; m: string }[]
+  /** 실제 DB: 활동 중인 클랜원 */
+  players: { name: string; race: Race; tier: number; elo: number }[]
+  /** 프로리그 · 개인리그 연결 후 채움 */
+  leagues: { name: string; meta: string }[]
+  /** 맵 통계 연결 후 채움 */
+  maps: { name: string; meta: string }[]
+}
+
+const EMPTY_HINT: Record<Category, string> = {
+  all: "",
+  p: "",
+  l: "대회 검색은 프로리그 · 개인리그 데이터를 연결한 뒤 사용할 수 있어요.",
+  m: "맵 검색은 맵 통계를 연결한 뒤 사용할 수 있어요.",
 }
 
 type Category = "all" | "p" | "l" | "m"
@@ -89,59 +99,45 @@ export function HeroSearch({ index }: { index: SearchIndex }) {
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return []
-    const hit = <T extends { n: string }>(arr: T[]) => arr.filter((x) => x.n.toLowerCase().includes(q)).slice(0, 5)
+    const hit = <T extends { name: string }>(arr: T[]) => arr.filter((x) => x.name.toLowerCase().includes(q)).slice(0, 5)
     const out: { label: string; items: Item[] }[] = []
     if (cat === "all" || cat === "p")
       out.push({
         label: "선수",
         items: hit(index.players).map((p) => ({
           kind: "p",
-          name: p.n,
+          name: p.name,
           node: (
             <>
-              <RaceBadge race={p.r} />
+              <RaceBadge race={p.race} />
               <span>
-                <Highlight text={p.n} query={query.trim()} />
+                <Highlight text={p.name} query={query.trim()} />
               </span>
               <span className="meta num">
-                {p.t}티어 · {p.e.toLocaleString()}
+                {p.tier}티어 · {p.elo.toLocaleString()}
               </span>
             </>
           ),
         })),
       })
-    if (cat === "all" || cat === "l")
+    const simple = (label: string, kind: "l" | "m", arr: { name: string; meta: string }[]) =>
       out.push({
-        label: "대회",
-        items: hit(index.leagues).map((l) => ({
-          kind: "l",
-          name: l.n,
+        label,
+        items: hit(arr).map((x) => ({
+          kind,
+          name: x.name,
           node: (
             <>
               <span>
-                <Highlight text={l.n} query={query.trim()} />
+                <Highlight text={x.name} query={query.trim()} />
               </span>
-              <span className="meta">{l.m}</span>
+              <span className="meta">{x.meta}</span>
             </>
           ),
         })),
       })
-    if (cat === "all" || cat === "m")
-      out.push({
-        label: "맵",
-        items: hit(index.maps).map((m) => ({
-          kind: "m",
-          name: m.n,
-          node: (
-            <>
-              <span>
-                <Highlight text={m.n} query={query.trim()} />
-              </span>
-              <span className="meta">{m.m}</span>
-            </>
-          ),
-        })),
-      })
+    if (cat === "all" || cat === "l") simple("대회", "l", index.leagues)
+    if (cat === "all" || cat === "m") simple("맵", "m", index.maps)
     return out.filter((g) => g.items.length)
   }, [query, cat, index])
 
@@ -258,7 +254,10 @@ export function HeroSearch({ index }: { index: SearchIndex }) {
                   </div>
                 ))
               ) : (
-                <div className="sg-empty">&apos;{query.trim()}&apos;에 대한 결과가 없습니다. 검색 범위를 &apos;전체&apos;로 바꿔보세요.</div>
+                <div className="sg-empty">
+                  &apos;{query.trim()}&apos;에 대한 결과가 없습니다.
+                  {EMPTY_HINT[cat] && <div className="note">{EMPTY_HINT[cat]}</div>}
+                </div>
               )}
             </div>
           )}

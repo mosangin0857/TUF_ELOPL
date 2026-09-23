@@ -17,7 +17,7 @@
 ## 구조
 ```
 app/
-  page.tsx            클랜하우스(대문) — 아직 예시 데이터 (lib/sample/home.ts)
+  page.tsx            클랜하우스(대문) — 검색(선수)만 실제 DB, 나머지 섹션은 TODO(빈 배열 → 빈 화면 안내)
   elo/                ELO 보드 영역   — page.tsx(대시보드)만 실제 DB 연결
   pl/                 프로리그 영역   — PL 담당자 작업 영역
   solo/               개인리그 영역
@@ -49,5 +49,17 @@ lib/supabase/server.ts  읽기 클라이언트 (anon 키)
 - 새 영역 탭 화면: `lib/nav.ts`에 탭 추가 → `app/[영역]/[slug]/page.tsx` 생성 (생성하면 Placeholder 대신 그 페이지가 뜸).
 - 문구는 한국어, 버튼은 동작을 그대로 (예: "전적 검색", "게시하기").
 
-## 환경변수
-`.env.example` 참고. `.env.local`은 절대 커밋하지 않는다.
+- 더미 · 예시 데이터를 코드에 넣지 않는다. 데이터가 없으면 `Empty` / `RailSection`의 empty 안내를 보여준다.
+  대문 섹션의 데이터 타입은 `lib/types.ts`(HomeNotice, UpcomingMatch, ClanBj, TeamStanding, TeamIntro, EloEntry).
+
+## 환경변수 · Supabase 키
+`.env.example` 참고. `.env.local`은 절대 커밋하지 않는다. Vercel에는 프로젝트 설정 > Environment Variables에 같은 값을 넣는다.
+
+| 변수 | 용도 | 노출 |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | 프로젝트 주소 | 브라우저에 공개돼도 됨 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 조회용 공개 키. RLS 정책의 적용을 받음 | 브라우저에 공개돼도 됨 |
+| `SUPABASE_SERVICE_ROLE_KEY` | 쓰기(서버 액션 전용). RLS를 무시하는 관리자 키 | **서버에서만**. `NEXT_PUBLIC_` 붙이지 말 것, 채팅 · 깃허브에 올리지 말 것 |
+
+- anon 키로 새 테이블을 조회하려면 그 테이블에 RLS `select` 정책이 있어야 한다 (RLS를 켜고 정책이 없으면 빈 결과).
+- 기존 TuFelo 운영 사이트와 같은 DB이므로 기존 테이블의 컬럼 · 정책 · RPC를 바꾸면 운영 사이트도 영향을 받는다.

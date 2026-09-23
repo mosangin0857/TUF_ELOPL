@@ -77,7 +77,7 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
             <div className="eyebrow">HEAD TO HEAD</div>
             <h2>선수 전적 검색</h2>
           </div>
-          <span className="sample-note">선수 1만 입력하면 그 선수의 전체 전적</span>
+          <span className="note">선수 1만 입력하면 그 선수의 전체 전적</span>
         </div>
         <form className="vsbox" action="/elo" method="get" role="search">
           <input className="field" name="p1" list="member-names" defaultValue={q1} placeholder="선수 1" aria-label="선수 1" autoComplete="off" />
@@ -118,7 +118,7 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
             <div className="eyebrow">RECENT</div>
             <h2>{title}</h2>
           </div>
-          <span className="sample-note">총 {list.total.toLocaleString()}경기</span>
+          <span className="note">총 {list.total.toLocaleString()}경기</span>
         </div>
         <MatchTable rows={list.rows} focusId={m1?.id} />
         <nav className="pager" aria-label="페이지">

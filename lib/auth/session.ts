@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { cache } from "react"
 import { cookies } from "next/headers"
 import { createServiceClient } from "@/lib/supabase/service"
-import type { Race, SessionUser, Tier } from "@/lib/types"
+import type { MemberRole, Race, SessionUser, Tier } from "@/lib/types"
 
 /**
  * 로그인 세션 — 서명된 httpOnly 쿠키 하나로 모든 페이지에서 같은 로그인 상태를 쓴다.
@@ -33,8 +33,22 @@ export type LoginRow = {
   pin_locked_until: string | null
 }
 
+/** DB 값이 예상 밖이면 일반 클랜원으로 본다 (docs/sql/002_admin_roles.sql 실행 전의 'admin'도 그대로 동작) */
+export function toMemberRole(value: string | null | undefined): MemberRole {
+  return value === "super" || value === "admin" ? value : "member"
+}
+
 export function toSessionUser(row: LoginRow): SessionUser {
-  return { id: row.id, name: row.name, race: row.race, tier: row.tier, isAdmin: row.role === "admin" }
+  const role = toMemberRole(row.role)
+  return {
+    id: row.id,
+    name: row.name,
+    race: row.race,
+    tier: row.tier,
+    role,
+    isAdmin: role === "admin" || role === "super",
+    isSuper: role === "super",
+  }
 }
 
 function secret(): string {

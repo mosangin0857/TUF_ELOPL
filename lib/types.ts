@@ -10,9 +10,22 @@ export interface Member {
   tier: Tier
 }
 
+/** members.role — member: 일반 클랜원 / admin: 관리자 / super: 최고 관리자(관리자 임명 · 해제) */
+export type MemberRole = "member" | "admin" | "super"
+
 /** 로그인한 클랜원 (닉네임 + PIN 로그인, members.pin_hash · members.role) */
 export interface SessionUser extends Member {
+  role: MemberRole
+  /** admin 또는 super */
   isAdmin: boolean
+  /** super */
+  isSuper: boolean
+}
+
+/** 관리자 설정 › 관리자 · 권한 목록 */
+export interface AdminMember extends Member {
+  role: Exclude<MemberRole, "member">
+  lastLoginAt: string | null
 }
 
 /** 클랜원 메뉴(관리자 전용 명단) — 전적 · ELO는 ELO 보드에서 다룬다 */
@@ -22,6 +35,8 @@ export interface RosterMember extends Member {
   joinedAt: string | null
   /** 편집 권한이 있을 때만 채워짐 (손님 계정은 undefined) */
   adminMemo?: string | null
+  /** 관리자 화면일 때만 채워짐 */
+  role?: MemberRole
 }
 
 export interface Season {

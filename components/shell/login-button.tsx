@@ -58,10 +58,10 @@ export function LoginButton() {
   if (user) {
     return (
       <>
-        <span className="side-user" title={user.isAdmin ? "관리자" : "클랜원"}>
+        <span className="side-user" title={user.isSuper ? "최고 관리자" : user.isAdmin ? "관리자" : "클랜원"}>
           <RaceBadge race={user.race} />
           <span className="side-user-name">{user.name}</span>
-          {user.isAdmin && <span className="nav-tag">ADMIN</span>}
+          {user.isAdmin && <span className="nav-tag">{user.isSuper ? "SUPER" : "ADMIN"}</span>}
         </span>
         <button type="button" className="side-btn icon" onClick={() => startAction(logout)} disabled={pending} aria-label="로그아웃" title="로그아웃">
           <LogOut strokeWidth={1.8} />

@@ -222,6 +222,9 @@ export function RosterTable({
                     <span className="p-cell">
                       {row.name}
                       {!row.isActive && <span className="pill">탈퇴</span>}
+                      {row.isActive && row.role && row.role !== "member" && (
+                        <span className={cn("role-pill", row.role)}>{row.role === "super" ? "최고 관리자" : "관리자"}</span>
+                      )}
                     </span>
                   </td>
                   <td>
@@ -370,6 +373,11 @@ export function RosterTable({
                   <b>{m.name}</b> 선수를 탈퇴 처리할까요?
                 </p>
                 <p className="text-ink-2">전적 기록은 그대로 남고, 랭킹 · 선수 검색 · 전적 등록 선수 목록에서만 빠져요. 나중에 명단의 &apos;탈퇴&apos; 목록에서 복귀시킬 수 있어요.</p>
+                {m.role && m.role !== "member" && (
+                  <p className="text-ink-2">
+                    이 선수의 <b>{m.role === "super" ? "최고 관리자" : "관리자"}</b> 권한도 함께 해제돼요. 복귀하면 일반 클랜원으로 돌아와요.
+                  </p>
+                )}
               </div>
             )}
 

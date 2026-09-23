@@ -94,7 +94,7 @@ id, admin_username, action, target, detail, created_at
 | pin_locked_until | timestamptz | Y | | 5회 실패 시 10분 잠금 |
 | session_version | integer | N | 0 | 올리면 그 선수의 기존 로그인이 전부 풀림 |
 | last_login_at | timestamptz | Y | | |
-| role | text | N | 'member' | `member` / `admin` (check 제약 `members_role_check`). **임시** 관리자 구분 — 최종 방식은 CLAUDE.md "관리자 구분 (임시)" |
+| role | text | N | 'member' | `member` / `admin` / `super` (check 제약 `members_role_check`, `docs/sql/002_admin_roles.sql`). 관리자 구분 확정 — CLAUDE.md "관리자 구분" |
 
 - members는 anon 전체 조회가 열려 있어 이 컬럼들도 anon으로 조회된다. PIN은 중요 정보로 취급하지 않기로 결정
 - 쓰기는 `app/auth/actions.ts`(로그인)에서만

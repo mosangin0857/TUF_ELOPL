@@ -8,6 +8,16 @@
 - 작업 브랜치: PL 담당은 `TUFPL_MSI`에서 작업 후 확정분만 `main`에 올린다. PL 작업 기록은 `docs/PL_WORKLOG.md`, DB 구조 정리는 `docs/DB_SCHEMA.md`.
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-23 · 관리자 구분 확정 — A 방식 `members.role` (클랜원 · 관리자 설정 담당)**
+- `members.role` = `member` · `admin` · `super` 3단계로 확정. `admins` 테이블은 새 사이트에서 쓰지 않는다 (기존 사이트 로그인용으로 그대로 둠).
+  - `super` 최고 관리자: 모든 관리 기능 + 관리자 임명 · 해제 / `admin` 관리자: 모든 관리 기능 (담당 영역 구분 **없음**, 필요해지면 추가)
+- **DB 변경 SQL: `docs/sql/002_admin_roles.sql`** (제약에 `super` 추가 + Beombu · Tyr를 `super`로). 실행 전에는 둘 다 `admin`으로 동작.
+- 관리자 설정 › 관리자 · 권한 화면 구현 (`app/admin/page.tsx`, `components/admin/admin-roles.tsx`, `app/admin/actions.ts`).
+- 권한 함수: `getAdminUser()` / `getMemberManager()`(admin · super) / `getSuperAdmin()`(super) / `isLastActiveSuper()` — `lib/permissions.ts`.
+- **마지막 최고 관리자 보호**: 활동 중인 `super`가 한 명뿐이면 그 사람은 강등 · 해제 · 탈퇴 불가 (서버에서 막고 화면 버튼도 비활성).
+- 탈퇴 처리하면 `role`도 `member`로 되돌린다 (복귀해도 일반 클랜원).
+- `SessionUser`에 `role` · `isSuper` 추가 (`isAdmin`은 admin 또는 super). 사이드바 태그 `SUPER` / `ADMIN`.
+
 **2026-09-23 · 가운데 정렬 수정 (PL 담당)**
 - 팝업(`.modal`)이 화면 왼쪽 위에 뜨던 문제: Tailwind preflight가 `margin: 0`으로 지워서 `<dialog>`의 기본 가운데 배치가 풀렸음 → `.modal { margin: auto }`. 클랜원 관리 팝업도 같이 고쳐짐.
 - 넓은 화면에서 본문이 왼쪽에 붙던 문제: `.content`에 `margin-inline: auto` 추가, 영역 헤더(`.area-head`) 안쪽도 같은 폭으로 가운데 정렬.
@@ -17,8 +27,7 @@
 - 사이드바 하단 "로그인" 링크(→ /admin)를 **닉네임 + PIN 로그인 팝업**으로 교체. 자세한 내용은 아래 "로그인 · 관리자 권한".
 - `members`에 컬럼 7개 추가: `pin_hash`, `pin_set_at`, `pin_failed_attempts`, `pin_locked_until`, `session_version`, `last_login_at`, `role`. 기존 컬럼 · 정책 · RPC는 그대로.
 - `lib/permissions.ts`의 `getMemberManager()`가 이제 실제 로그인을 본다 (`members.role = 'admin'`이면 `{ username: 닉네임 }`). `DEV_ADMIN_USERNAME` 스위치는 그대로 동작.
-- ⚠️ **`members.role`은 로그인 테스트용 임시 관리자 구분**이다. 최고 관리자 · 서브 관리자 설계(또는 기존 `admins` 테이블 사용)는
-  클랜원 · 관리자 설정 담당이 정한다 → 아래 **"관리자 구분 (임시)"**에 두 가지 방법과 바꿀 곳을 정리해 둠.
+- `members.role`은 처음에 임시 관리자 구분이었으나 → **2026-09-23에 A 방식으로 확정** (위 항목, 아래 "관리자 구분").
 - 관리자 설정(`/admin`) · 클랜원(`/members`)은 **관리자만** 볼 수 있게 바뀜: 사이드바 메뉴 숨김(`adminOnly`) + 서버에서 `AdminRequired` 안내. 쿠키를 읽으므로 이 두 경로는 동적 렌더링.
 - 새 환경변수 `AUTH_SECRET` (로컬 + Vercel). `SUPABASE_SERVICE_ROLE_KEY`도 이제 Vercel에 필요.
 - 셸에 `AuthProvider` 추가 — 클라이언트 컴포넌트에서 `useAuth()`로 로그인 상태(`user`)를 읽을 수 있다.
@@ -31,11 +40,13 @@
 | 클랜하우스(대문) | 화면 완료. 선수 검색만 실제 DB, 나머지 섹션은 빈 배열(TODO) | `app/page.tsx`, `components/home/` |
 | ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 최근 전적) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
+| 관리자 설정 › 관리자 · 권한 | **실제 DB** (관리자 목록 · 임명 · 권한 변경 · 해제, 마지막 최고 관리자 보호) | `app/admin/`, `components/admin/admin-roles.tsx`, `lib/data/admins.ts` |
 | 로그인 (닉네임 + PIN) | **구현** — 사이드바 하단 버튼, 모든 페이지 공통. `members`에 로그인 컬럼 추가(`docs/sql/001_members_login.sql`) | `app/auth/actions.ts`, `lib/auth/`, `components/shell/login-button.tsx` |
-| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 · 공지 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
+| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 나머지 탭(BJ · 사이트 설정 · 활동 로그) · 공지 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
 
 ### 다음에 할 일 (TODO)
 - [x] 로그인 → `getMemberManager()` 연결, 관리자 설정 · 클랜원 메뉴를 관리자 로그인 시에만 표시
+- [x] 관리자 구분 확정 (member · admin · super) + 관리자 · 권한 화면 — **`docs/sql/002_admin_roles.sql` 실행 필요**
 - [ ] 클랜원 추가 버튼 (티어 시작 ELO로 생성 — `lib/elo.ts`)
 - [ ] ELO 랭킹 · 전적 기록 · 위클리 베스트 · 데이터센터 탭 (기존 TuFelo 화면 이식)
 - [ ] 대문 섹션 연결: ELO TOP 8 · 이번 주 ELO 흐름(ELO) / 다가오는 경기 · 팀 순위 · 팀 소개(PL) / 공지 · 라이브 BJ
@@ -57,18 +68,22 @@ app/
   elo/page.tsx              ELO 대시보드 (실제 DB)
   members/page.tsx          클랜원 명단 (실제 DB)
   members/actions.ts        클랜원 서버 액션: 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제
+  admin/page.tsx            관리자 설정 › 관리자 · 권한 (실제 DB)
+  admin/actions.ts          관리자 임명 · 권한 변경 · 해제 (최고 관리자만)
   pl/  solo/  admin/        영역별 layout.tsx(영역 헤더+탭) + [tab]/page.tsx(Placeholder)
   notice/  schedule/        공통 메뉴 (Placeholder)
 components/shell/           사이드바 · 상단 바 · 영역 헤더
 components/home/            대문 섹션 (RailSection · useRail 가로 슬라이드, HeroSearch, LiveSection)
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
+components/admin/           관리자 · 권한 화면 (admin-roles.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError
 lib/nav.ts                  사이드바 메뉴 + 영역별 탭 (탭 추가는 여기서)
 lib/types.ts                데이터 타입 (대문 섹션 타입 포함)
 lib/data/                   DB 조회 함수
 app/auth/actions.ts         로그인 · 로그아웃 · 현재 로그인 확인 서버 액션
 lib/auth/                   PIN 해시(pin.ts) · 세션 쿠키 + getCurrentUser(session.ts)
-lib/permissions.ts          관리자 권한 확인 (getMemberManager)
+lib/permissions.ts          관리자 권한 확인 (getAdminUser · getMemberManager · getSuperAdmin · isLastActiveSuper)
+lib/data/admins.ts          관리자 목록 · 임명 후보 조회
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
 lib/supabase/service.ts     쓰기 · 관리자 조회용 클라이언트 (service_role 키, 서버 전용)
@@ -84,8 +99,8 @@ lib/elo.ts                  티어별 시작 ELO
 | `members` | 대시보드 · 검색(조회), 클랜원 메뉴(쓰기) | 쓰기는 `app/members/actions.ts`에서만. 컬럼 추가는 가능, 변경 · 삭제 금지 |
 | `matches` | 대시보드(조회), 완전 삭제 시 해당 선수 경기 삭제 | 구조 변경 금지 |
 | `seasons` | 대시보드 · 복귀 처리(조회) | |
-| `members` 로그인 컬럼 | `pin_hash` · `pin_set_at` · `pin_failed_attempts` · `pin_locked_until` · `session_version` · `last_login_at` · `role`(member · admin) | 새 사이트가 추가한 컬럼. 쓰기는 `app/auth/actions.ts`에서만. anon으로도 조회되므로 명단 조회에 이 컬럼을 넣지 말 것 |
-| `admins` | 기존 사이트 관리자 계정 (username, password_hash(bcrypt), role: admin · creator · guest) | 새 사이트는 지금 안 씀. 관리자 구분에 쓸지는 미정 — "관리자 구분 (임시)" 참고 |
+| `members` 로그인 컬럼 | `pin_hash` · `pin_set_at` · `pin_failed_attempts` · `pin_locked_until` · `session_version` · `last_login_at` · `role`(member · admin · super) | 새 사이트가 추가한 컬럼. 로그인 컬럼 쓰기는 `app/auth/actions.ts`, `role` 쓰기는 `app/admin/actions.ts`(임명 · 해제) · `app/members/actions.ts`(탈퇴 시 member로)에서만. anon으로도 조회되므로 명단 조회에 이 컬럼을 넣지 말 것 |
+| `admins` | 기존 사이트 관리자 계정 (username, password_hash(bcrypt), role: admin · creator · guest) | 새 사이트는 **안 씀** (관리자 구분은 `members.role`). 기존 사이트 폐쇄 전까지 삭제 금지 |
 | `admin_logs` | 모든 관리자 쓰기 작업 기록 (`insertAdminLog`) | 기존 사이트와 공유 |
 
 - **PL 영역** 새 테이블은 `pl_` 접두사 (예: `pl_seasons`, `pl_teams`, `pl_matches`), 개인리그는 `solo_`. 선수는 `members.id` 참조.
@@ -97,7 +112,7 @@ lib/elo.ts                  티어별 시작 ELO
 | 동작 | DB 변경 | 비고 |
 | --- | --- | --- |
 | 수정 | `name` · `race` · `tier` | 티어를 바꿔도 `elo`는 그대로 |
-| 탈퇴 | `is_active = false` | **전적 기록 보존**. 랭킹 · 검색 · 전적 등록 선수 목록에서 제외. "비활성"이라는 말은 쓰지 않고 "탈퇴"로 통일 |
+| 탈퇴 | `is_active = false`, `role = 'member'` | 마지막 최고 관리자는 탈퇴 불가. **전적 기록 보존**. 랭킹 · 검색 · 전적 등록 선수 목록에서 제외. "비활성"이라는 말은 쓰지 않고 "탈퇴"로 통일 |
 | 복귀 | `is_active = true` | 현재 시즌 경기가 없으면 `elo` = 티어 시작값, `wins/losses/streak` = 0 |
 | 완전 삭제(제명) | 해당 선수 `matches` 전부 삭제 → `members` 삭제 | 탈퇴 상태만 가능, 닉네임 입력 확인. 상대 ELO는 복구 안 됨. 되돌릴 수 없음 |
 
@@ -106,7 +121,7 @@ lib/elo.ts                  티어별 시작 ELO
 ## 로그인 · 관리자 권한
 - **로그인 방식 (TFPL4와 동일)**: `members`의 닉네임 + PIN(숫자 4~8자리). PIN이 없는 클랜원은 처음 입력한 PIN이 비밀번호로 저장된다.
   - PIN은 `members.pin_hash`에 scrypt 해시로만 저장 (`lib/auth/pin.ts`). 5회 틀리면 10분 잠금. 탈퇴(`is_active = false`) 클랜원은 로그인 불가.
-  - 관리자 여부는 **임시로** `members.role`로 본다 → 아래 "관리자 구분 (임시)" 참고.
+  - 관리자 여부는 `members.role`로 본다 → 아래 "관리자 구분" 참고.
   - `members`는 anon 전체 조회 정책이 있어서 PIN 해시도 anon으로 조회된다. PIN은 중요 정보로 취급하지 않기로 결정(운영진 합의).
   - 로그인 실패 · 성공 시 `members` 행이 업데이트되므로 `members.updated_at`이 바뀔 수 있다 (set_updated_at 트리거).
   - 세션은 `AUTH_SECRET`으로 서명한 httpOnly 쿠키 `tuf_session` (30일). 요청마다 DB를 다시 확인하므로 탈퇴 · 권한 변경 · PIN 초기화가 바로 반영된다.
@@ -114,29 +129,31 @@ lib/elo.ts                  티어별 시작 ELO
   - 셸이 루트 layout에 있어서 페이지를 옮겨도 로그인 상태가 유지된다. 일반 페이지는 정적으로 두고, 로그인 상태는 `AuthProvider`가 서버 액션으로 확인한다.
 - **PIN 초기화**: SQL Editor에서 `docs/sql/001_members_login.sql` 아래쪽의 운영용 쿼리 사용.
 
-### 관리자 구분 (임시) — 클랜원 · 관리자 설정 담당이 확정할 것
-PL 담당은 **로그인만** 만들었다. 최고 관리자 · 서브 관리자 임명/해제 같은 권한 설계는 관리자 설정(› 관리자 · 권한) · 클랜원 관리 쪽 담당이 정한다.
-로그인을 테스트하려면 관리자 구분이 필요해서, 그때까지 쓸 **임시 방식**만 넣어 두었다.
+### 관리자 구분 (확정: A 방식 `members.role`)
+| `members.role` | 이름 | 할 수 있는 것 |
+| --- | --- | --- |
+| `member` (기본값) | 일반 클랜원 | 로그인만. 관리 메뉴 안 보임 |
+| `admin` | 관리자 | 모든 관리 기능 (클랜원 관리, 관리자 설정 보기). **담당 영역 구분 없음** — 필요해지면 추가 |
+| `super` | 최고 관리자 | 관리자 기능 전부 + **관리자 임명 · 권한 변경 · 해제** |
 
-- **지금 방식**: `members.role` 컬럼 하나 (`'member'` 기본값 | `'admin'`, 제약 `members_role_check`).
-  - `'admin'`이면 모든 관리 기능 사용 가능. 최고 관리자 / 서브 관리자 구분은 **없다**.
-  - 현재 `'admin'`: Beombu, Tyr (SQL로 직접 지정: `update public.members set role = 'admin' where name in ('Beombu', 'Tyr');`)
-  - 판단 위치: `lib/auth/session.ts`의 `toSessionUser()` (`isAdmin: row.role === "admin"`) → `lib/permissions.ts`의 `getMemberManager()`
-- **확정할 때 선택지** (어느 쪽이든 화면 코드는 `getMemberManager()`만 보므로 그대로 둬도 된다)
-  - **A. `members.role`을 계속 쓴다** → role 값을 늘리고(예: 최고 관리자 / 영역별 서브 관리자) `members_role_check` 제약을 같이 바꾼 뒤,
-    `toSessionUser()` · `getMemberManager()`에서 새 값에 맞게 권한을 판단한다. 임명/해제 화면은 `members.role`을 업데이트하면 된다.
-  - **B. 기존 `admins` 테이블(admin · creator · guest)을 쓴다** → 아래 작업이 필요하다.
-    1. `members.role` 컬럼과 제약 삭제: `alter table public.members drop constraint members_role_check; alter table public.members drop column role;`
-    2. `admins`에는 `members`와 연결되는 값이 없다(username · password_hash만 있음). `admins.username = members.name`으로 맞추거나
-       `admins`에 `member_id` 컬럼을 추가해서 연결한다. `password_hash`가 NOT NULL이라 새 행을 넣을 때 값이 필요하다(PIN 로그인에서는 쓰지 않음).
-    3. Beombu · Tyr를 `admins`에 행으로 **삽입**한다.
-    4. `lib/auth/session.ts`의 `LOGIN_COLUMNS` · `LoginRow` · `toSessionUser()`에서 `role`을 빼고, `admins`를 조회해 권한을 정하도록 바꾼다.
-    5. 이 문서와 `docs/sql/001_members_login.sql`, `docs/DB_SCHEMA.md`의 `role` 설명을 지운다.
+- 제약 `members_role_check`: `role in ('member', 'admin', 'super')` — `docs/sql/002_admin_roles.sql`. 현재 `super`: Beombu, Tyr.
+- 기존 `admins` 테이블은 새 사이트에서 쓰지 않는다. 기존 사이트 로그인이 쓰므로 **기존 사이트 폐쇄 전까지 삭제 금지** (폐쇄 후 삭제해도 됨).
+  `admin_logs`는 `admins`와 연결이 없어 계속 쓴다 (새 기록은 클랜원 닉네임으로 남음).
+- 판단 흐름: `lib/auth/session.ts`의 `toMemberRole()` · `toSessionUser()` (`role`, `isAdmin` = admin|super, `isSuper`)
+  → `lib/permissions.ts`
+  - `getAdminUser()` — 로그인한 관리자 `{ memberId, username, role }` 또는 `null`
+  - `getMemberManager()` — admin · super (클랜원 메뉴, 관리자 설정 화면)
+  - `getSuperAdmin()` — super만 (관리자 임명 · 해제)
+  - `isLastActiveSuper(memberId)` — 활동 중인 최고 관리자가 이 사람뿐인지
+- **마지막 최고 관리자 보호**: 활동 중인 `super`가 1명뿐이면 그 사람은 강등(super→admin) · 해제(→member) · 탈퇴 처리 불가.
+  서버 액션(`app/admin/actions.ts`, `app/members/actions.ts`)에서 막고, 화면 버튼도 비활성. SQL로 직접 바꿀 때는 막히지 않으니 주의.
+- 탈퇴 처리 시 `role`을 `member`로 되돌린다 → 탈퇴한 사람은 로그인도 안 되고, 복귀해도 일반 클랜원.
+- 임명 · 해제는 관리자 설정 › 관리자 · 권한 화면에서. 모든 변경은 `admin_logs`에 "관리자 임명 / 관리자 권한 변경 / 관리자 해제"로 기록.
+- 나중에 영역별 담당을 추가하려면: `members`에 담당 영역 컬럼(예: `admin_scopes text[]`)을 추가하고 `lib/permissions.ts`에 영역 확인 함수를 더한다.
 
-- 권한이 필요한 곳은 모두 `lib/permissions.ts`의 `getMemberManager()`를 거친다. 관리자로 로그인했으면 `{ username: 닉네임 }`, 아니면 `null`.
-- 관리자 설정(`app/admin/layout.tsx`) · 클랜원(`app/members/page.tsx`)은 서버에서 권한을 확인해 관리자가 아니면 `AdminRequired` 안내를 보여준다. 사이드바 메뉴도 `adminOnly`로 숨긴다.
-- **로컬 개발용 스위치**: `.env.local`에 `DEV_ADMIN_USERNAME=이름`이 있으면 `npm run dev`에서만 관리자로 동작
-  (관리자 로그에 그 이름으로 기록). 배포(production)에서는 무시된다.
+- 관리자 설정(`app/admin/layout.tsx`) · 클랜원(`app/members/page.tsx`)은 서버에서 `getMemberManager()`로 확인해 관리자가 아니면 `AdminRequired` 안내를 보여준다. 사이드바 메뉴도 `adminOnly`로 숨긴다.
+- **로컬 개발용 스위치**: `.env.local`에 `DEV_ADMIN_USERNAME=이름`이 있으면 `npm run dev`에서만 **최고 관리자**로 동작
+  (관리자 로그에 그 이름으로 기록). 배포(production)에서는 무시된다. 로그인 자체를 테스트하려면 이 줄을 주석 처리할 것.
   ⚠️ 로컬에서 누른 버튼도 **실제 운영 DB**를 바꾼다.
 
 ## 환경변수

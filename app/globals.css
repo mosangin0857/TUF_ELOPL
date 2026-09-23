@@ -1990,6 +1990,88 @@
     cursor: default;
   }
 
+  /* ---------- 관리자 설정 › 관리자 · 권한 ---------- */
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+  }
+  .role-box {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    justify-items: start;
+    padding: 16px 20px;
+  }
+  .role-box + .role-box {
+    border-left: 1px solid var(--line);
+  }
+  .role-box p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .role-pill {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+  .role-pill.super {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: transparent;
+  }
+  .role-pill.admin {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+  .mini-btn {
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .mini-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .mini-btn.danger {
+    color: var(--up);
+    border-color: color-mix(in oklab, var(--up) 45%, transparent);
+  }
+  .mini-btn.danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--up) 10%, transparent);
+    color: var(--up);
+    border-color: var(--up);
+  }
+  .mini-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .appoint {
+    display: grid;
+    grid-template-columns: minmax(0, 320px) auto 1fr;
+    gap: 16px;
+    align-items: end;
+    padding: 4px 20px 20px;
+  }
+  .appoint-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
   /* ---------- ELO dashboard ---------- */
   .stat-row {
     display: grid;
@@ -2165,6 +2247,23 @@
 @media (max-width: 880px) {
   .app {
     grid-template-columns: 1fr;
+  }
+  .role-grid,
+  .appoint {
+    grid-template-columns: 1fr;
+  }
+  .role-box + .role-box {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .role-box {
+    padding: 14px;
+  }
+  .appoint {
+    padding: 4px 14px 16px;
+  }
+  .appoint-actions {
+    justify-content: stretch;
   }
   .side {
     position: fixed;

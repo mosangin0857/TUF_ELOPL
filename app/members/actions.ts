@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { insertAdminLog } from "@/lib/admin-log"
 import { ADMIN_MEMO_MAX_LEN } from "@/lib/data/members"
 import { TIER_STARTING_ELO } from "@/lib/elo"
-import { getMemberManager } from "@/lib/permissions"
+import { getMemberManager, isLastActiveSuper } from "@/lib/permissions"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { Race, Tier } from "@/lib/types"
 
@@ -85,8 +85,13 @@ export async function withdrawMemberAction(id: string): Promise<ActionResult> {
   const manager = await getMemberManager()
   if (!manager) return { ok: false, error: NO_PERMISSION }
 
+  if (await isLastActiveSuper(id)) {
+    return { ok: false, error: "마지막 최고 관리자는 탈퇴 처리할 수 없어요. 다른 클랜원을 최고 관리자로 먼저 지정해 주세요." }
+  }
+
   const name = await memberName(id)
-  const { error } = await createServiceClient().from("members").update({ is_active: false }).eq("id", id)
+  // 탈퇴하면 관리자 권한도 해제 (복귀해도 일반 클랜원으로 돌아옴)
+  const { error } = await createServiceClient().from("members").update({ is_active: false, role: "member" }).eq("id", id)
   if (error) return { ok: false, error: `탈퇴 처리하지 못했어요: ${error.message}` }
 
   await insertAdminLog(manager.username, "클랜원 탈퇴처리", name ?? id)

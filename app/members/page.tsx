@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { RosterTable } from "@/components/members/roster-table"
+import { AdminRequired } from "@/components/ui/admin-required"
 import { DbError } from "@/components/ui/db-error"
 import { ADMIN_MEMO_MAX_LEN, fetchRoster } from "@/lib/data/members"
 import { getMemberManager } from "@/lib/permissions"
@@ -20,6 +21,14 @@ const RACES: { key: Race; label: string }[] = [
 /** 클랜원 명단 관리 */
 export default async function MembersPage() {
   const editable = (await getMemberManager()) !== null
+  if (!editable) {
+    return (
+      <main className="content">
+        <PageHead readOnly={false} />
+        <AdminRequired />
+      </main>
+    )
+  }
 
   let members: RosterMember[]
   try {

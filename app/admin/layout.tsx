@@ -1,10 +1,13 @@
 import { AreaHeader } from "@/components/shell/area-header"
+import { AdminRequired } from "@/components/ui/admin-required"
+import { getMemberManager } from "@/lib/permissions"
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const manager = await getMemberManager()
   return (
     <>
       <AreaHeader areaKey="admin" />
-      <main className="content">{children}</main>
+      <main className="content">{manager ? children : <AdminRequired />}</main>
     </>
   )
 }

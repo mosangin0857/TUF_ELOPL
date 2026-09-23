@@ -10,6 +10,11 @@ export interface Member {
   tier: Tier
 }
 
+/** 로그인한 클랜원 (닉네임 + PIN 로그인, members.pin_hash · members.role) */
+export interface SessionUser extends Member {
+  isAdmin: boolean
+}
+
 /** 클랜원 메뉴(관리자 전용 명단) — 전적 · ELO는 ELO 보드에서 다룬다 */
 export interface RosterMember extends Member {
   isActive: boolean

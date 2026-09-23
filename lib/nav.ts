@@ -22,6 +22,8 @@ export interface NavItem {
   en: string
   icon: NavIcon
   tag?: string
+  /** 관리자로 로그인했을 때만 메뉴에 표시 (페이지 접근은 서버에서 따로 막음) */
+  adminOnly?: boolean
 }
 
 export interface AreaTab {
@@ -43,8 +45,8 @@ export const COMMON_NAV: NavItem[] = [
   { href: "/", ko: "클랜하우스", en: "CLANHOUSE", icon: "home" },
   { href: "/notice", ko: "공지 · 건의", en: "NOTICE", icon: "notice" },
   { href: "/schedule", ko: "일정", en: "SCHEDULE", icon: "schedule" },
-  { href: "/admin", ko: "관리자 설정", en: "ADMIN", icon: "admin" },
-  { href: "/members", ko: "클랜원", en: "MEMBERS", icon: "members" },
+  { href: "/admin", ko: "관리자 설정", en: "ADMIN", icon: "admin", adminOnly: true },
+  { href: "/members", ko: "클랜원", en: "MEMBERS", icon: "members", adminOnly: true },
 ]
 
 export const LEAGUE_NAV: NavItem[] = [

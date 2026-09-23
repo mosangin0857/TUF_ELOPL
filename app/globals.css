@@ -361,6 +361,34 @@
   .side-btn.icon {
     flex: 0 0 36px;
   }
+  .side-btn:disabled {
+    opacity: 0.6;
+  }
+  /* 로그인한 클랜원 표시 (사이드바 하단) */
+  .side-user {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--side-line);
+    color: var(--side-fg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .side-user-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .login-modal {
+    width: min(400px, calc(100vw - 32px));
+  }
 
   .main {
     min-width: 0;

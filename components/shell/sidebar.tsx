@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogIn } from "lucide-react"
 import { COMMON_NAV, EXTERNAL_LINKS, LEAGUE_NAV, isNavActive, type NavItem } from "@/lib/nav"
 import { cn } from "@/lib/utils"
+import { useAuth } from "./auth-provider"
+import { LoginButton } from "./login-button"
 import { NavIcon } from "./nav-icon"
 import { ThemeToggle } from "./theme-toggle"
 
@@ -24,6 +25,9 @@ function InternalItem({ item, pathname }: { item: NavItem; pathname: string }) {
 
 export function Sidebar({ open }: { open: boolean }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  // 메뉴 숨김은 보기 편의용. 실제 접근 제한은 각 페이지에서 서버가 확인한다
+  const commonNav = COMMON_NAV.filter((item) => !item.adminOnly || user?.isAdmin)
 
   return (
     <aside className={cn("side", open && "open")} aria-label="사이트 메뉴">
@@ -37,7 +41,7 @@ export function Sidebar({ open }: { open: boolean }) {
       </Link>
 
       <nav className="nav" aria-label="공통">
-        {COMMON_NAV.map((item) => (
+        {commonNav.map((item) => (
           <InternalItem key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
@@ -64,11 +68,7 @@ export function Sidebar({ open }: { open: boolean }) {
         {/* TODO: 현재 시즌 카드 (ELO 시즌 · 프로리그 시즌 연결 후) — CSS는 .season-card 에 준비됨 */}
         <div className="side-actions">
           <ThemeToggle />
-          {/* 로그인은 관리자 권한 설계 후 연결 */}
-          <Link href="/admin" className="side-btn">
-            <LogIn strokeWidth={1.8} />
-            로그인
-          </Link>
+          <LoginButton />
         </div>
       </div>
     </aside>

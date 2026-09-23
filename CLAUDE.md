@@ -8,6 +8,11 @@
 - 작업 브랜치: PL 담당은 `TUFPL_MSI`에서 작업 후 확정분만 `main`에 올린다. PL 작업 기록은 `docs/PL_WORKLOG.md`, DB 구조 정리는 `docs/DB_SCHEMA.md`.
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-23 · 가운데 정렬 수정 (PL 담당)**
+- 팝업(`.modal`)이 화면 왼쪽 위에 뜨던 문제: Tailwind preflight가 `margin: 0`으로 지워서 `<dialog>`의 기본 가운데 배치가 풀렸음 → `.modal { margin: auto }`. 클랜원 관리 팝업도 같이 고쳐짐.
+- 넓은 화면에서 본문이 왼쪽에 붙던 문제: `.content`에 `margin-inline: auto` 추가, 영역 헤더(`.area-head`) 안쪽도 같은 폭으로 가운데 정렬.
+  본문 최대 폭은 토큰 `--content-max`(1280px) 하나로 관리.
+
 **2026-09-23 · 로그인 추가 (PL 담당)**
 - 사이드바 하단 "로그인" 링크(→ /admin)를 **닉네임 + PIN 로그인 팝업**으로 교체. 자세한 내용은 아래 "로그인 · 관리자 권한".
 - `members`에 컬럼 7개 추가: `pin_hash`, `pin_set_at`, `pin_failed_attempts`, `pin_locked_until`, `session_version`, `last_login_at`, `role`. 기존 컬럼 · 정책 · RPC는 그대로.

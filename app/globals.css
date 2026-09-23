@@ -13,6 +13,9 @@
   --side-fg: #f3efe6;
   --side-muted: #a39d90;
 
+  /* 본문 최대 폭 (.content · .area-head 안쪽 폭, 가운데 정렬) */
+  --content-max: 1280px;
+
   /* 강조 */
   --accent: #b8891c;
   --accent-ink: #121110;
@@ -462,7 +465,8 @@
 
   /* area header + tabs */
   .area-head {
-    padding: 26px 32px 0;
+    /* 흰 배경은 가로 전체, 안쪽 제목 · 탭은 .content(최대 1280px, 가운데)와 같은 폭에 맞춘다 */
+    padding: 26px max(32px, calc((100% - var(--content-max)) / 2 + 32px)) 0;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
   }
@@ -530,8 +534,9 @@
     display: flex;
     flex-direction: column;
     gap: 22px;
-    max-width: 1280px;
+    max-width: var(--content-max);
     width: 100%;
+    margin-inline: auto;
   }
   .page-head h1 {
     margin: 2px 0 0;
@@ -1852,6 +1857,7 @@
 
   /* 팝업 (native dialog) */
   .modal {
+    margin: auto; /* Tailwind preflight가 margin을 0으로 지워서 화면 가운데 배치가 풀리는 것 복구 */
     width: min(560px, calc(100vw - 32px));
     border: 1px solid var(--line);
     border-radius: 14px;

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, FilePlus2, FileText, Lock, Pencil, RotateCcw, Trash2, X } from "lucide-react"
+import { AlertTriangle, FilePlus2, FileText, Lock, Pencil, RotateCcw, Trash2, UserPlus, X } from "lucide-react"
 import {
+  addMemberAction,
   countMemberMatchesAction,
   purgeMemberAction,
   reactivateMemberAction,
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils"
 
 type Sort = "tier" | "name" | "joined"
 type Status = "active" | "left" | "all"
-type DialogMode = "memo" | "edit" | "withdraw" | "restore" | "purge"
+type DialogMode = "add" | "memo" | "edit" | "withdraw" | "restore" | "purge"
 
 const SORT_LABEL: Record<Sort, string> = { tier: "티어순", name: "이름순", joined: "최근 가입순" }
 const RACE_LABEL: Record<Race, string> = { T: "테란", P: "프로토스", Z: "저그" }
@@ -67,16 +68,23 @@ export function RosterTable({
   const activeCount = members.filter((m) => m.isActive).length
   const leftCount = members.length - activeCount
 
-  /* ---------- 팝업 (메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) ---------- */
+  /* ---------- 팝업 (추가 · 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) ---------- */
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const [dialog, setDialog] = useState<{ mode: DialogMode; member: RosterMember } | null>(null)
+  const [dialog, setDialog] = useState<{ mode: DialogMode; member: RosterMember | null } | null>(null)
   const [memoDraft, setMemoDraft] = useState("")
   const [editDraft, setEditDraft] = useState<{ name: string; race: Race; tier: Tier }>({ name: "", race: "T", tier: 4 })
   const [purgeInfo, setPurgeInfo] = useState<{ matches: number | null; confirm: string }>({ matches: null, confirm: "" })
   const [error, setError] = useState<string | null>(null)
   const [pending, startAction] = useTransition()
 
-  const open = (mode: DialogMode, member: RosterMember) => {
+  const openAdd = () => {
+    setDialog({ mode: "add", member: null })
+    setError(null)
+    setEditDraft({ name: "", race: "T", tier: 4 })
+    dialogRef.current?.showModal()
+  }
+
+  const open = (mode: Exclude<DialogMode, "add">, member: RosterMember) => {
     setDialog({ mode, member })
     setError(null)
     if (mode === "memo") setMemoDraft(member.adminMemo ?? "")
@@ -109,6 +117,18 @@ export function RosterTable({
   const submit = () => {
     if (!dialog) return
     const { mode, member } = dialog
+    if (mode === "add") {
+      const draft = { ...editDraft, name: editDraft.name.trim() }
+      run(
+        () => addMemberAction(draft),
+        (list, created) => [
+          ...list,
+          { id: created.id, ...draft, isActive: true, usesLauncher: false, joinedAt: created.joinedAt, adminMemo: null, role: "member" },
+        ],
+      )
+      return
+    }
+    if (!member) return
     const patch = (fields: Partial<RosterMember>) => (list: RosterMember[]) =>
       list.map((m) => (m.id === member.id ? { ...m, ...fields } : m))
 
@@ -129,9 +149,15 @@ export function RosterTable({
           <div className="eyebrow">ROSTER</div>
           <h2>클랜원 명단</h2>
         </div>
-        <span className="note">
-          {rows.length.toLocaleString()}명 표시{canEdit ? " · 메모도 검색돼요" : ""}
-        </span>
+        <div className="head-tools">
+          <span className="note">
+            {rows.length.toLocaleString()}명 표시{canEdit ? " · 메모도 검색돼요" : ""}
+          </span>
+          <button type="button" className="btn" onClick={openAdd} disabled={!canEdit} title={canEdit ? undefined : LOCKED_TITLE}>
+            <UserPlus size={15} aria-hidden />
+            클랜원 추가
+          </button>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -284,7 +310,7 @@ export function RosterTable({
       )}
 
       <dialog ref={dialogRef} className="modal" aria-labelledby="modal-title" onClose={() => setDialog(null)}>
-        {dialog && m && (
+        {dialog && (m || dialog.mode === "add") && (
           <form
             method="dialog"
             onSubmit={(e) => {
@@ -297,6 +323,7 @@ export function RosterTable({
                 <h3 id="modal-title">
                   {
                     {
+                      add: "클랜원 추가",
                       memo: "관리자 메모",
                       edit: "클랜원 수정",
                       withdraw: "클랜 탈퇴 처리",
@@ -305,10 +332,12 @@ export function RosterTable({
                     }[dialog.mode]
                   }
                 </h3>
-                <p className="modal-sub">
-                  <RaceBadge race={m.race} />
-                  {m.name}
-                </p>
+                {m && (
+                  <p className="modal-sub">
+                    <RaceBadge race={m.race} />
+                    {m.name}
+                  </p>
+                )}
               </div>
               <button type="button" className="icon-btn" onClick={close} aria-label="닫기">
                 <X size={16} />
@@ -330,7 +359,7 @@ export function RosterTable({
               </>
             )}
 
-            {dialog.mode === "edit" && (
+            {(dialog.mode === "edit" || dialog.mode === "add") && (
               <div className="form-grid">
                 <label className="form-row">
                   <span>닉네임</span>
@@ -363,11 +392,15 @@ export function RosterTable({
                     ))}
                   </div>
                 </div>
-                <p className="note">티어를 바꿔도 현재 ELO 점수는 그대로예요.</p>
+                <p className="note">
+                  {dialog.mode === "add"
+                    ? `${editDraft.tier}티어 시작 ELO(${TIER_STARTING_ELO[editDraft.tier].toLocaleString()}점) · 0승 0패로 추가돼요. 탈퇴했던 클랜원이면 새로 추가하지 말고 복귀 처리해 주세요.`
+                    : "티어를 바꿔도 현재 ELO 점수는 그대로예요."}
+                </p>
               </div>
             )}
 
-            {dialog.mode === "withdraw" && (
+            {dialog.mode === "withdraw" && m && (
               <div className="confirm-text">
                 <p>
                   <b>{m.name}</b> 선수를 탈퇴 처리할까요?
@@ -381,7 +414,7 @@ export function RosterTable({
               </div>
             )}
 
-            {dialog.mode === "restore" && (
+            {dialog.mode === "restore" && m && (
               <div className="confirm-text">
                 <p>
                   <b>{m.name}</b> 선수를 클랜에 복귀시킬까요?
@@ -392,7 +425,7 @@ export function RosterTable({
               </div>
             )}
 
-            {dialog.mode === "purge" && (
+            {dialog.mode === "purge" && m && (
               <div className="confirm-text">
                 <p className="danger-line">
                   <AlertTriangle size={16} aria-hidden />
@@ -434,7 +467,7 @@ export function RosterTable({
                 >
                   {pending
                     ? "처리 중…"
-                    : { memo: "저장", edit: "저장", withdraw: "탈퇴 처리", restore: "복귀 처리", purge: "완전 삭제" }[dialog.mode]}
+                    : { add: "추가하기", memo: "저장", edit: "저장", withdraw: "탈퇴 처리", restore: "복귀 처리", purge: "완전 삭제" }[dialog.mode]}
                 </button>
               </div>
             </div>

@@ -1,6 +1,5 @@
 /** 아직 구현 전인 화면에 표시할 안내 (구현하면 해당 항목 삭제) */
 export const PLACEHOLDERS: Record<string, { title: string; body: string; items?: string[] }> = {
-  "elo/ranking": { title: "랭킹", body: "시즌별 ELO 랭킹. 기존 /ranking 화면을 옮겨올 자리입니다.", items: ["티어별 필터 · 선수 검색", "지난 시즌 최종 순위"] },
   "elo/data-center": {
     title: "데이터센터",
     body: "기존 /data-center 화면을 옮겨올 자리입니다.",
@@ -24,7 +23,6 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
 
   "admin/bj": { title: "BJ 관리", body: "클랜 BJ 이름과 SOOP 방송국 링크 등록. 대문 라이브 섹션에 표시됩니다." },
   "admin/site": { title: "사이트 설정", body: "사이트 정보, 대문 구성, 시즌, ELO 설정 등." },
-  "admin/logs": { title: "활동 로그", body: "관리자 작업 기록 (기존 admin_logs 테이블)." },
 
   notice: { title: "공지 · 건의", body: "게시판. 공지 작성 시 '대문 노출'을 켜면 클랜하우스에 최신순으로 표시됩니다." },
   schedule: { title: "일정", body: "월간 달력. 프로리그 · 클랜 행사 · ELO 일정을 한눈에." },

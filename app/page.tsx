@@ -6,13 +6,20 @@ import { RailSection } from "@/components/home/rail-section"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
-import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, UpcomingMatch } from "@/lib/types"
+import { EloTopCard } from "@/components/home/elo-top-card"
+import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
+import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** 대문은 5분마다 새로 만든다 (검색용 선수 목록) */
+/** 대문은 5분마다 새로 만든다 (검색용 선수 목록 · ELO TOP 8 · 지난 주 흐름) */
 export const revalidate = 300
 
 const DOW = "일월화수목금토"
+
+/** "2026-09-14" → "9/14" */
+function shortDate(ymd: string) {
+  return `${Number(ymd.slice(5, 7))}/${Number(ymd.slice(8, 10))}`
+}
 function mdDow(ymd: string) {
   const [y, m, d] = ymd.split("-").map(Number)
   return `${m}/${d}(${DOW[new Date(y, m - 1, d).getDay()]})`
@@ -27,7 +34,13 @@ async function loadSearchPlayers(): Promise<SearchIndex["players"]> {
 }
 
 export default async function ClanHousePage() {
-  const players = await loadSearchPlayers()
+  // DB 연결에 실패해도 대문은 그대로 보여주고 해당 섹션만 비운다
+  const [players, eloTopByTier, weekly] = await Promise.all([
+    loadSearchPlayers(),
+    fetchEloTopByTier(8).catch((): Record<Tier, EloEntry[]> => ({ 1: [], 2: [], 3: [], 4: [] })),
+    fetchLastWeekEloFlow(12).catch(() => ({ weekStart: "", weekEnd: "", entries: [] as EloEntry[] })),
+  ])
+  const eloWeekly = weekly.entries
 
   // TODO(공지): 공지 · 건의에서 '대문 노출'을 켠 공지, 최신순 최대 3개
   const notices: HomeNotice[] = []
@@ -38,9 +51,6 @@ export default async function ClanHousePage() {
   // TODO(PL): 프로리그 팀 순위 · 팀 소개
   const standings: TeamStanding[] = []
   const teams: TeamIntro[] = []
-  // TODO(ELO): ELO TOP 8 · 이번 주 ELO 변동
-  const eloTop: EloEntry[] = []
-  const eloWeekly: EloEntry[] = []
 
   return (
     <main className="content">
@@ -182,38 +192,14 @@ export default async function ClanHousePage() {
           )}
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="eyebrow">TOP 8</div>
-              <h2>ELO 랭킹</h2>
-            </div>
-            <Link className="more" href="/elo/ranking">
-              전체 →
-            </Link>
-          </div>
-          {eloTop.length ? (
-            eloTop.slice(0, 8).map((p, i) => (
-              <div key={p.name} className="rank-row">
-                <span className={cn("rk", i < 3 && "top")}>{i + 1}</span>
-                <RaceBadge race={p.race} />
-                <span className="rank-name">
-                  {p.name} <span className="tier">· {p.tier}티어</span>
-                </span>
-                <span className="rank-elo">{p.elo.toLocaleString()}</span>
-              </div>
-            ))
-          ) : (
-            <Empty hint="ELO 랭킹을 연결하면 표시돼요.">랭킹 준비 중이에요.</Empty>
-          )}
-        </section>
+        <EloTopCard byTier={eloTopByTier} />
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <div>
-            <div className="eyebrow">WEEKLY · ELO 변동</div>
-            <h2>이번 주 ELO 흐름</h2>
+            <div className="eyebrow">LAST WEEK · ELO 변동{weekly.weekStart && ` · ${shortDate(weekly.weekStart)}(월) ~ ${shortDate(weekly.weekEnd)}(일)`}</div>
+            <h2>지난 주 ELO 흐름</h2>
           </div>
           <Link className="more" href="/elo/weekly">
             위클리 베스트 →
@@ -239,7 +225,7 @@ export default async function ClanHousePage() {
             })}
           </div>
         ) : (
-          <Empty hint="주간 ELO 변동을 연결하면 표시돼요.">이번 주 데이터 준비 중이에요.</Empty>
+          <Empty hint="지난 주 월요일부터 일요일까지 치른 경기의 ELO 변동 합계를 보여줘요.">지난 주에 치른 경기가 없어요.</Empty>
         )}
       </section>
 

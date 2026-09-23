@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Search } from "lucide-react"
 import { DbError } from "@/components/ui/db-error"
+import { Pagination } from "@/components/ui/pagination"
 import { RaceBadge } from "@/components/ui/race"
 import {
   fetchDashboardStats,
@@ -23,15 +25,6 @@ function findMember(members: Member[], query: string): Member | null {
   const key = query.trim().toLowerCase()
   if (!key) return null
   return members.find((m) => m.name.toLowerCase() === key) ?? null
-}
-
-function pageHref(q1: string, q2: string, page: number) {
-  const params = new URLSearchParams()
-  if (q1) params.set("p1", q1)
-  if (q2) params.set("p2", q2)
-  if (page > 1) params.set("page", String(page))
-  const qs = params.toString()
-  return qs ? `/elo?${qs}` : "/elo"
 }
 
 export default async function EloDashboardPage({ searchParams }: { searchParams: SearchParams }) {
@@ -65,6 +58,11 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
   }
 
   const totalPages = Math.max(1, Math.ceil(list.total / PAGE_SIZE))
+  if (page > totalPages) {
+    const sp = new URLSearchParams({ ...(q1 ? { p1: q1 } : {}), ...(q2 ? { p2: q2 } : {}) })
+    if (totalPages > 1) sp.set("page", String(totalPages))
+    redirect(sp.size ? `/elo?${sp}` : "/elo")
+  }
   const title = m1 && m2 ? `${m1.name} vs ${m2.name} 맞대결` : m1 ? `${m1.name} 최근 전적` : "최근 전적"
 
   return (
@@ -121,19 +119,12 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
           <span className="note">총 {list.total.toLocaleString()}경기</span>
         </div>
         <MatchTable rows={list.rows} focusId={m1?.id} />
-        <nav className="pager" aria-label="페이지">
-          <span className="num">
-            {page} / {totalPages} 페이지
-          </span>
-          <div className="links">
-            <Link className="btn-ghost" href={pageHref(q1, q2, page - 1)} aria-disabled={page <= 1}>
-              이전
-            </Link>
-            <Link className="btn-ghost" href={pageHref(q1, q2, page + 1)} aria-disabled={page >= totalPages}>
-              다음
-            </Link>
-          </div>
-        </nav>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          basePath="/elo"
+          query={{ ...(q1 ? { p1: q1 } : {}), ...(q2 ? { p2: q2 } : {}) }}
+        />
       </section>
     </>
   )

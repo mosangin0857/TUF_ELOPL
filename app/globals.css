@@ -1990,6 +1990,75 @@
     cursor: default;
   }
 
+  /* 대문 ELO TOP 8 티어 탭 */
+  .card-tabs {
+    padding: 0 20px 12px;
+  }
+  a.rank-row {
+    color: var(--ink);
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  a.rank-row:hover {
+    background: var(--accent-soft);
+  }
+  a.rank-row:hover .rank-name {
+    color: var(--accent-text);
+  }
+
+  /* ---------- ELO 보드 › 랭킹 ---------- */
+  .rank-summary {
+    border-top: 1px solid var(--line);
+  }
+  .rank-summary .stat b .unit {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-3);
+    margin-left: 3px;
+  }
+  .rank-summary .stat em.p-cell {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .rank-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .rank-move {
+    font-family: var(--font-cond);
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 26px;
+    text-align: left;
+  }
+  .t td.rank-elo {
+    font-weight: 700;
+    font-size: 16.5px;
+  }
+
+  /* ---------- 관리자 설정 › 활동 로그 ---------- */
+  .pill.tone-danger {
+    color: var(--up);
+    border-color: color-mix(in oklab, var(--up) 40%, transparent);
+    background: color-mix(in oklab, var(--up) 8%, var(--surface));
+  }
+  .pill.tone-warn {
+    color: var(--ink);
+    border-color: var(--ink-3);
+  }
+  .pill.tone-gold {
+    color: var(--accent-text);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    background: var(--accent-soft);
+  }
+  .t td.log-detail {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* ---------- 관리자 설정 › 관리자 · 권한 ---------- */
   .role-grid {
     display: grid;
@@ -2214,6 +2283,62 @@
   .pager .links {
     display: flex;
     gap: 8px;
+  }
+  .page-list {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .page-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .page-btn.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .page-gap {
+    min-width: 28px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    text-align: center;
+    color: var(--ink-3);
+    font-weight: 700;
+  }
+  .page-gap:hover {
+    background: var(--surface-2);
+    color: var(--accent-text);
+  }
+  .page-input {
+    width: 76px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
+    text-align: center;
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
   }
   .pager a[aria-disabled="true"] {
     opacity: 0.4;

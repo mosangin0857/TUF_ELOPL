@@ -51,6 +51,57 @@ export async function saveMemberMemoAction(memberId: string, rawMemo: string): P
   return { ok: true, data: memo }
 }
 
+/** 추가: 새 클랜원을 티어 시작 ELO · 0승 0패로 생성 (기존 TuFelo addMemberAction 과 동일) */
+export async function addMemberAction(input: {
+  name: string
+  race: Race
+  tier: Tier
+}): Promise<ActionResult<{ id: string; joinedAt: string | null }>> {
+  const manager = await getMemberManager()
+  if (!manager) return { ok: false, error: NO_PERMISSION }
+
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "닉네임을 입력해 주세요." }
+  if (!RACES.includes(input.race) || !TIERS.includes(input.tier)) return { ok: false, error: "종족 또는 티어 값이 올바르지 않아요." }
+
+  const supabase = createServiceClient()
+
+  // 같은 닉네임이 탈퇴 상태로 남아 있으면 새로 만들지 않고 복귀를 안내 (전적 연결 유지)
+  const { data: existing } = await supabase.from("members").select("is_active").ilike("name", name).maybeSingle()
+  if (existing) {
+    return {
+      ok: false,
+      error: existing.is_active
+        ? `'${name}' 닉네임을 쓰는 클랜원이 이미 있어요.`
+        : `'${name}'은(는) 탈퇴한 클랜원으로 남아 있어요. 새로 추가하지 말고 '탈퇴' 목록에서 복귀 처리해 주세요.`,
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .insert({
+      name,
+      race: input.race,
+      tier: input.tier,
+      elo: TIER_STARTING_ELO[input.tier],
+      wins: 0,
+      losses: 0,
+      streak: 0,
+      is_active: true,
+    })
+    .select("id, created_at")
+    .single()
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: `'${name}' 닉네임을 쓰는 클랜원이 이미 있어요.` }
+    return { ok: false, error: `추가하지 못했어요: ${error.message}` }
+  }
+
+  await insertAdminLog(manager.username, "클랜원 추가", name, `race=${input.race} tier=${input.tier}`)
+  revalidateMemberPaths()
+  return { ok: true, data: { id: data.id as string, joinedAt: (data.created_at as string | null) ?? null } }
+}
+
 /** 수정: 닉네임 · 종족 · 티어 (ELO 점수는 그대로) */
 export async function updateMemberAction(input: {
   id: string

@@ -100,6 +100,28 @@ export interface TeamIntro {
   honor: string
 }
 
+/** ELO 보드 › 랭킹 (현재 시즌) */
+export interface RankingEntry extends Member {
+  elo: number
+  wins: number
+  losses: number
+  /** +면 연승, -면 연패 */
+  streak: number
+  /** 이번 시즌 최근 5경기 ELO 변동 합계 */
+  recentChange: number
+  /** 오늘(서울) ELO 변동 합계 — 순위 변동 계산용 */
+  todayChange: number
+}
+
+/** ELO 보드 › 랭킹 (지난 시즌 최종 순위 스냅샷, season_rankings) */
+export interface SeasonSnapshotEntry extends Member {
+  elo: number
+  wins: number
+  losses: number
+  /** 시즌 종료 시 전체 순위 */
+  rank: number
+}
+
 /** ELO TOP 8 · 주간 흐름 */
 export interface EloEntry {
   name: string

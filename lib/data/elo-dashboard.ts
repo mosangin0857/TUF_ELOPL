@@ -7,6 +7,9 @@ import type { MatchRow, Member, Race, Season, Tier } from "@/lib/types"
  * 기존 TuFelo 테이블(members, matches, seasons)을 조회만 한다.
  */
 
+/** PostgREST: 요청한 범위가 전체 개수를 넘음 (없는 페이지 번호) */
+export const OUT_OF_RANGE = "PGRST103"
+
 const MATCH_COLUMNS =
   "id, player1_id, player2_id, winner_id, map_name, played_date, played_at, match_type, player1_elo_delta, player2_elo_delta"
 
@@ -121,8 +124,8 @@ export async function fetchMatches(opts: {
   const supabase = createReadClient()
   const from = (opts.page - 1) * opts.pageSize
 
-  let query = supabase.from("matches").select(MATCH_COLUMNS, { count: "exact" })
   const filter = playerFilter(opts.p1Id, opts.p2Id)
+  let query = supabase.from("matches").select(MATCH_COLUMNS, { count: "exact" })
   if (filter) query = query.or(filter)
 
   const { data, count, error } = await query
@@ -131,6 +134,13 @@ export async function fetchMatches(opts: {
     .order("created_at", { ascending: false })
     .range(from, from + opts.pageSize - 1)
 
+  if (error?.code === OUT_OF_RANGE) {
+    // 마지막 페이지를 넘는 번호 → 빈 목록과 전체 개수만 돌려주고 화면에서 마지막 페이지로 보낸다
+    let countQuery = supabase.from("matches").select("id", { count: "exact", head: true })
+    if (filter) countQuery = countQuery.or(filter)
+    const { count: total } = await countQuery
+    return { rows: [], total: total ?? 0 }
+  }
   if (error) throw new Error(`matches 조회 실패: ${error.message}`)
 
   const byId = new Map(opts.members.map((m) => [m.id, m]))

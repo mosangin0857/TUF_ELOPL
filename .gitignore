@@ -1,0 +1,17 @@
+# dependencies
+node_modules
+
+# next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env — 키는 절대 커밋하지 않기 (.env.example만 커밋)
+.env
+.env*.local
+
+# misc
+.DS_Store
+.vercel
+npm-debug.log*

@@ -1990,6 +1990,244 @@
     cursor: default;
   }
 
+  /* ---------- 공지 · 건의 ---------- */
+  .board-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .board-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .compose {
+    padding: 4px 20px 20px;
+    display: grid;
+    gap: 14px;
+  }
+  .compose .field {
+    width: 100%;
+  }
+  .compose-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .compose-actions .form-error {
+    margin-right: auto;
+  }
+  .expose-set {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    cursor: pointer;
+  }
+  .expose-set .txt b {
+    display: block;
+    font-size: 13.5px;
+  }
+  .expose-set .txt span {
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .expose-set .sw-input {
+    margin-left: auto;
+  }
+  .sw-input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ink-3) 45%, transparent);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex: none;
+    margin: 0;
+  }
+  .sw-input::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s;
+  }
+  .sw-input:checked {
+    background: var(--accent);
+  }
+  .sw-input:checked::after {
+    transform: translateX(16px);
+  }
+  .sw-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .post {
+    border-top: 1px solid var(--line);
+  }
+  .post.open {
+    background: color-mix(in oklab, var(--surface-2) 50%, var(--surface));
+  }
+  .post-row {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 13px 20px;
+  }
+  .type-pill {
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 0;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .type-pill.notice {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .type-pill.suggestion {
+    background: color-mix(in oklab, var(--down) 12%, var(--surface));
+    color: var(--down);
+    border: 1px solid color-mix(in oklab, var(--down) 30%, transparent);
+  }
+  .post-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    border: 0;
+    background: none;
+    padding: 0;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .post-title .t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .post-title:hover .t {
+    color: var(--accent-text);
+  }
+  .post-title .cat {
+    flex: none;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .badge-home,
+  .badge-reply {
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+  .badge-home {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  .badge-reply {
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+  }
+  .post-meta {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .expose {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .post-body {
+    padding: 0 20px 18px 86px;
+    display: grid;
+    gap: 12px;
+  }
+  .post-text {
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+  .post-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .replies {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .reply {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 10px 10px 0;
+    padding: 10px 14px;
+    display: grid;
+    gap: 6px;
+  }
+  .reply-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .reply-tools {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 6px;
+  }
+  .reply-form {
+    display: grid;
+    gap: 8px;
+  }
+  .reply-form textarea.field {
+    height: auto;
+    min-height: 72px;
+    padding: 8px 12px;
+    resize: vertical;
+  }
+  .reply-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .reply-actions .note {
+    margin-right: auto;
+  }
+
   /* 대문 ELO TOP 8 티어 탭 */
   .card-tabs {
     padding: 0 20px 12px;
@@ -2372,6 +2610,22 @@
 @media (max-width: 880px) {
   .app {
     grid-template-columns: 1fr;
+  }
+  .post-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 12px 14px;
+    row-gap: 6px;
+  }
+  .post-meta,
+  .expose {
+    grid-column: 2;
+    text-align: left;
+  }
+  .post-body {
+    padding: 0 14px 16px;
+  }
+  .compose {
+    padding: 4px 14px 16px;
   }
   .role-grid,
   .appoint {

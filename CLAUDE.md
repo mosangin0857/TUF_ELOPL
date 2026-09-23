@@ -5,9 +5,19 @@
 - 배포: https://tufelopl.vercel.app (Vercel, `main` 푸시 시 자동 배포)
 - 기존 TuFelo 사이트는 새 사이트 운영 후 **폐쇄 예정** → 기존 사이트 코드는 수정하지 않는다.
 - 공개 전(몇 주)까지는 운영진 둘만 보는 개발 단계.
-- 작업 브랜치: PL 담당은 `TUFPL_MSI`에서 작업 후 확정분만 `main`에 올린다. PL 작업 기록은 `docs/PL_WORKLOG.md`, DB 구조 정리는 `docs/DB_SCHEMA.md`.
+- 작업 브랜치: 담당별 브랜치에서 작업하고 확정분만 `main`에 올린다 (`main` 푸시 = 배포).
+  - PL(프로리그) 담당: `TUFPL_MSI` — 작업 기록 `docs/PL_WORKLOG.md`
+  - ELO 보드 담당: `TUFELO_KDY`
+  - 공통 메뉴(클랜하우스 · 공지 · 일정 · 관리자 설정 등) 남은 작업은 PL 담당이 이어서 진행
+  - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-24 · 공지 · 건의 게시판 (공통 메뉴)**
+- **DB 변경 SQL: `docs/sql/003_notices.sql`** — 새 테이블 `notices`(공지) + 기존 `suggestions`에 `member_id` 컬럼 추가. 기존 `site_notice`는 그대로 둠(옮기지 않음).
+- 공지: 관리자만 작성 · 수정 · 삭제, '대문 노출' 스위치 → 클랜하우스 공지 줄에 최신순 최대 3개 (`fetchHomeNotices`).
+- 건의: 기존 `suggestions` · `suggestion_replies` 그대로 사용 → 기존 사이트 건의 · 답변이 이어짐. **로그인한 클랜원만** 작성(닉네임 자동), 관리자 답변, 삭제는 관리자 또는 본인.
+- 화면 `app/notice/page.tsx` · `components/notice/board.tsx`, 액션 `app/notice/actions.ts`, 조회 `lib/data/board.ts`. 공지 + 건의를 최신순으로 합쳐 20개씩(탭: 전체 · 공지 · 건의).
+
 **2026-09-24 · 클랜원 추가 · 활동 로그 · ELO 랭킹 · 대문 ELO 섹션 (클랜원 · ELO 담당)**
 - 클랜원 추가 버튼: 티어 시작 ELO · 0승 0패로 생성. 같은 닉네임이 탈퇴 상태로 있으면 새로 만들지 않고 복귀를 안내 (전적 연결 유지).
 - 관리자 설정 › 활동 로그 (`app/admin/logs/page.tsx`): `admin_logs` 최신순 50개씩, 관리자 · 검색어 필터, 페이지 번호. 기존 ELO 보드 기록도 함께 보임.
@@ -48,14 +58,15 @@
 | 화면 | 상태 | 파일 |
 | --- | --- | --- |
 | 레이아웃 (사이드바 · 상단 바 · 영역 탭 · 라이트/다크) | 완료 | `components/shell/`, `lib/nav.ts` |
-| 클랜하우스(대문) | 화면 완료. 선수 검색 · ELO TOP 8(티어별) · 지난 주 ELO 흐름은 실제 DB, 나머지 섹션은 빈 배열(TODO) | `app/page.tsx`, `components/home/` |
+| 클랜하우스(대문) | 화면 완료. 선수 검색 · 공지 · ELO TOP 8(티어별) · 지난 주 ELO 흐름은 실제 DB, 나머지 섹션은 빈 배열(TODO) | `app/page.tsx`, `components/home/` |
 | ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 최근 전적) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
 | 관리자 설정 › 활동 로그 | **실제 DB** (`admin_logs`) | `app/admin/logs/`, `lib/data/admin-logs.ts` |
+| 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
 | 관리자 설정 › 관리자 · 권한 | **실제 DB** (관리자 목록 · 임명 · 권한 변경 · 해제, 마지막 최고 관리자 보호) | `app/admin/`, `components/admin/admin-roles.tsx`, `lib/data/admins.ts` |
 | 로그인 (닉네임 + PIN) | **구현** — 사이드바 하단 버튼, 모든 페이지 공통. `members`에 로그인 컬럼 추가(`docs/sql/001_members_login.sql`) | `app/auth/actions.ts`, `lib/auth/`, `components/shell/login-button.tsx` |
-| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 나머지 탭(BJ · 사이트 설정) · 공지 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
+| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 나머지 탭(BJ · 사이트 설정) · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
 
 ### 다음에 할 일 (TODO)
 - [x] 로그인 → `getMemberManager()` 연결, 관리자 설정 · 클랜원 메뉴를 관리자 로그인 시에만 표시
@@ -64,7 +75,8 @@
 - [x] 관리자 설정 › 활동 로그
 - [x] ELO 랭킹 탭 · 대문 ELO TOP 8(티어별) · 지난 주 ELO 흐름
 - [ ] ELO 전적 기록 · 위클리 베스트 · 데이터센터 탭 (기존 TuFelo 화면 이식)
-- [ ] 대문 섹션 연결: 다가오는 경기 · 팀 순위 · 팀 소개(PL) / 공지 · 라이브 BJ
+- [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
+- [ ] 대문 섹션 연결: 다가오는 경기 · 팀 순위 · 팀 소개(PL) / 라이브 BJ
 - [ ] 프로리그 테이블 설계 (`pl_` 접두사, 동료)
 - [ ] 코드에서 `TODO(` 로 검색하면 연결 지점이 나온다
 
@@ -88,12 +100,15 @@ app/
   admin/actions.ts          관리자 임명 · 권한 변경 · 해제 (최고 관리자만)
   admin/logs/page.tsx       관리자 설정 › 활동 로그 (admin_logs)
   pl/  solo/  admin/        영역별 layout.tsx(영역 헤더+탭) + [tab]/page.tsx(Placeholder)
-  notice/  schedule/        공통 메뉴 (Placeholder)
+  notice/page.tsx           공지 · 건의 게시판 (실제 DB)
+  notice/actions.ts         공지 작성 · 수정 · 삭제 · 대문 노출 / 건의 작성 · 삭제 / 답변
+  schedule/                 공통 메뉴 (Placeholder)
 components/shell/           사이드바 · 상단 바 · 영역 헤더
 components/home/            대문 섹션 (RailSection · useRail 가로 슬라이드, HeroSearch, LiveSection, EloTopCard)
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx)
 components/elo/             ELO 랭킹 화면 (ranking-board.tsx)
+components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
 lib/nav.ts                  사이드바 메뉴 + 영역별 탭 (탭 추가는 여기서)
 lib/types.ts                데이터 타입 (대문 섹션 타입 포함)
@@ -103,6 +118,7 @@ lib/auth/                   PIN 해시(pin.ts) · 세션 쿠키 + getCurrentUser
 lib/permissions.ts          관리자 권한 확인 (getAdminUser · getMemberManager · getSuperAdmin · isLastActiveSuper)
 lib/data/admins.ts          관리자 목록 · 임명 후보 조회
 lib/data/admin-logs.ts      활동 로그 조회
+lib/data/board.ts           공지 · 건의 조회 (게시판 · 대문 공지)
 lib/data/elo-ranking.ts     ELO 랭킹 · 지난 시즌 스냅샷 · 대문 TOP 8(티어별) · 지난 주 흐름 (fetchAll: 1,000행 넘게 나눠 조회)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
@@ -122,6 +138,8 @@ lib/elo.ts                  티어별 시작 ELO
 | `members` 로그인 컬럼 | `pin_hash` · `pin_set_at` · `pin_failed_attempts` · `pin_locked_until` · `session_version` · `last_login_at` · `role`(member · admin · super) | 새 사이트가 추가한 컬럼. 로그인 컬럼 쓰기는 `app/auth/actions.ts`, `role` 쓰기는 `app/admin/actions.ts`(임명 · 해제) · `app/members/actions.ts`(탈퇴 시 member로)에서만. anon으로도 조회되므로 명단 조회에 이 컬럼을 넣지 말 것 |
 | `admins` | 기존 사이트 관리자 계정 (username, password_hash(bcrypt), role: admin · creator · guest) | 새 사이트는 **안 씀** (관리자 구분은 `members.role`). 기존 사이트 폐쇄 전까지 삭제 금지 |
 | `admin_logs` | 모든 관리자 쓰기 작업 기록 (`insertAdminLog`), 활동 로그 화면(조회) | 기존 사이트와 공유 |
+| `notices` | 공지 (새 테이블, `003_notices.sql`) | 쓰기는 `app/notice/actions.ts`에서만. anon 조회 정책 있음 |
+| `suggestions` · `suggestion_replies` | 건의 · 관리자 답변 (기존 테이블) | 기존 사이트와 공유. 새 사이트 글은 `suggestions.member_id`로 작성자 연결 |
 | `season_rankings` | ELO 랭킹의 지난 시즌 최종 순위(조회) | 기존 사이트가 시즌 종료 시 저장 |
 
 - **PL 영역** 새 테이블은 `pl_` 접두사 (예: `pl_seasons`, `pl_teams`, `pl_matches`), 개인리그는 `solo_`. 선수는 `members.id` 참조.

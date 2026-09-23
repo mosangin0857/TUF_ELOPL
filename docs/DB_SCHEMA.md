@@ -99,6 +99,24 @@ id, admin_username, action, target, detail, created_at
 - members는 anon 전체 조회가 열려 있어 이 컬럼들도 anon으로 조회된다. PIN은 중요 정보로 취급하지 않기로 결정
 - 쓰기는 `app/auth/actions.ts`(로그인)에서만
 
+### notices — 공지 (추가: `docs/sql/003_notices.sql`)
+| 컬럼 | 타입 | null | 기본값 | 비고 |
+|---|---|---|---|---|
+| id | uuid | N | gen_random_uuid() | PK |
+| title | text | N | | 1~100자 |
+| body | text | N | '' | 5,000자 이내 |
+| show_on_home | boolean | N | false | 클랜하우스 대문 공지 줄에 표시 (최신순 최대 3개) |
+| author_member_id | uuid | Y | | → members.id (on delete set null) |
+| author_name | text | N | | 작성 당시 닉네임 |
+| created_at / updated_at | timestamptz | N | now() | |
+
+- RLS: 조회는 누구나(`notices_select_all`), 쓰기는 서버(service_role)에서만 — `app/notice/actions.ts`
+
+### suggestions 추가 컬럼 (`docs/sql/003_notices.sql`)
+| 컬럼 | 타입 | null | 비고 |
+|---|---|---|---|
+| member_id | uuid | Y | → members.id. 새 사이트에서 로그인해 쓴 건의만 채워짐 (기존 사이트 글은 null) |
+
 ## 기타
 
 | 테이블 | 컬럼 | 용도 |

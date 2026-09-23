@@ -7,11 +7,12 @@ import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
 import { EloTopCard } from "@/components/home/elo-top-card"
+import { fetchHomeNotices } from "@/lib/data/board"
 import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
 import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** 대문은 5분마다 새로 만든다 (검색용 선수 목록 · ELO TOP 8 · 지난 주 흐름) */
+/** 대문은 5분마다 새로 만든다 (검색용 선수 목록 · 공지 · ELO TOP 8 · 지난 주 흐름) */
 export const revalidate = 300
 
 const DOW = "일월화수목금토"
@@ -35,15 +36,14 @@ async function loadSearchPlayers(): Promise<SearchIndex["players"]> {
 
 export default async function ClanHousePage() {
   // DB 연결에 실패해도 대문은 그대로 보여주고 해당 섹션만 비운다
-  const [players, eloTopByTier, weekly] = await Promise.all([
+  const [players, eloTopByTier, weekly, notices] = await Promise.all([
     loadSearchPlayers(),
     fetchEloTopByTier(8).catch((): Record<Tier, EloEntry[]> => ({ 1: [], 2: [], 3: [], 4: [] })),
     fetchLastWeekEloFlow(12).catch(() => ({ weekStart: "", weekEnd: "", entries: [] as EloEntry[] })),
+    fetchHomeNotices(3).catch((): HomeNotice[] => []),
   ])
   const eloWeekly = weekly.entries
 
-  // TODO(공지): 공지 · 건의에서 '대문 노출'을 켠 공지, 최신순 최대 3개
-  const notices: HomeNotice[] = []
   // TODO(PL): 프로리그 다가오는 경기 (최대 8개)
   const upcoming: UpcomingMatch[] = []
   // TODO(관리자 · BJ): 등록된 클랜 BJ + SOOP 방송 상태
@@ -59,7 +59,7 @@ export default async function ClanHousePage() {
       <div className="notice-list">
         {notices.length ? (
           notices.map((n) => (
-            <Link key={n.id} className="notice" href="/notice">
+            <Link key={n.id} className="notice" href={`/notice?open=${n.id}#post-${n.id}`}>
               <span className="n-tag">
                 <Bell strokeWidth={1.8} aria-hidden />
                 공지

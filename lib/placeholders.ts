@@ -24,6 +24,5 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
   "admin/bj": { title: "BJ 관리", body: "클랜 BJ 이름과 SOOP 방송국 링크 등록. 대문 라이브 섹션에 표시됩니다." },
   "admin/site": { title: "사이트 설정", body: "사이트 정보, 대문 구성, 시즌, ELO 설정 등." },
 
-  notice: { title: "공지 · 건의", body: "게시판. 공지 작성 시 '대문 노출'을 켜면 클랜하우스에 최신순으로 표시됩니다." },
   schedule: { title: "일정", body: "월간 달력. 프로리그 · 클랜 행사 · ELO 일정을 한눈에." },
 }

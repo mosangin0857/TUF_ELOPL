@@ -117,6 +117,20 @@ id, admin_username, action, target, detail, created_at
 |---|---|---|---|
 | member_id | uuid | Y | → members.id. 새 사이트에서 로그인해 쓴 건의만 채워짐 (기존 사이트 글은 null) |
 
+### clan_bjs — 클랜 BJ (추가: `docs/sql/004_clan_bjs.sql`)
+| 컬럼 | 타입 | null | 기본값 | 비고 |
+|---|---|---|---|---|
+| id | uuid | N | gen_random_uuid() | PK |
+| name | text | N | | 화면에 보일 BJ 이름 (1~30자) |
+| soop_id | text | N | | SOOP 방송국 아이디, UNIQUE, 소문자 (`ch.sooplive.co.kr/<soop_id>`) |
+| sort_order | integer | N | 0 | 작을수록 앞 |
+| is_visible | boolean | N | true | 끄면 대문에서 숨김 |
+| created_at / updated_at | timestamptz | N | now() | |
+
+- RLS: 조회는 누구나(`clan_bjs_select_all`), 쓰기는 서버(service_role)에서만 — `app/admin/bj/actions.ts`
+- 방송 중 여부 · 제목 · 시청자 · 썸네일은 저장하지 않음 → SOOP Open API (`lib/soop.ts`)
+- 클랜원(`members`)과 연결하지 않음 (이름 + 링크만)
+
 ## 기타
 
 | 테이블 | 컬럼 | 용도 |

@@ -69,12 +69,26 @@ export interface UpcomingMatch {
 export interface ClanBj {
   id: string
   name: string
+  /** 방송국 주소 */
   url: string
+  /** 생방송 시청 주소 (방송 중일 때) */
+  watchUrl?: string
   logoUrl?: string
   live: boolean
   title?: string
   viewers?: number
   startedAt?: string
+  /** 방송 썸네일 (방송 중일 때) */
+  thumbUrl?: string
+}
+
+/** 관리자 설정 > BJ 관리 목록 (clan_bjs, docs/sql/004_clan_bjs.sql) */
+export interface ClanBjEntry {
+  id: string
+  name: string
+  soopId: string
+  sortOrder: number
+  isVisible: boolean
 }
 
 /** 프로리그 팀 순위. form은 최근 5경기, 왼쪽이 오래된 경기 */

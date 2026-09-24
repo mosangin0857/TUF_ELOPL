@@ -12,6 +12,17 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-24 · 관리자 설정 › BJ 관리 + 대문 라이브 연결 (PL 담당)**
+- **DB 변경 SQL: `docs/sql/004_clan_bjs.sql`** — 새 테이블 `clan_bjs`(이름 · SOOP 아이디 · 순서 · 대문 노출). 공통 기능이라 접두사 없음. anon 조회 정책 있음, 쓰기는 서버에서만.
+- 화면 `app/admin/bj/page.tsx` · `components/admin/bj-manager.tsx`, 액션 `app/admin/bj/actions.ts`(등록 · 수정 · 삭제 · 순서 · 대문 노출, 관리자만, 모두 `admin_logs` 기록), 조회 `lib/data/bjs.ts`.
+- 방송 중 여부 · 제목 · 시청자 · 시작 시간 · 썸네일은 DB에 저장하지 않고 **SOOP 공식 Open API**(`lib/soop.ts`)에서 받는다.
+  - SOOP Developers 애플리케이션 "TuF Clan"(PL 담당 계정에서 등록)으로 발급한 `SOOP_CLIENT_ID` 사용. 방송 리스트(Public) API만 씀.
+  - SOOP 부담을 줄이려고 **스타크래프트 카테고리(`00040001`)만** 조회 (보통 1~2페이지) + fetch 캐시 2분 + 대문 revalidate 5분.
+    → 클랜 BJ가 다른 카테고리로 방송하면 '오프라인'으로 보인다 (알려진 한계).
+  - SOOP 응답 실패 · 키 없음이면 모두 '오프라인'으로 표시하고 대문은 그대로 동작.
+- 대문 `LiveSection`: 방송 중이면 실제 썸네일(`thumbUrl`) · 시청 링크(`watchUrl`), 프로필 이미지가 없으면 이름 첫 글자로 대체.
+- 새 환경변수 `SOOP_CLIENT_ID`(필수) · `SOOP_CLIENT_SECRET`(지금은 안 씀, 보관용) — 로컬 + Vercel.
+
 **2026-09-24 · 공지 · 건의 게시판 (공통 메뉴)**
 - **DB 변경 SQL: `docs/sql/003_notices.sql`** — 새 테이블 `notices`(공지) + 기존 `suggestions`에 `member_id` 컬럼 추가. 기존 `site_notice`는 그대로 둠(옮기지 않음).
 - 공지: 관리자만 작성 · 수정 · 삭제, '대문 노출' 스위치 → 클랜하우스 공지 줄에 최신순 최대 3개 (`fetchHomeNotices`).
@@ -66,7 +77,8 @@
 | 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
 | 관리자 설정 › 관리자 · 권한 | **실제 DB** (관리자 목록 · 임명 · 권한 변경 · 해제, 마지막 최고 관리자 보호) | `app/admin/`, `components/admin/admin-roles.tsx`, `lib/data/admins.ts` |
 | 로그인 (닉네임 + PIN) | **구현** — 사이드바 하단 버튼, 모든 페이지 공통. `members`에 로그인 컬럼 추가(`docs/sql/001_members_login.sql`) | `app/auth/actions.ts`, `lib/auth/`, `components/shell/login-button.tsx` |
-| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 나머지 탭(BJ · 사이트 설정) · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
+| 관리자 설정 › BJ 관리 + 대문 라이브 | **실제 DB + SOOP API** (등록 · 수정 · 삭제 · 순서 · 대문 노출, 방송 상태) — `004_clan_bjs.sql` 실행 필요 | `app/admin/bj/`, `components/admin/bj-manager.tsx`, `lib/data/bjs.ts`, `lib/soop.ts` |
+| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 › 사이트 설정 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
 
 ### 다음에 할 일 (TODO)
 - [x] 로그인 → `getMemberManager()` 연결, 관리자 설정 · 클랜원 메뉴를 관리자 로그인 시에만 표시
@@ -76,7 +88,8 @@
 - [x] ELO 랭킹 탭 · 대문 ELO TOP 8(티어별) · 지난 주 ELO 흐름
 - [ ] ELO 전적 기록 · 위클리 베스트 · 데이터센터 탭 (기존 TuFelo 화면 이식)
 - [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
-- [ ] 대문 섹션 연결: 다가오는 경기 · 팀 순위 · 팀 소개(PL) / 라이브 BJ
+- [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ — **`docs/sql/004_clan_bjs.sql` 실행 필요**
+- [ ] 대문 섹션 연결: 다가오는 경기 · 팀 순위 · 팀 소개(PL)
 - [ ] 프로리그 테이블 설계 (`pl_` 접두사, 동료)
 - [ ] 코드에서 `TODO(` 로 검색하면 연결 지점이 나온다
 
@@ -99,6 +112,7 @@ app/
   admin/page.tsx            관리자 설정 › 관리자 · 권한 (실제 DB)
   admin/actions.ts          관리자 임명 · 권한 변경 · 해제 (최고 관리자만)
   admin/logs/page.tsx       관리자 설정 › 활동 로그 (admin_logs)
+  admin/bj/                 관리자 설정 › BJ 관리 (page.tsx) + 등록 · 수정 · 삭제 · 순서 · 대문 노출 액션 (actions.ts)
   pl/  solo/  admin/        영역별 layout.tsx(영역 헤더+탭) + [tab]/page.tsx(Placeholder)
   notice/page.tsx           공지 · 건의 게시판 (실제 DB)
   notice/actions.ts         공지 작성 · 수정 · 삭제 · 대문 노출 / 건의 작성 · 삭제 / 답변
@@ -106,7 +120,7 @@ app/
 components/shell/           사이드바 · 상단 바 · 영역 헤더
 components/home/            대문 섹션 (RailSection · useRail 가로 슬라이드, HeroSearch, LiveSection, EloTopCard)
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
-components/admin/           관리자 · 권한 화면 (admin-roles.tsx)
+components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
 components/elo/             ELO 랭킹 화면 (ranking-board.tsx)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
@@ -119,6 +133,8 @@ lib/permissions.ts          관리자 권한 확인 (getAdminUser · getMemberMa
 lib/data/admins.ts          관리자 목록 · 임명 후보 조회
 lib/data/admin-logs.ts      활동 로그 조회
 lib/data/board.ts           공지 · 건의 조회 (게시판 · 대문 공지)
+lib/data/bjs.ts             클랜 BJ 조회 (BJ 관리 목록 · 대문 BJ + 방송 상태)
+lib/soop.ts                 SOOP Open API (스타크래프트 방송 리스트) · 방송국/시청/프로필 주소 · 링크에서 아이디 추출
 lib/data/elo-ranking.ts     ELO 랭킹 · 지난 시즌 스냅샷 · 대문 TOP 8(티어별) · 지난 주 흐름 (fetchAll: 1,000행 넘게 나눠 조회)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
@@ -141,6 +157,7 @@ lib/elo.ts                  티어별 시작 ELO
 | `notices` | 공지 (새 테이블, `003_notices.sql`) | 쓰기는 `app/notice/actions.ts`에서만. anon 조회 정책 있음 |
 | `suggestions` · `suggestion_replies` | 건의 · 관리자 답변 (기존 테이블) | 기존 사이트와 공유. 새 사이트 글은 `suggestions.member_id`로 작성자 연결 |
 | `season_rankings` | ELO 랭킹의 지난 시즌 최종 순위(조회) | 기존 사이트가 시즌 종료 시 저장 |
+| `clan_bjs` | 클랜 BJ (새 테이블, `004_clan_bjs.sql`) | 쓰기는 `app/admin/bj/actions.ts`에서만. anon 조회 정책 있음. 방송 상태는 저장 안 함(SOOP API) |
 
 - **PL 영역** 새 테이블은 `pl_` 접두사 (예: `pl_seasons`, `pl_teams`, `pl_matches`), 개인리그는 `solo_`. 선수는 `members.id` 참조.
 - anon 키로 새 테이블을 읽으려면 RLS `select` 정책이 필요하다 (RLS가 켜져 있고 정책이 없으면 에러 없이 빈 결과).
@@ -204,6 +221,8 @@ lib/elo.ts                  티어별 시작 ELO
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 조회용 공개 키 (RLS 적용) | 공개돼도 됨 · 로컬 + Vercel |
 | `SUPABASE_SERVICE_ROLE_KEY` | 쓰기 · 관리자 조회 · 로그인 (RLS 무시) | **서버 전용 비밀**. `NEXT_PUBLIC_` 금지, 채팅 · 깃허브 금지 · 로컬 + Vercel |
 | `AUTH_SECRET` | 로그인 쿠키 서명 (32자 이상 랜덤) | **서버 전용 비밀** · 로컬 + Vercel에 각각 다른 값. 바꾸면 전원 로그아웃 |
+| `SOOP_CLIENT_ID` | SOOP Open API (대문 BJ 방송 상태). 없으면 모두 '오프라인' | 서버 전용 · 로컬 + Vercel |
+| `SOOP_CLIENT_SECRET` | SOOP Open API 시크릿 (지금 코드에서는 안 씀, 보관용) | **서버 전용 비밀** · 로컬 + Vercel |
 | `DEV_ADMIN_USERNAME` | 로컬 개발용 관리자 스위치 | **로컬 전용**, Vercel에 넣지 말 것 |
 
 ## 협업 · 배포

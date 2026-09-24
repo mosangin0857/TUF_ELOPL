@@ -8,11 +8,12 @@ import { Crest, RaceBadge } from "@/components/ui/race"
 import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
 import { EloTopCard } from "@/components/home/elo-top-card"
 import { fetchHomeNotices } from "@/lib/data/board"
+import { fetchHomeBjs } from "@/lib/data/bjs"
 import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
 import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-/** 대문은 5분마다 새로 만든다 (검색용 선수 목록 · 공지 · ELO TOP 8 · 지난 주 흐름) */
+/** 대문은 5분마다 새로 만든다 (검색용 선수 목록 · 공지 · ELO TOP 8 · 지난 주 흐름 · 클랜 BJ 방송 상태) */
 export const revalidate = 300
 
 const DOW = "일월화수목금토"
@@ -36,18 +37,17 @@ async function loadSearchPlayers(): Promise<SearchIndex["players"]> {
 
 export default async function ClanHousePage() {
   // DB 연결에 실패해도 대문은 그대로 보여주고 해당 섹션만 비운다
-  const [players, eloTopByTier, weekly, notices] = await Promise.all([
+  const [players, eloTopByTier, weekly, notices, bjs] = await Promise.all([
     loadSearchPlayers(),
     fetchEloTopByTier(8).catch((): Record<Tier, EloEntry[]> => ({ 1: [], 2: [], 3: [], 4: [] })),
     fetchLastWeekEloFlow(12).catch(() => ({ weekStart: "", weekEnd: "", entries: [] as EloEntry[] })),
     fetchHomeNotices(3).catch((): HomeNotice[] => []),
+    fetchHomeBjs().catch((): ClanBj[] => []), // 등록된 클랜 BJ + SOOP 방송 상태
   ])
   const eloWeekly = weekly.entries
 
   // TODO(PL): 프로리그 다가오는 경기 (최대 8개)
   const upcoming: UpcomingMatch[] = []
-  // TODO(관리자 · BJ): 등록된 클랜 BJ + SOOP 방송 상태
-  const bjs: ClanBj[] = []
   // TODO(PL): 프로리그 팀 순위 · 팀 소개
   const standings: TeamStanding[] = []
   const teams: TeamIntro[] = []

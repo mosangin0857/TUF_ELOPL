@@ -2379,6 +2379,47 @@
     justify-content: flex-end;
   }
 
+  /* 관리자 설정 › BJ 관리 */
+  .bj-form {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: end;
+    padding: 4px 20px 20px;
+  }
+  .bj-station {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--ink-2);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .bj-station:hover {
+    color: var(--accent-text);
+  }
+  .mini-btn.on {
+    border-color: var(--accent);
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  /* 대문 라이브 카드: 실제 방송 썸네일이 있으면 배경 장식 대신 썸네일 */
+  .live-thumb .live-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+  }
+  .live-thumb.has-img::before,
+  .live-thumb.has-img::after {
+    display: none;
+  }
+  .live-thumb.has-img .scr {
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  }
+
   /* ---------- ELO dashboard ---------- */
   .stat-row {
     display: grid;
@@ -2639,6 +2680,10 @@
     padding: 14px;
   }
   .appoint {
+    padding: 4px 14px 16px;
+  }
+  .bj-form {
+    grid-template-columns: 1fr;
     padding: 4px 14px 16px;
   }
   .appoint-actions {

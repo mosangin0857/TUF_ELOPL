@@ -18,10 +18,12 @@ function bjColor(id: string) {
 }
 
 function BjAvatar({ bj }: { bj: ClanBj }) {
+  // SOOP 프로필 이미지가 없으면(404) 이름 첫 글자로
+  const [broken, setBroken] = useState(false)
   return (
     <span className="bj-av" style={{ ["--c" as string]: bjColor(bj.id) }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {bj.logoUrl ? <img src={bj.logoUrl} alt="" /> : bj.name[0]}
+      {bj.logoUrl && !broken ? <img src={bj.logoUrl} alt="" onError={() => setBroken(true)} /> : bj.name[0]}
     </span>
   )
 }
@@ -72,13 +74,15 @@ export function LiveSection({ bjs }: { bjs: ClanBj[] }) {
               {lives.map((b) => (
                 <div key={b.id} className="live-card bounce">
                   <a
-                    className="live-thumb"
-                    href={b.url}
+                    className={cn("live-thumb", b.thumbUrl && "has-img")}
+                    href={b.watchUrl ?? b.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${b.name} 방송 보기`}
                     style={{ ["--c" as string]: bjColor(b.id) }}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {b.thumbUrl && <img className="live-img" src={b.thumbUrl} alt="" loading="lazy" />}
                     <span className="live-badges">
                       <span className="b-live">LIVE</span>
                       {b.viewers !== undefined && <span className="b-view">{b.viewers.toLocaleString()}명</span>}

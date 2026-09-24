@@ -21,7 +21,6 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
   "solo/hall-of-fame": { title: "명예의 전당", body: "역대 개인리그 우승 · 준우승 기록." },
   "solo/rules": { title: "규정", body: "개인리그 운영 규정과 맵풀." },
 
-  "admin/bj": { title: "BJ 관리", body: "클랜 BJ 이름과 SOOP 방송국 링크 등록. 대문 라이브 섹션에 표시됩니다." },
   "admin/site": { title: "사이트 설정", body: "사이트 정보, 대문 구성, 시즌, ELO 설정 등." },
 
   schedule: { title: "일정", body: "월간 달력. 프로리그 · 클랜 행사 · ELO 일정을 한눈에." },

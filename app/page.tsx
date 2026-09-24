@@ -9,6 +9,7 @@ import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
 import { EloTopCard } from "@/components/home/elo-top-card"
 import { fetchHomeNotices } from "@/lib/data/board"
 import { fetchHomeBjs } from "@/lib/data/bjs"
+import { fetchHomePl } from "@/lib/data/pl"
 import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
 import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -46,11 +47,10 @@ export default async function ClanHousePage() {
   ])
   const eloWeekly = weekly.entries
 
-  // TODO(PL): 프로리그 다가오는 경기 (최대 8개)
-  const upcoming: UpcomingMatch[] = []
-  // TODO(PL): 프로리그 팀 순위 · 팀 소개
-  const standings: TeamStanding[] = []
-  const teams: TeamIntro[] = []
+  // 프로리그: 다가오는 경기(최대 8개) · 팀 순위 · 팀 소개 (현재 시즌)
+  const { upcoming, standings, teams } = await fetchHomePl(8).catch(
+    (): { upcoming: UpcomingMatch[]; standings: TeamStanding[]; teams: TeamIntro[] } => ({ upcoming: [], standings: [], teams: [] }),
+  )
 
   return (
     <main className="content">
@@ -166,7 +166,7 @@ export default async function ClanHousePage() {
                           <td>{s.wins}</td>
                           <td>{s.losses}</td>
                           <td className={diff > 0 ? "down" : diff < 0 ? "up" : undefined}>{diff > 0 ? `+${diff}` : diff}</td>
-                          <td className="pts">{s.wins * 3}</td>
+                          <td className="pts">{s.points ?? s.wins * 3}</td>
                           <td className="hide-sm">
                             <span className="form">
                               {s.form.slice(-5).map((c, j) => (

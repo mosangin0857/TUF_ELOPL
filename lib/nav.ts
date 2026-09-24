@@ -30,6 +30,8 @@ export interface AreaTab {
   /** 영역 기준 하위 경로. "" 는 영역 첫 화면 */
   slug: string
   label: string
+  /** 관리자(admin · super)로 로그인했을 때만 탭 표시 (페이지 접근은 서버에서 따로 막음) */
+  adminOnly?: boolean
 }
 
 export interface Area {
@@ -94,6 +96,7 @@ export const AREAS: Area[] = [
       { slug: "results", label: "경기 결과" },
       { slug: "predictions", label: "승부예측" },
       { slug: "rules", label: "규정" },
+      { slug: "manage", label: "PL 관리", adminOnly: true },
     ],
   },
   {

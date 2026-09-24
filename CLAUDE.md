@@ -12,6 +12,18 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-24 · 프로리그 일정 · 순위 · PL 관리 · 엔트리 제출 (PL 담당)**
+- **DB 변경 SQL: `docs/sql/005_pl_league.sql`** — 새 테이블 7개 `pl_seasons` · `pl_teams` · `pl_team_members` · `pl_maps` · `pl_matches` · `pl_sets` · `pl_set_players`. 기존 테이블은 그대로.
+  - `pl_team_members` · `pl_set_players`는 `members.id`를 **on delete cascade**로 참조 → 클랜원 **완전 삭제(제명)** 시 그 선수의 프로리그 선수단 · 세트 출전 기록도 같이 지워진다 (세트 승패 · 팀 순위는 그대로).
+  - `pl_set_players`는 엔트리 비공개 때문에 anon 조회 정책이 없다 → 서버(service_role)에서만 읽음 (`lib/data/pl.ts`).
+- 규칙(`lib/pl/rules.ts`): 정규 1R~3R 7세트 4선승(1~6세트 모두 진행, ACE는 3:3일 때만) / 플레이오프 · 결승 9세트 5선승. 경기 코드 `1R-1M … 2R-19M`(정규 라운드끼리 번호 이어짐) · `PO-1M` · `PO-FINAL`은 저장하지 않고 단계 + 번호로 만든다.
+- 팀 순위 · 개인 순위는 **저장하지 않고 경기 · 세트 결과로 계산** (`computeStandings` · `computePlayerStats`). 팀 순위: 정규 라운드만, 승점 → 세트 득실 → 승자승. 개인 순위: 승 · 패 · 실경기는 플레이오프 포함(개인전 · 팀플 합산, ACE 포함), **출전인정은 정규 라운드의 ACE 제외 세트만**.
+- ⚠️ **ELO 연동 미정 — ELO 담당이 정할 것** → 아래 "프로리그 → ELO 전적 연동 (결정 필요)" 참고.
+- 화면: 프로리그 › **일정**(`app/pl/page.tsx`, 라운드 탭 · 경기 누르면 세트 결과) · **순위**(`app/pl/standings/`, 팀 순위 / 개인 순위 — 검색 · 팀 · 티어 필터, 모든 컬럼 정렬) · **PL 관리**(`app/pl/manage/`, 관리자 이상만 — 탭 숨김 `adminOnly` + 서버 확인) · **엔트리 제출**(`app/pl/entry/[id]/`).
+- **엔트리 권한은 `members.role`에 넣지 않았다** → 그 경기 팀의 현재 팀장 · 부팀장(`pl_team_members.role` = captain · vice, `left_on` 없음)인지로 판단 (`lib/pl/permissions.ts`의 `getCaptainSide`). 공개 시각(`entry_reveal_at`) 전 · 예정/연기 경기만 제출 가능, 공개 전에는 상대 팀 · 방문자에게 안 보임.
+- `lib/nav.ts`의 영역 탭에 `adminOnly` 추가 (프로리그 › PL 관리). `AreaHeader`가 `useAuth()`로 숨김.
+- 대문의 프로리그 섹션(다가오는 경기 · 팀 순위 · 팀 소개)을 현재 시즌 데이터로 연결 (`fetchHomePl`). `TeamStanding.points`(선택) 추가 — 대문 승점은 시즌 승점 규칙을 따른다.
+
 **2026-09-24 · 관리자 설정 › BJ 관리 + 대문 라이브 연결 (PL 담당)**
 - **DB 변경 SQL: `docs/sql/004_clan_bjs.sql`** — 새 테이블 `clan_bjs`(이름 · SOOP 아이디 · 순서 · 대문 노출). 공통 기능이라 접두사 없음. anon 조회 정책 있음, 쓰기는 서버에서만.
 - 화면 `app/admin/bj/page.tsx` · `components/admin/bj-manager.tsx`, 액션 `app/admin/bj/actions.ts`(등록 · 수정 · 삭제 · 순서 · 대문 노출, 관리자만, 모두 `admin_logs` 기록), 조회 `lib/data/bjs.ts`.
@@ -73,7 +85,7 @@
 | 화면 | 상태 | 파일 |
 | --- | --- | --- |
 | 레이아웃 (사이드바 · 상단 바 · 영역 탭 · 라이트/다크) | 완료 | `components/shell/`, `lib/nav.ts` |
-| 클랜하우스(대문) | 화면 완료. 선수 검색 · 공지 · ELO TOP 8(티어별) · 지난 주 ELO 흐름은 실제 DB, 나머지 섹션은 빈 배열(TODO) | `app/page.tsx`, `components/home/` |
+| 클랜하우스(대문) | 모든 섹션 실제 데이터 (선수 검색 · 공지 · 다가오는 경기 · 라이브 BJ · 팀 순위 · ELO TOP 8 · 지난 주 ELO 흐름 · 팀 소개) | `app/page.tsx`, `components/home/` |
 | ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 최근 전적) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
@@ -81,8 +93,9 @@
 | 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
 | 관리자 설정 › 관리자 · 권한 | **실제 DB** (관리자 목록 · 임명 · 권한 변경 · 해제, 마지막 최고 관리자 보호) | `app/admin/`, `components/admin/admin-roles.tsx`, `lib/data/admins.ts` |
 | 로그인 (닉네임 + PIN) | **구현** — 사이드바 하단 버튼, 모든 페이지 공통. `members`에 로그인 컬럼 추가(`docs/sql/001_members_login.sql`) | `app/auth/actions.ts`, `lib/auth/`, `components/shell/login-button.tsx` |
-| 관리자 설정 › BJ 관리 + 대문 라이브 | **실제 DB + SOOP API** (등록 · 수정 · 삭제 · 순서 · 대문 노출, 방송 상태) — `004_clan_bjs.sql` 실행 필요 | `app/admin/bj/`, `components/admin/bj-manager.tsx`, `lib/data/bjs.ts`, `lib/soop.ts` |
-| ELO 나머지 탭 · 프로리그 · 개인리그 · 관리자 설정 › 사이트 설정 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
+| 관리자 설정 › BJ 관리 + 대문 라이브 | **실제 DB + SOOP API** (등록 · 수정 · 삭제 · 순서 · 대문 노출, 방송 상태) — `004_clan_bjs.sql` 실행 완료 | `app/admin/bj/`, `components/admin/bj-manager.tsx`, `lib/data/bjs.ts`, `lib/soop.ts` |
+| 프로리그 › 일정 · 순위 · PL 관리 · 엔트리 제출 | **실제 DB** (시즌 · 팀 · 선수단 · 맵풀 · 경기 · 세트 결과 · 엔트리) — `005_pl_league.sql` 실행 완료 | `app/pl/`, `components/pl/`, `lib/data/pl.ts`, `lib/pl/` |
+| ELO 나머지 탭 · 프로리그 나머지 탭(팀 · 선수단 · 경기 결과 · 승부예측 · 규정) · 개인리그 · 관리자 설정 › 사이트 설정 · 일정 | 준비 중 (Placeholder) | `app/[영역]/[tab]/page.tsx`, `lib/placeholders.ts` |
 
 ### 다음에 할 일 (TODO)
 - [x] 로그인 → `getMemberManager()` 연결, 관리자 설정 · 클랜원 메뉴를 관리자 로그인 시에만 표시
@@ -92,9 +105,10 @@
 - [x] ELO 랭킹 탭 · 대문 ELO TOP 8(티어별) · 지난 주 ELO 흐름
 - [ ] ELO 전적 기록 · 위클리 베스트 · 데이터센터 탭 (기존 TuFelo 화면 이식)
 - [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
-- [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ — **`docs/sql/004_clan_bjs.sql` 실행 필요**
-- [ ] 대문 섹션 연결: 다가오는 경기 · 팀 순위 · 팀 소개(PL)
-- [ ] 프로리그 테이블 설계 (`pl_` 접두사, 동료)
+- [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ (`docs/sql/004_clan_bjs.sql` 실행 완료)
+- [x] 프로리그 일정 · 순위 · PL 관리 · 엔트리 제출 + 대문 다가오는 경기 · 팀 순위 · 팀 소개 (`docs/sql/005_pl_league.sql` 실행 완료)
+- [ ] 프로리그 팀 · 선수단 · 경기 결과 · 승부예측 · 규정 탭
+- [ ] **프로리그 세트 → ELO 전적 연동 방식 결정 (ELO 담당)** — "프로리그 → ELO 전적 연동" 참고
 - [ ] 코드에서 `TODO(` 로 검색하면 연결 지점이 나온다
 
 ## 스택 · 명령
@@ -117,6 +131,11 @@ app/
   admin/actions.ts          관리자 임명 · 권한 변경 · 해제 (최고 관리자만)
   admin/logs/page.tsx       관리자 설정 › 활동 로그 (admin_logs)
   admin/bj/                 관리자 설정 › BJ 관리 (page.tsx) + 등록 · 수정 · 삭제 · 순서 · 대문 노출 액션 (actions.ts)
+  pl/page.tsx               프로리그 › 일정 (라운드 탭, 세트 결과 펼치기)
+  pl/standings/page.tsx     프로리그 › 순위 (팀 순위 · 개인 순위)
+  pl/manage/page.tsx        프로리그 › PL 관리 (관리자만: 경기 · 팀/선수단 · 맵풀 · 시즌)
+  pl/entry/[id]/page.tsx    엔트리 제출 (그 경기 팀의 팀장 · 부팀장만)
+  pl/actions.ts             PL 서버 액션 (시즌 · 팀 · 선수단 · 맵 · 경기 · 결과 입력 · 엔트리 제출)
   pl/  solo/  admin/        영역별 layout.tsx(영역 헤더+탭) + [tab]/page.tsx(Placeholder)
   notice/page.tsx           공지 · 건의 게시판 (실제 DB)
   notice/actions.ts         공지 작성 · 수정 · 삭제 · 대문 노출 / 건의 작성 · 삭제 / 답변
@@ -125,6 +144,7 @@ components/shell/           사이드바 · 상단 바 · 영역 헤더
 components/home/            대문 섹션 (RailSection · useRail 가로 슬라이드, HeroSearch, LiveSection, EloTopCard)
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
+components/pl/              일정(schedule-board) · 순위(standings-board) · 엔트리(entry-form) · 세트 선수 선택(side-slots) · manage/(PL 관리 패널들)
 components/elo/             ELO 랭킹 화면 (ranking-board.tsx)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
@@ -138,6 +158,8 @@ lib/data/admins.ts          관리자 목록 · 임명 후보 조회
 lib/data/admin-logs.ts      활동 로그 조회
 lib/data/board.ts           공지 · 건의 조회 (게시판 · 대문 공지)
 lib/data/bjs.ts             클랜 BJ 조회 (BJ 관리 목록 · 대문 BJ + 방송 상태)
+lib/data/pl.ts              프로리그 조회 · 팀 순위/개인 순위 계산 · 대문 PL 섹션 (엔트리 공개 전이면 출전 선수를 비워서 내보냄)
+lib/pl/                     rules.ts(세트 수 · 선승 · 경기 코드 · 라벨, 화면 공통) · format.ts(날짜 표시) · permissions.ts(팀장 · 부팀장 엔트리 권한)
 lib/soop.ts                 SOOP Open API (스타크래프트 방송 리스트) · 방송국/시청/프로필 주소 · 링크에서 아이디 추출
 lib/data/elo-ranking.ts     ELO 랭킹 · 지난 시즌 스냅샷 · 대문 TOP 8(티어별) · 지난 주 흐름 (fetchAll: 1,000행 넘게 나눠 조회)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
@@ -161,6 +183,7 @@ lib/elo.ts                  티어별 시작 ELO
 | `notices` | 공지 (새 테이블, `003_notices.sql`) | 쓰기는 `app/notice/actions.ts`에서만. anon 조회 정책 있음 |
 | `suggestions` · `suggestion_replies` | 건의 · 관리자 답변 (기존 테이블) | 기존 사이트와 공유. 새 사이트 글은 `suggestions.member_id`로 작성자 연결 |
 | `season_rankings` | ELO 랭킹의 지난 시즌 최종 순위(조회) | 기존 사이트가 시즌 종료 시 저장 |
+| `pl_*` 7개 | 프로리그 (새 테이블, `005_pl_league.sql`) | 쓰기는 `app/pl/actions.ts`에서만. `pl_set_players`는 anon 조회 정책 없음(엔트리 비공개). 선수는 `members.id` 참조(on delete cascade) |
 | `clan_bjs` | 클랜 BJ (새 테이블, `004_clan_bjs.sql`) | 쓰기는 `app/admin/bj/actions.ts`에서만. anon 조회 정책 있음. 방송 상태는 저장 안 함(SOOP API) |
 
 - **PL 영역** 새 테이블은 `pl_` 접두사 (예: `pl_seasons`, `pl_teams`, `pl_matches`), 개인리그는 `solo_`. 선수는 `members.id` 참조.
@@ -177,6 +200,25 @@ lib/elo.ts                  티어별 시작 ELO
 | 완전 삭제(제명) | 해당 선수 `matches` 전부 삭제 → `members` 삭제 | 탈퇴 상태만 가능, 닉네임 입력 확인. 상대 ELO는 복구 안 됨. 되돌릴 수 없음 |
 
 선수 행을 지우지 않고 `is_active`로 탈퇴를 표시하는 이유: 행을 지우면 과거 경기와 선수의 연결이 끊긴다 (전적 검색 · 상대전적 불가, 복귀 시 기록 연결 불가).
+
+## 프로리그 → ELO 전적 연동 (결정 필요 — ELO 담당)
+프로리그 세트 결과는 PL 관리 › 결과 입력(`app/pl/actions.ts`의 `saveMatchResultAction`)에서 `pl_sets` · `pl_set_players`에 저장된다.
+그런데 프로리그 세트는 **ELO 보드 개인 전적에도 남아야 한다** (기존 사이트도 그렇게 해왔다: `matches.match_type`에 `TFPL_S1` 468건 · `TFPL_S2` 463건 · `TFPL_S3` 403건, 맵에 `루나(팀플)` 같은 팀플 맵도 있음).
+ELO 계산 · `matches` 쓰기 · 시즌 · RPC는 ELO 담당 영역이라, **PL 쪽에서는 아직 `matches`에 아무것도 쓰지 않는다.** 아래를 ELO 담당이 정해 주면 PL 쪽에서 연결한다.
+
+| 정할 것 | 선택지 · 참고 |
+| --- | --- |
+| 1. 어떤 세트를 보낼지 | 개인전(1v1)만? 팀플도? `matches`는 player1 vs player2 1:1 구조 — 기존 `TFPL_S*`의 팀플 맵 기록이 어떤 방식이었는지 확인 필요 (예: 같은 슬롯끼리 짝지어 1:1로 기록?). ACE 결정전 · 플레이오프 포함 여부 |
+| 2. ELO 반영 방식 | ELO 점수까지 변동(`apply_season_match_member_updates`)? 전적만(`apply_season_match_member_stats_only`)? |
+| 3. `match_type` 값 | 이번 시즌은 `TFPL_S4`? (시즌 이름에서 만들지, PL 시즌에 값을 따로 둘지) |
+| 4. 언제 보낼지 | 결과 저장할 때마다 즉시? 경기 상태를 '종료'로 바꿀 때 한 번? |
+| 5. 수정 · 삭제 · 취소 | 결과를 고치거나 경기를 지우면 ELO 쪽 기록도 되돌려야 함 (`apply_season_match_undo_stats`) → 세트와 ELO 기록을 잇는 키 필요 (예: `matches`에 `pl_set_id uuid unique` 컬럼 추가, 또는 PL 쪽에 `pl_sets.elo_match_id`) |
+| 6. 날짜 · 시즌 | `played_date` · `played_at` = 경기 일시(`pl_matches.scheduled_at`)? `season_id` = 그 시점의 현재 ELO 시즌? |
+| 7. 종족 | 세트에 기록한 종족(`pl_set_players.race`, R = 랜덤)을 쓸지, `members.race`를 쓸지 (`matches`에는 종족 컬럼 없음) |
+
+**PL 쪽 제안 (ELO 담당이 편한 방식으로 바꿔도 됨):** ELO 담당이 `lib/elo/`에 "세트 하나를 ELO 기록으로 등록 / 되돌리기" 함수를 만들어 두면
+(예: `recordPlSetToElo(setId)` · `undoPlSetFromElo(setId)`, 내부에서 ELO 계산 + `matches` insert + RPC + `pl_set_id`로 중복 방지),
+PL 쪽 `saveMatchResultAction` · `deleteMatchAction`에서 결과가 바뀐 세트마다 그 함수를 호출한다. ELO 계산 로직은 ELO 쪽 한 곳에만 둔다.
 
 ## 로그인 · 관리자 권한
 - **로그인 방식 (TFPL4와 동일)**: `members`의 닉네임 + PIN(숫자 4~8자리). PIN이 없는 클랜원은 처음 입력한 PIN이 비밀번호로 저장된다.

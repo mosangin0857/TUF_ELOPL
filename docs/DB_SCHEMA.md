@@ -131,6 +131,26 @@ id, admin_username, action, target, detail, created_at
 - 방송 중 여부 · 제목 · 시청자 · 썸네일은 저장하지 않음 → SOOP Open API (`lib/soop.ts`)
 - 클랜원(`members`)과 연결하지 않음 (이름 + 링크만)
 
+### 프로리그 pl_* (추가: `docs/sql/005_pl_league.sql`)
+```
+pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
+            ├─< pl_maps
+            └─< pl_matches (team_a_id, team_b_id → pl_teams) ─< pl_sets ─< pl_set_players >─ members
+```
+| 테이블 | 주요 컬럼 | 비고 |
+|---|---|---|
+| pl_seasons | name, is_current(한 시즌만 true), win_points(기본 3), started_on, ended_on | 화면 · PL 관리는 현재 시즌 기준 |
+| pl_teams | season_id, name(시즌 내 UNIQUE), color(#hex), slogan, sort_order | |
+| pl_team_members | team_id, member_id(→members, cascade), role(captain · vice · player), joined_on, left_on | 팀장 · 부팀장은 팀당 1명(현재 기준). left_on이 있으면 떠난 선수(기록 보존) |
+| pl_maps | season_id, name, sort_order | 결과 입력 때 맵 목록 |
+| pl_matches | season_id, stage(R1 · R2 · R3 · PO · FINAL), match_no(FINAL은 null), team_a_id, team_b_id, scheduled_at, status(scheduled · live · done · postponed · canceled · forfeit), forfeit_winner(A · B), entry_reveal_at, note | 매치 번호: 정규 라운드끼리 UNIQUE(1R~3R 이어짐), PO끼리 UNIQUE, 결승 시즌당 1개 |
+| pl_sets | match_id, set_no(1~9), is_ace(마지막 세트), format(1v1 · 2v2 · 3v3 · 4v4), map_name, winner(A · B · null) | 경기 등록 시 정규 7개 · 플레이오프 9개 자동 생성 |
+| pl_set_players | set_id, side(A · B), slot(1~4), member_id(→members, cascade), race(T · P · Z · R) | 엔트리 + 결과. **anon 조회 정책 없음**(공개 전 엔트리 비공개) |
+
+- 경기 코드(1R-18M · PO-1M · PO-FINAL)는 저장하지 않고 stage + match_no로 만든다 (`lib/pl/rules.ts`의 `matchCode`)
+- 팀 순위 · 개인 순위는 저장하지 않고 경기 · 세트 결과로 계산 (`lib/data/pl.ts`)
+- RLS: pl_set_players 외에는 조회 누구나, 쓰기는 서버(service_role)에서만 — `app/pl/actions.ts`
+
 ## 기타
 
 | 테이블 | 컬럼 | 용도 |

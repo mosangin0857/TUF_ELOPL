@@ -1,3 +1,5 @@
+import type { PlMatchStatus, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
+
 /** ELO 영역 — 기존 TuFelo DB 스키마 기준 */
 
 export type Race = "T" | "P" | "Z"
@@ -100,6 +102,8 @@ export interface TeamStanding {
   setsWon: number
   setsLost: number
   form: ("W" | "L")[]
+  /** 승점 (없으면 승 × 3) */
+  points?: number
 }
 
 /** 프로리그 팀 소개 카드 */
@@ -159,4 +163,100 @@ export interface MatchRow {
   matchType: string | null
   player1EloDelta: number | null
   player2EloDelta: number | null
+}
+
+/* ---------- 프로리그 (docs/sql/005_pl_league.sql, 규칙은 lib/pl/rules.ts) ---------- */
+
+export interface PlSeason {
+  id: string
+  name: string
+  isCurrent: boolean
+  winPoints: number
+  startedOn: string | null
+  endedOn: string | null
+}
+
+export interface PlTeamMember {
+  /** pl_team_members.id */
+  id: string
+  memberId: string
+  name: string
+  race: Race
+  tier: Tier
+  role: PlTeamRole
+  joinedOn: string
+  /** 팀을 떠났으면 날짜 (지난 기록은 그대로) */
+  leftOn: string | null
+}
+
+export interface PlTeam {
+  id: string
+  name: string
+  color: string
+  slogan: string | null
+  sortOrder: number
+  /** 떠난 선수 포함. 현재 선수단은 leftOn === null */
+  members: PlTeamMember[]
+}
+
+export interface PlSetPlayer {
+  memberId: string
+  name: string
+  race: PlRace | null
+  slot: number
+}
+
+export interface PlSet {
+  id: string
+  setNo: number
+  isAce: boolean
+  format: PlSetFormat
+  mapName: string | null
+  winner: PlSide | null
+  playersA: PlSetPlayer[]
+  playersB: PlSetPlayer[]
+}
+
+export interface PlMatch {
+  id: string
+  stage: PlStage
+  matchNo: number | null
+  /** 1R-18M · PO-1M · PO-FINAL */
+  code: string
+  teamA: { id: string; name: string; color: string }
+  teamB: { id: string; name: string; color: string }
+  scheduledAt: string | null
+  status: PlMatchStatus
+  forfeitWinner: PlSide | null
+  entryRevealAt: string | null
+  note: string | null
+  scoreA: number
+  scoreB: number
+  winner: PlSide | null
+  /** false면 세트 출전 선수(엔트리)를 비공개 처리해서 비워 둔 상태 */
+  entriesVisible: boolean
+  sets: PlSet[]
+}
+
+/** 프로리그 › 순위 › 팀 순위 */
+export interface PlTeamStanding extends TeamStanding {
+  teamId: string
+  played: number
+  points: number
+}
+
+/** 프로리그 › 순위 › 개인 순위 (개인전 · 팀플 합산) */
+export interface PlPlayerStat {
+  memberId: string
+  name: string
+  race: Race
+  tier: Tier
+  teamName: string | null
+  teamColor: string | null
+  wins: number
+  losses: number
+  /** 실경기: ACE 포함 결과가 난 전체 세트 */
+  games: number
+  /** 출전인정: 정규 라운드(1R~3R)에서 ACE를 뺀 세트 */
+  recognized: number
 }

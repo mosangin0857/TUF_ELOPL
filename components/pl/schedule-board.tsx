@@ -7,7 +7,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { FORMAT_LABEL, isCounted, STATUS_LABEL, type PlStage } from "@/lib/pl/rules"
+import { entryOpen, FORMAT_LABEL, isCounted, PICK_LABEL, STATUS_LABEL, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -86,7 +86,7 @@ export function ScheduleBoard({
           const when = matchWhen(m.scheduledAt)
           const counted = isCounted(m.status)
           const expanded = open === m.id
-          const canEntry = isCaptainOf(m) && !m.entriesVisible && (m.status === "scheduled" || m.status === "postponed")
+          const canEntry = isCaptainOf(m) && entryOpen(m.status, m.entryRevealAt)
           return (
             <div key={m.id} className={cn("match-item", expanded && "open")}>
               <button type="button" className="match-row" onClick={() => setOpen(expanded ? null : m.id)} aria-expanded={expanded}>
@@ -157,8 +157,17 @@ export function ScheduleBoard({
                         <div key={s.id} className={cn("set-row", s.isAce && "ace")}>
                           <span className="set-no">{s.isAce ? "ACE" : `SET ${s.setNo}`}</span>
                           <span className="set-fmt">
-                            {FORMAT_LABEL[s.format]}
-                            {s.mapName && <small> · {s.mapName}</small>}
+                            {s.pickBy && !s.pickedAt ? (
+                              <>
+                                {PICK_LABEL[s.pickBy]} <small>· 선택 전</small>
+                              </>
+                            ) : (
+                              <>
+                                {FORMAT_LABEL[s.format]}
+                                {s.mapName && <small> · {s.mapName}</small>}
+                                {s.pickBy && <small> ({PICK_LABEL[s.pickBy]})</small>}
+                              </>
+                            )}
                           </span>
                           <span className={cn("set-side", s.winner === "A" && "win")}>
                             <Players list={s.playersA} />

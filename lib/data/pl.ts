@@ -1,5 +1,5 @@
 import "server-only"
-import { isCounted, matchCode, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
+import { isCounted, matchCode, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { PlMatch, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { seoulDate, seoulTime } from "@/lib/utils"
@@ -106,6 +106,9 @@ type MatchRow = {
     is_ace: boolean
     format: PlSetFormat
     map_name: string | null
+    pick_by: PlPickBy | null
+    solo_map: string | null
+    picked_at: string | null
     winner: PlSide | null
     pl_set_players: { side: PlSide; slot: number; race: PlRace | null; member_id: string; members: { name: string } | null }[]
   }[]
@@ -124,7 +127,7 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
   const { data, error } = await createServiceClient()
     .from("pl_matches")
     .select(
-      "id, stage, match_no, team_a_id, team_b_id, scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, winner, pl_set_players(side, slot, race, member_id, members(name)))",
+      "id, stage, match_no, team_a_id, team_b_id, scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, pick_by, solo_map, picked_at, winner, pl_set_players(side, slot, race, member_id, members(name)))",
     )
     .eq("season_id", seasonId)
   if (error) throw new Error(`pl_matches 조회 실패: ${error.message}`)
@@ -153,6 +156,9 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
           isAce: s.is_ace,
           format: s.format,
           mapName: s.map_name,
+          pickBy: s.pick_by,
+          soloMap: s.solo_map,
+          pickedAt: s.picked_at,
           winner: s.winner,
           playersA: players("A"),
           playersB: players("B"),
@@ -332,15 +338,16 @@ export async function fetchActiveMembers(): Promise<{ id: string; name: string }
 }
 
 /** 경기 하나 + 그 시즌 · 팀 (엔트리 제출 화면). revealAll로 읽으니 화면에 넘기기 전에 상대 쪽을 가릴 것 */
-export async function fetchMatchContext(matchId: string): Promise<{ season: PlSeason; teams: PlTeam[]; match: PlMatch } | null> {
+export async function fetchMatchContext(matchId: string): Promise<{ season: PlSeason; teams: PlTeam[]; match: PlMatch; matches: PlMatch[] } | null> {
   const supabase = createServiceClient()
   const { data: row } = await supabase.from("pl_matches").select("season_id").eq("id", matchId).maybeSingle()
   if (!row) return null
   const { data: s } = await supabase.from("pl_seasons").select("*").eq("id", row.season_id as string).maybeSingle()
   if (!s) return null
   const teams = await fetchTeams(s.id as string)
-  const match = (await fetchMatches(s.id as string, teams, { revealAll: true })).find((m) => m.id === matchId)
-  return match ? { season: toSeason(s as SeasonRow), teams, match } : null
+  const matches = await fetchMatches(s.id as string, teams, { revealAll: true })
+  const match = matches.find((m) => m.id === matchId)
+  return match ? { season: toSeason(s as SeasonRow), teams, match, matches } : null
 }
 
 /** 대문: 다가오는 경기(최대 limit개) · 팀 순위 · 팀 소개 (현재 시즌) */
@@ -382,4 +389,42 @@ export async function fetchHomePl(limit = 8): Promise<{ upcoming: UpcomingMatch[
   })
 
   return { upcoming, standings: hasGames ? standings : [], teams: intros }
+}
+
+/** 엔트리 제출 기록 (그 팀 쪽만, 최신순) */
+export async function fetchEntryLogs(matchId: string, side: PlSide, limit = 10): Promise<{ at: string; name: string; action: string }[]> {
+  const { data, error } = await createServiceClient()
+    .from("pl_entry_logs")
+    .select("actor_name, action, created_at")
+    .eq("match_id", matchId)
+    .eq("side", side)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return (data ?? []).map((r) => ({ at: r.created_at as string, name: r.actor_name as string, action: r.action as string }))
+}
+
+/**
+ * 지난 경기 엔트리 불러오기: 이 경기보다 앞선(일정순) 같은 팀 경기 중 가장 최근에 그 팀 선수가 들어간 경기의 세트별 선수.
+ * matches는 revealAll로 읽은 목록이어야 한다.
+ */
+export function findLastEntry(
+  matches: PlMatch[],
+  teamId: string,
+  beforeMatchId: string,
+): { code: string; sets: Record<number, { memberId: string; race: PlRace | null }[]> } | null {
+  const idx = matches.findIndex((m) => m.id === beforeMatchId)
+  for (let i = idx - 1; i >= 0; i--) {
+    const m = matches[i]
+    const side: PlSide | null = m.teamA.id === teamId ? "A" : m.teamB.id === teamId ? "B" : null
+    if (!side) continue
+    const sets: Record<number, { memberId: string; race: PlRace | null }[]> = {}
+    for (const s of m.sets) {
+      if (s.isAce) continue
+      const list = side === "A" ? s.playersA : s.playersB
+      if (list.length) sets[s.setNo] = list.map((p) => ({ memberId: p.memberId, race: p.race }))
+    }
+    if (Object.keys(sets).length) return { code: m.code, sets }
+  }
+  return null
 }

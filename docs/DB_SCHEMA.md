@@ -146,7 +146,10 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 | pl_matches | season_id, stage(R1 · R2 · R3 · PO · FINAL), match_no(FINAL은 null), team_a_id, team_b_id, scheduled_at, status(scheduled · live · done · postponed · canceled · forfeit), forfeit_winner(A · B), entry_reveal_at, note | 매치 번호: 정규 라운드끼리 UNIQUE(1R~3R 이어짐), PO끼리 UNIQUE, 결승 시즌당 1개 |
 | pl_sets | match_id, set_no(1~9), is_ace(마지막 세트), format(1v1 · 2v2 · 3v3 · 4v4), map_name, winner(A · B · null) | 경기 등록 시 정규 7개 · 플레이오프 9개 자동 생성 |
 | pl_set_players | set_id, side(A · B), slot(1~4), member_id(→members, cascade), race(T · P · Z · R) | 엔트리 + 결과. **anon 조회 정책 없음**(공개 전 엔트리 비공개) |
+| pl_sets 추가 컬럼 (`006`) | pick_by(home · away · null), solo_map, picked_at | 지정 세트: 지정 팀이 개인전(solo_map) 또는 팀플 2:2~4:4(맵풀)을 고름. format · map_name은 실제로 치르는 값 |
+| pl_entry_logs (`006`) | match_id(cascade), side, member_id(set null), actor_name, action, created_at | 엔트리 제출 · 지정 세트 선택 기록. anon 조회 정책 없음 |
 
+- A팀 = 홈, B팀 = 원정. 엔트리 마감 = `entry_reveal_at` 2시간 전 (코드에서 계산, 저장 안 함)
 - 경기 코드(1R-18M · PO-1M · PO-FINAL)는 저장하지 않고 stage + match_no로 만든다 (`lib/pl/rules.ts`의 `matchCode`)
 - 팀 순위 · 개인 순위는 저장하지 않고 경기 · 세트 결과로 계산 (`lib/data/pl.ts`)
 - RLS: pl_set_players 외에는 조회 누구나, 쓰기는 서버(service_role)에서만 — `app/pl/actions.ts`

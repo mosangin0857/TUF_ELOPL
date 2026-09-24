@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { EntryForm } from "@/components/pl/entry-form"
+import { EntryForm, type OpponentStatus } from "@/components/pl/entry-form"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
-import { entriesVisibleAt, fetchMatchContext } from "@/lib/data/pl"
+import { fetchEntryLogs, fetchMaps, fetchMatchContext, findLastEntry } from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 import { getCaptainSide } from "@/lib/pl/permissions"
+import { entryDeadline, entryOpen, FORMAT_SIZE, pickSide } from "@/lib/pl/rules"
 import type { PlMatch } from "@/lib/types"
 
 export const metadata: Metadata = { title: "엔트리 제출" }
@@ -28,7 +29,7 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const { match, teams } = ctx
+  const { match, matches, teams, season } = ctx
   const captain = await getCaptainSide(match.teamA.id, match.teamB.id)
   if (!captain) {
     const admin = await getMemberManager()
@@ -51,14 +52,42 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  // 상대 팀 엔트리는 보내지 않는다 (공개 전 비공개)
+  const side = captain.side
+  const other = side === "A" ? "B" : "A"
+
+  // 상대 팀은 '몇 세트 냈는지'만 알려주고 선수는 보내지 않는다 (공개 전 비공개)
+  const entrySets = match.sets.filter((s) => !s.isAce)
+  const opponent: OpponentStatus = {
+    filled: entrySets.filter((s) => (other === "A" ? s.playersA : s.playersB).length === FORMAT_SIZE[s.format]).length,
+    total: entrySets.length,
+  }
   const own: PlMatch = {
     ...match,
-    sets: match.sets.map((s) => (captain.side === "A" ? { ...s, playersB: [] } : { ...s, playersA: [] })),
+    sets: match.sets.map((s) => (side === "A" ? { ...s, playersB: [] } : { ...s, playersA: [] })),
   }
-  const teamId = captain.side === "A" ? match.teamA.id : match.teamB.id
-  const roster = (teams.find((t) => t.id === teamId)?.members ?? []).filter((m) => !m.leftOn)
-  const locked = entriesVisibleAt(match.status, match.entryRevealAt) || (match.status !== "scheduled" && match.status !== "postponed")
 
-  return <EntryForm match={own} side={captain.side} roster={roster} locked={locked} />
+  const teamId = side === "A" ? match.teamA.id : match.teamB.id
+  const roster = (teams.find((t) => t.id === teamId)?.members ?? []).filter((m) => !m.leftOn)
+  const [logs, maps] = await Promise.all([fetchEntryLogs(match.id, side), fetchMaps(season.id)])
+  const lastEntry = findLastEntry(matches, teamId, match.id)
+  // 지정 세트 중 우리가 고를 차례인 것 / 상대가 아직 안 고른 것
+  const pickers = Object.fromEntries(match.sets.filter((s) => s.pickBy).map((s) => [s.setNo, pickSide(s.pickBy!) === side ? "us" : "them"])) as Record<
+    number,
+    "us" | "them"
+  >
+
+  return (
+    <EntryForm
+      match={own}
+      side={side}
+      roster={roster}
+      open={entryOpen(match.status, match.entryRevealAt)}
+      deadline={entryDeadline(match.entryRevealAt)}
+      opponent={opponent}
+      logs={logs}
+      lastEntry={lastEntry}
+      maps={maps.map((m) => m.name)}
+      pickers={pickers}
+    />
+  )
 }

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
-import { FORMAT_LABEL, FORMAT_SIZE, matchScore, STATUS_LABEL, winTarget, type PlMatchStatus, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import { FORMAT_LABEL, FORMAT_SIZE, matchScore, PICK_LABEL, STATUS_LABEL, winTarget, type PlMatchStatus, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
 import type { PlMatch, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { usePlAction } from "./use-pl-action"
@@ -85,7 +85,7 @@ export function ResultEditor({
         <div>
           <h3 id="result-title">결과 입력 · {match.code}</h3>
           <p className="modal-sub">
-            {match.teamA.name} <span className="text-ink-3">(A)</span> vs {match.teamB.name} <span className="text-ink-3">(B)</span>
+            {match.teamA.name} <span className="text-ink-3">(A · 홈)</span> vs {match.teamB.name} <span className="text-ink-3">(B · 원정)</span>
           </p>
         </div>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="닫기">
@@ -135,6 +135,9 @@ export function ResultEditor({
             <div key={s.setNo} className={cn("set-edit-row", s.isAce && "ace")}>
               <div className="se-head">
                 <b>{s.isAce ? "ACE 결정전" : `SET ${s.setNo}`}</b>
+                {match.sets.find((x) => x.setNo === s.setNo)?.pickBy && (
+                  <span className="pill">{PICK_LABEL[match.sets.find((x) => x.setNo === s.setNo)!.pickBy!]}</span>
+                )}
                 <select
                   className="field"
                   value={s.format}
@@ -153,7 +156,7 @@ export function ResultEditor({
                 </select>
                 <input
                   className="field"
-                  list="pl-map-options"
+                  list="pl-result-map-options"
                   value={s.mapName}
                   onChange={(e) => patch(s.setNo, { mapName: e.target.value })}
                   placeholder="맵"
@@ -179,7 +182,7 @@ export function ResultEditor({
           )
         })}
       </div>
-      <datalist id="pl-map-options">
+      <datalist id="pl-result-map-options">
         {maps.map((m) => (
           <option key={m} value={m} />
         ))}

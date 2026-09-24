@@ -1,4 +1,4 @@
-import type { PlMatchStatus, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
+import type { PlMatchStatus, PlPickBy, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
 
 /** ELO 영역 — 기존 TuFelo DB 스키마 기준 */
 
@@ -210,8 +210,15 @@ export interface PlSet {
   id: string
   setNo: number
   isAce: boolean
+  /** 실제로 치르는 형식 · 맵 (지정 세트는 지정 팀이 고른 값) */
   format: PlSetFormat
   mapName: string | null
+  /** 지정 세트: 홈 지정 · 어웨이 지정 (null = 관리자가 정한 그대로) */
+  pickBy: PlPickBy | null
+  /** 지정 세트에서 개인전을 고르면 쓰는 맵 */
+  soloMap: string | null
+  /** 지정 팀이 형식을 고른 시각 (null = 아직) */
+  pickedAt: string | null
   winner: PlSide | null
   playersA: PlSetPlayer[]
   playersB: PlSetPlayer[]

@@ -79,3 +79,29 @@ export function matchScore(
 export function isCounted(status: PlMatchStatus) {
   return status === "done" || status === "forfeit"
 }
+
+/* ---------- 엔트리 (docs/sql/006_pl_entry_rules.sql) ---------- */
+
+/** A팀(왼쪽) = 홈, B팀(오른쪽) = 원정 */
+export type PlPickBy = "home" | "away"
+export const PICK_LABEL: Record<PlPickBy, string> = { home: "홈 지정", away: "어웨이 지정" }
+export const pickSide = (pickBy: PlPickBy): PlSide => (pickBy === "home" ? "A" : "B")
+export const SIDE_LABEL: Record<PlSide, string> = { A: "홈", B: "원정" }
+
+/** 지정 세트에서 고를 수 있는 형식 (개인전은 관리자가 정한 맵, 팀플은 맵풀에서 선택) */
+export const PICK_FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
+
+/** 엔트리 마감 = 공개 2시간 전 */
+export const ENTRY_DEADLINE_HOURS = 2
+
+export function entryDeadline(entryRevealAt: string | null): string | null {
+  if (!entryRevealAt) return null
+  return new Date(new Date(entryRevealAt).getTime() - ENTRY_DEADLINE_HOURS * 60 * 60 * 1000).toISOString()
+}
+
+/** 팀장 · 부팀장이 아직 제출 · 수정 · 형식 선택을 할 수 있는지 (공개 시각 미정이면 경기 전까지 가능) */
+export function entryOpen(status: PlMatchStatus, entryRevealAt: string | null, now = Date.now()): boolean {
+  if (status !== "scheduled" && status !== "postponed") return false
+  const deadline = entryDeadline(entryRevealAt)
+  return deadline === null || now < new Date(deadline).getTime()
+}

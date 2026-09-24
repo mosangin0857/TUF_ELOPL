@@ -2,17 +2,22 @@
 
 import { revalidatePath } from "next/cache"
 import { insertAdminLog } from "@/lib/admin-log"
-import { entriesVisibleAt } from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 import { getCaptainSide } from "@/lib/pl/permissions"
 import {
+  entryOpen,
+  FORMAT_LABEL,
   FORMAT_SIZE,
   matchCode,
+  PICK_LABEL,
+  pickSide,
   ROLE_LABEL,
   setCount,
+  REGULAR_STAGES,
   STAGES,
   STATUS_LABEL,
   type PlMatchStatus,
+  type PlPickBy,
   type PlRace,
   type PlSetFormat,
   type PlSide,
@@ -309,6 +314,9 @@ export async function deleteMapAction(id: string): Promise<ActionResult> {
 
 /* ---------------- 경기 ---------------- */
 
+/** 경기 등록 때 정하는 세트 구성: 형식 · 맵 · 지정(홈/어웨이). 지정 세트의 맵은 '개인전을 고르면 쓰는 맵' */
+export type SetConfigInput = { setNo: number; format: PlSetFormat; mapName: string; pickBy: PlPickBy | null }
+
 export type MatchInput = {
   stage: PlStage
   matchNo: number | null
@@ -317,6 +325,7 @@ export type MatchInput = {
   scheduledAt: string | null
   entryRevealAt: string | null
   note: string
+  sets: SetConfigInput[]
 }
 
 function validMatch(input: MatchInput): string | null {
@@ -326,6 +335,14 @@ function validMatch(input: MatchInput): string | null {
   }
   if (!input.teamAId || !input.teamBId) return "두 팀을 모두 골라 주세요."
   if (input.teamAId === input.teamBId) return "같은 팀끼리는 경기를 만들 수 없어요."
+  const n = setCount(input.stage)
+  for (const c of input.sets) {
+    if (c.setNo < 1 || c.setNo > n) return `${c.setNo}세트는 이 라운드에 없어요.`
+    if (!FORMATS.includes(c.format)) return `${c.setNo}세트: 형식 값이 올바르지 않아요.`
+    if (c.pickBy && c.pickBy !== "home" && c.pickBy !== "away") return `${c.setNo}세트: 지정 값이 올바르지 않아요.`
+    if (c.pickBy === "away" && REGULAR_STAGES.includes(input.stage)) return `${c.setNo}세트: 어웨이 지정은 플레이오프 · 결승에만 쓸 수 있어요.`
+    if (c.pickBy && c.setNo === n) return "ACE 결정전은 지정 세트로 둘 수 없어요."
+  }
   return null
 }
 
@@ -342,6 +359,28 @@ async function syncSets(matchId: string, stage: PlStage) {
   if (missing.length) await supabase.from("pl_sets").insert(missing.map((no) => ({ match_id: matchId, set_no: no, is_ace: no === n })))
   await supabase.from("pl_sets").update({ is_ace: false }).eq("match_id", matchId).neq("set_no", n)
   await supabase.from("pl_sets").update({ is_ace: true }).eq("match_id", matchId).eq("set_no", n)
+}
+
+/**
+ * 세트 구성 저장. 지정 세트는 map_name 대신 solo_map(개인전 맵)에 넣고,
+ * 아직 지정 팀이 고르지 않았으면 실제 형식 · 맵을 '개인전 + 개인전 맵'으로 둔다. 이미 골랐으면 고른 값을 유지한다.
+ */
+async function applySetConfig(matchId: string, sets: SetConfigInput[]) {
+  const supabase = createServiceClient()
+  const { data } = await supabase.from("pl_sets").select("id, set_no, picked_at").eq("match_id", matchId)
+  const bySetNo = new Map((data ?? []).map((r) => [r.set_no as number, r as { id: string; picked_at: string | null }]))
+  for (const c of sets) {
+    const row = bySetNo.get(c.setNo)
+    if (!row) continue
+    const map = c.mapName.trim().slice(0, 40) || null
+    let update: Record<string, unknown>
+    if (!c.pickBy) update = { pick_by: null, solo_map: null, picked_at: null, format: c.format, map_name: map }
+    else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map }
+    else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map }
+    const { error } = await supabase.from("pl_sets").update(update).eq("id", row.id)
+    if (error) return error
+  }
+  return null
 }
 
 export async function createMatchAction(seasonId: string, input: MatchInput): Promise<ActionResult> {
@@ -367,6 +406,8 @@ export async function createMatchAction(seasonId: string, input: MatchInput): Pr
   if (error) return fail("경기를 만들지 못했어요", error, input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO)
 
   await syncSets(data.id as string, input.stage)
+  const cfgErr = await applySetConfig(data.id as string, input.sets)
+  if (cfgErr) return fail("세트 구성을 저장하지 못했어요", cfgErr)
   await insertAdminLog(actor.username, "PL 경기 등록", matchCode(input.stage, input.matchNo))
   revalidatePl()
   return { ok: true }
@@ -393,6 +434,8 @@ export async function updateMatchAction(id: string, input: MatchInput): Promise<
   if (error) return fail("경기를 수정하지 못했어요", error, input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO)
 
   await syncSets(id, input.stage)
+  const cfgErr = await applySetConfig(id, input.sets)
+  if (cfgErr) return fail("세트 구성을 저장하지 못했어요", cfgErr)
   await insertAdminLog(actor.username, "PL 경기 수정", matchCode(input.stage, input.matchNo))
   revalidatePl()
   return { ok: true }
@@ -429,13 +472,14 @@ type MatchForWrite = {
   team_b_id: string
   status: PlMatchStatus
   entry_reveal_at: string | null
-  pl_sets: { id: string; set_no: number; is_ace: boolean; format: PlSetFormat }[]
+  season_id: string
+  pl_sets: { id: string; set_no: number; is_ace: boolean; format: PlSetFormat; pick_by: PlPickBy | null; solo_map: string | null; picked_at: string | null }[]
 }
 
 async function loadMatch(id: string): Promise<MatchForWrite | null> {
   const { data } = await createServiceClient()
     .from("pl_matches")
-    .select("id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format)")
+    .select("id, season_id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format, pick_by, solo_map, picked_at)")
     .eq("id", id)
     .maybeSingle()
   return (data as unknown as MatchForWrite | null) ?? null
@@ -523,9 +567,21 @@ export async function saveMatchResultAction(
   return { ok: true }
 }
 
+async function entryLog(matchId: string, side: PlSide, memberId: string, actorName: string, action: string) {
+  await createServiceClient()
+    .from("pl_entry_logs")
+    .insert({ match_id: matchId, side, member_id: memberId, actor_name: actorName, action: action.slice(0, 120) })
+}
+
+/** [1, 2, 4] → "1 · 2 · 4세트" */
+function setList(nos: number[]) {
+  return nos.length ? `${nos.join(" · ")}세트` : "빈 엔트리"
+}
+
 /**
  * 팀장 · 부팀장: 자기 팀 쪽 엔트리(ACE 제외 세트의 출전 선수) 제출.
- * 엔트리 공개 전 · 예정/연기 상태에서만 수정 가능. 관리자는 결과 입력 화면에서 언제든 고칠 수 있다.
+ * 엔트리 마감(공개 2시간 전) 전 · 예정/연기 경기만. 마감 뒤에는 관리자만 결과 입력 화면에서 고칠 수 있다.
+ * 지정 세트는 지정 팀이 형식을 고른 뒤에만 선수를 낼 수 있다.
  */
 export async function submitEntryAction(matchId: string, sets: { setNo: number; players: SetPlayerInput[] }[]): Promise<ActionResult> {
   const match = await loadMatch(matchId)
@@ -533,8 +589,9 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
 
   const captain = await getCaptainSide(match.team_a_id, match.team_b_id)
   if (!captain) return { ok: false, error: "이 경기 팀의 팀장 · 부팀장만 엔트리를 제출할 수 있어요." }
-  if (match.status !== "scheduled" && match.status !== "postponed") return { ok: false, error: "예정된 경기에만 엔트리를 제출할 수 있어요." }
-  if (entriesVisibleAt(match.status, match.entry_reveal_at)) return { ok: false, error: "엔트리가 이미 공개돼서 수정할 수 없어요. 관리자에게 요청해 주세요." }
+  if (!entryOpen(match.status, match.entry_reveal_at)) {
+    return { ok: false, error: "엔트리 마감(공개 2시간 전)이 지나서 제출 · 수정할 수 없어요. 관리자에게 요청해 주세요." }
+  }
 
   const teamId = captain.side === "A" ? match.team_a_id : match.team_b_id
   const roster = await rosterIds(teamId, true)
@@ -544,6 +601,9 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
     const set = setBySetNo.get(s.setNo)
     if (!set) return { ok: false, error: `${s.setNo}세트를 찾지 못했어요.` }
     if (set.is_ace) return { ok: false, error: "ACE 결정전 선수는 엔트리로 제출하지 않아요." }
+    if (set.pick_by && !set.picked_at && s.players.length) {
+      return { ok: false, error: `${s.setNo}세트는 ${PICK_LABEL[set.pick_by]} 세트라 형식이 정해진 뒤에 선수를 낼 수 있어요.` }
+    }
     const bad = checkPlayers(s.players, FORMAT_SIZE[set.format], roster, `${s.setNo}세트`)
     if (bad) return { ok: false, error: bad }
   }
@@ -553,7 +613,67 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
     if (err) return fail(`${s.setNo}세트 엔트리를 저장하지 못했어요`, err)
   }
 
-  await insertAdminLog(captain.username, "PL 엔트리 제출", matchCode(match.stage, match.match_no), `${captain.side}팀`)
+  const filledNos = sets.filter((s) => s.players.length === FORMAT_SIZE[setBySetNo.get(s.setNo)!.format]).map((s) => s.setNo)
+  await entryLog(match.id, captain.side, captain.memberId, captain.username, `${setList(filledNos)} 저장`)
+  await insertAdminLog(captain.username, "PL 엔트리 제출", matchCode(match.stage, match.match_no), `${captain.side}팀 · ${setList(filledNos)}`)
+  revalidatePl()
+  return { ok: true }
+}
+
+/**
+ * 지정 세트(홈 지정 · 어웨이 지정): 지정 팀의 팀장 · 부팀장이 형식을 고른다.
+ * 개인전 → 관리자가 정한 맵(solo_map), 팀플 2:2 · 3:3 · 4:4 → 맵풀에서 고른 맵. 한 번 고르면 관리자만 되돌릴 수 있다.
+ */
+export async function pickSetFormatAction(matchId: string, setNo: number, format: PlSetFormat, rawMap: string): Promise<ActionResult> {
+  const match = await loadMatch(matchId)
+  if (!match) return { ok: false, error: "해당 경기를 찾지 못했어요." }
+  const captain = await getCaptainSide(match.team_a_id, match.team_b_id)
+  if (!captain) return { ok: false, error: "이 경기 팀의 팀장 · 부팀장만 고를 수 있어요." }
+  if (!entryOpen(match.status, match.entry_reveal_at)) return { ok: false, error: "엔트리 마감이 지나서 고를 수 없어요." }
+
+  const set = match.pl_sets.find((s) => s.set_no === setNo)
+  if (!set?.pick_by) return { ok: false, error: `${setNo}세트는 지정 세트가 아니에요.` }
+  if (pickSide(set.pick_by) !== captain.side) return { ok: false, error: `${setNo}세트는 상대 팀이 고르는 ${PICK_LABEL[set.pick_by]} 세트예요.` }
+  if (set.picked_at) return { ok: false, error: "이미 형식을 골랐어요. 바꾸려면 관리자에게 요청해 주세요." }
+  if (!FORMATS.includes(format)) return { ok: false, error: "형식 값이 올바르지 않아요." }
+
+  let map = set.solo_map
+  if (format !== "1v1") {
+    map = rawMap.trim()
+    const { data: pool } = await createServiceClient().from("pl_maps").select("name").eq("season_id", match.season_id).eq("name", map).maybeSingle()
+    if (!pool) return { ok: false, error: "팀플 맵을 맵풀에서 골라 주세요." }
+  }
+
+  const { data, error } = await createServiceClient()
+    .from("pl_sets")
+    .update({ format, map_name: map, picked_at: new Date().toISOString() })
+    .eq("id", set.id)
+    .is("picked_at", null)
+    .select("id")
+  if (error) return fail("형식을 저장하지 못했어요", error)
+  if (!data?.length) return { ok: false, error: "방금 형식이 정해졌어요. 새로고침해 주세요." }
+
+  const what = `${setNo}세트 ${FORMAT_LABEL[format]}${map ? ` · ${map}` : ""} 선택`
+  await entryLog(match.id, captain.side, captain.memberId, captain.username, what)
+  await insertAdminLog(captain.username, "PL 지정 세트 선택", matchCode(match.stage, match.match_no), what)
+  revalidatePl()
+  return { ok: true }
+}
+
+/** 관리자: 지정 세트 선택 되돌리기 — 개인전 + 개인전 맵으로 돌리고, 인원이 바뀔 수 있으니 양 팀 선수도 비운다 */
+export async function resetPickAction(setId: string): Promise<ActionResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  const supabase = createServiceClient()
+  const { data: set } = await supabase.from("pl_sets").select("set_no, solo_map, pl_matches(stage, match_no)").eq("id", setId).maybeSingle()
+  if (!set) return { ok: false, error: "해당 세트를 찾지 못했어요." }
+
+  const { error } = await supabase.from("pl_sets").update({ picked_at: null, format: "1v1", map_name: set.solo_map }).eq("id", setId)
+  if (error) return fail("되돌리지 못했어요", error)
+  await supabase.from("pl_set_players").delete().eq("set_id", setId)
+
+  const m = set.pl_matches as unknown as { stage: PlStage; match_no: number | null } | null
+  await insertAdminLog(actor.username, "PL 지정 세트 되돌리기", m ? matchCode(m.stage, m.match_no) : setId, `${set.set_no as number}세트`)
   revalidatePl()
   return { ok: true }
 }

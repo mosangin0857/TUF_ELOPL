@@ -10,7 +10,8 @@
 - [x] 관리자 지정: Beombu · Tyr 두 명 `role = 'admin'` (임시 방식)
 - [x] 관리자 구분 확정 — 팀원이 `members.role` = member · admin · super로 확정 (Beombu · Tyr = super)
 - [x] 로그인 테스트 (Beombu · Tyr 로그인 기록 확인)
-- [ ] Vercel 환경변수 확인: `SUPABASE_SERVICE_ROLE_KEY`, `AUTH_SECRET`, **`SOOP_CLIENT_ID` · `SOOP_CLIENT_SECRET`** → 재배포
+- [x] Vercel 환경변수(Production): `SUPABASE_SERVICE_ROLE_KEY` · `AUTH_SECRET` · `SOOP_CLIENT_ID` · `SOOP_CLIENT_SECRET`
+- [ ] (선택) 위 4개를 Vercel **Preview**에도 추가 — 지금은 Production에만 있어서 브랜치 미리보기 배포에서는 로그인 · BJ 방송 상태가 안 됨
 - [x] Supabase SQL Editor에서 `docs/sql/004_clan_bjs.sql` 실행 (BJ 테이블)
 - [ ] BJ 관리에서 클랜 BJ 등록 → 대문 라이브 섹션 확인 (방송 중인 BJ로 제목 · 시청자 · 썸네일 확인)
 - [ ] PL 테이블 설계 (`pl_seasons`, `pl_teams`, `pl_team_members`, `pl_matches` …) — 선수는 `members.id` 참조
@@ -44,10 +45,10 @@
 - SOOP 요청은 서버에서만, 캐시 2분 + 대문 5분 갱신 → 방문자 수와 관계없이 몇 분에 몇 번만
 - CLAUDE.md "최근 변경" · 환경변수 표, DB_SCHEMA.md, .env.example 반영
 - `npm run typecheck` · `npm run build` 통과
+- Vercel Production에 `SOOP_CLIENT_ID` · `SOOP_CLIENT_SECRET` 추가 후 main 반영 (자동 배포)
 
 **다음에 할 일**
-- BJ 등록 → 대문 확인
-- Vercel에 `SOOP_CLIENT_ID` · `SOOP_CLIENT_SECRET` 추가
+- BJ 관리에서 클랜 BJ 등록 → 배포 사이트 대문에서 방송 상태 확인
 
 ### 2026-09-23 — 가운데 정렬 수정
 **한 일**

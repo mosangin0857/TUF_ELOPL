@@ -21,7 +21,11 @@
     → 클랜 BJ가 다른 카테고리로 방송하면 '오프라인'으로 보인다 (알려진 한계).
   - SOOP 응답 실패 · 키 없음이면 모두 '오프라인'으로 표시하고 대문은 그대로 동작.
 - 대문 `LiveSection`: 방송 중이면 실제 썸네일(`thumbUrl`) · 시청 링크(`watchUrl`), 프로필 이미지가 없으면 이름 첫 글자로 대체.
-- 새 환경변수 `SOOP_CLIENT_ID`(필수) · `SOOP_CLIENT_SECRET`(지금은 안 씀, 보관용) — 로컬 + Vercel.
+- 새 환경변수 `SOOP_CLIENT_ID`(필수) · `SOOP_CLIENT_SECRET`(지금은 안 씀, 보관용) — 로컬 + Vercel. **Vercel Production에 등록 완료.**
+- SOOP 문서 확인 결과 (다른 방법을 쓰지 않은 이유):
+  - "방송 필터링(filter/streamer)"은 **차단 목록**(`black_id`)이다 → 등록하면 그 BJ가 방송 리스트에서 빠진다. 클랜 BJ 골라보기 용도로 쓰면 안 됨.
+  - "방송 여부(validate/live/status)"는 Consent API라 **BJ 각자의 SOOP 로그인 · 동의로 받은 access_token**이 필요 → 보류. 다른 카테고리 방송까지 잡아야 할 때 선택 기능으로 추가 가능.
+- ⚠️ Vercel 환경변수(`SUPABASE_SERVICE_ROLE_KEY` · `AUTH_SECRET` · `SOOP_*`)는 **Production에만** 있다 → 브랜치 미리보기(Preview) 배포에서는 로그인 · BJ 방송 상태가 동작하지 않음.
 
 **2026-09-24 · 공지 · 건의 게시판 (공통 메뉴)**
 - **DB 변경 SQL: `docs/sql/003_notices.sql`** — 새 테이블 `notices`(공지) + 기존 `suggestions`에 `member_id` 컬럼 추가. 기존 `site_notice`는 그대로 둠(옮기지 않음).

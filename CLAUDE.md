@@ -12,6 +12,14 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-28 · 프로리그 팀 대 팀 탭 · 개인 순위 펼치기 (PL 담당, `TUFPL_MSI`에만, main 미반영)**
+- 새 탭 **프로리그 › 팀 대 팀** (`app/pl/vs/page.tsx`, `components/pl/h2h-board.tsx`, `lib/nav.ts`의 `vs`): **정규 라운드만** 집계.
+  한 팀 보기(상대별 매치 승:패 · 경기 수 · 세트 득실 · 남은 맞대결 · 라운드별 결과 칩, 누르면 경기별 세트 승패) / 전체 표(팀 × 팀, 칸 누르면 그 두 팀으로).
+  취소 경기 제외, 몰수는 순위와 같게 승패 · 세트(4:0)에 포함. DB 추가 없음(경기 · 세트 결과로 계산).
+- 프로리그 › 순위 › 개인 순위: **선수 줄을 누르면 펼쳐져서** 그 선수의 프로리그 기록 (`components/pl/player-record.tsx`).
+  요약(개인전 + 상대 종족별 · 팀플 · ACE · 많이 한 맵) + 세트별 기록(경기 · 날짜 · 세트 · 형식 · 맵 · 우리 편 · 상대 · 승패, 플레이오프 PO 표시) + 전체/개인전/팀플/ACE 필터.
+  컬럼 정렬은 그대로(펼친 선수는 정렬해도 유지). DB 추가 없음.
+
 **2026-09-28 · PL 관리 › 경기 개선 — 처리할 경기 · 사이드바 · 방송 BJ · 세트 순서 (PL 담당, `TUFPL_MSI`에만, main 미반영)**
 - **DB 변경 SQL: `docs/sql/007_pl_broadcast_bjs.sql` (아직 실행 안 함)** — 새 테이블 `pl_match_bjs`(경기별 방송 BJ 이름). main에 올리기 전 한 번에 실행 → 목록은 **`docs/sql/PENDING.md`**.
   실행 전에도 사이트는 동작한다: `fetchMatchBjs`가 테이블이 없으면 빈 값(`ready: false`)을 돌려주고, 저장하면 "SQL 실행 필요" 안내.
@@ -150,7 +158,8 @@ app/
   admin/logs/page.tsx       관리자 설정 › 활동 로그 (admin_logs)
   admin/bj/                 관리자 설정 › BJ 관리 (page.tsx) + 등록 · 수정 · 삭제 · 순서 · 대문 노출 액션 (actions.ts)
   pl/page.tsx               프로리그 › 일정 (라운드 탭, 세트 결과 펼치기)
-  pl/standings/page.tsx     프로리그 › 순위 (팀 순위 · 개인 순위)
+  pl/standings/page.tsx     프로리그 › 순위 (팀 순위 · 개인 순위, 선수 줄 펼치면 경기별 기록)
+  pl/vs/page.tsx            프로리그 › 팀 대 팀 (정규 라운드 상대 전적: 한 팀 보기 · 전체 표)
   pl/manage/page.tsx        프로리그 › PL 관리 (관리자만: 경기 · 팀/선수단 · 맵풀 · 시즌)
   pl/entry/[id]/page.tsx    엔트리 제출 (그 경기 팀의 팀장 · 부팀장만)
   pl/actions.ts             PL 서버 액션 (시즌 · 팀 · 선수단 · 맵 · 경기 · 결과 입력 · 엔트리 제출)

@@ -39,6 +39,7 @@ export default async function PlStandingsPage() {
       standings={computeStandings(teams, matches, season.winPoints)}
       players={computePlayerStats(teams, matches)}
       teams={teams.map((t) => ({ name: t.name, color: t.color }))}
+      matches={matches.filter((m) => m.status === "done")}
     />
   )
 }

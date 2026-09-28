@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
+import { Fragment, useMemo, useState } from "react"
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
+import { PlayerRecord } from "@/components/pl/player-record"
 import { winRate } from "@/lib/pl/format"
-import type { PlPlayerStat, PlTeamStanding, Race, Tier } from "@/lib/types"
+import type { PlMatch, PlPlayerStat, PlTeamStanding, Race, Tier } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 type View = "team" | "player"
@@ -112,7 +113,9 @@ function TeamTable({ standings, winPoints }: { standings: PlTeamStanding[]; winP
   )
 }
 
-function PlayerTable({ players, teams }: { players: PlPlayerStat[]; teams: { name: string; color: string }[] }) {
+function PlayerTable({ players, teams, matches }: { players: PlPlayerStat[]; teams: { name: string; color: string }[]; matches: PlMatch[] }) {
+  const [open, setOpen] = useState<string | null>(null)
+  const toggle = (id: string) => setOpen((o) => (o === id ? null : id))
   const [q, setQ] = useState("")
   const [team, setTeam] = useState("")
   const [tier, setTier] = useState<Tier | 0>(0)
@@ -186,12 +189,25 @@ function PlayerTable({ players, teams }: { players: PlPlayerStat[]; teams: { nam
           <tbody>
             {rows.length ? (
               rows.map((p) => (
-                <tr key={p.memberId}>
+                <Fragment key={p.memberId}>
+                <tr
+                  className={cn("pr-row-btn", open === p.memberId && "open")}
+                  tabIndex={0}
+                  aria-expanded={open === p.memberId}
+                  onClick={() => toggle(p.memberId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      toggle(p.memberId)
+                    }
+                  }}
+                >
                   <td className="num">{p.rank}</td>
                   <td>
                     <span className="p-cell">
                       <RaceBadge race={p.race} />
                       {p.name}
+                      <ChevronDown className="pr-caret" size={14} aria-hidden />
                     </span>
                   </td>
                   <td>
@@ -217,6 +233,14 @@ function PlayerTable({ players, teams }: { players: PlPlayerStat[]; teams: { nam
                   <td className="n">{p.games}</td>
                   <td className="n">{p.recognized}</td>
                 </tr>
+                {open === p.memberId && (
+                  <tr className="pr-detail">
+                    <td colSpan={10}>
+                      <PlayerRecord memberId={p.memberId} name={p.name} matches={matches} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))
             ) : (
               <tr>
@@ -230,7 +254,7 @@ function PlayerTable({ players, teams }: { players: PlPlayerStat[]; teams: { nam
       </div>
       <div className="po-note">
         <i />
-        개인전 · 팀플 합산, 플레이오프 포함 · 실경기는 ACE 결정전 포함 전체 세트, 출전인정은 정규 라운드에서 ACE 결정전을 뺀 세트 · 제목을 누르면 정렬 기준이 바뀌어요
+        개인전 · 팀플 합산, 플레이오프 포함 · 실경기는 ACE 결정전 포함 전체 세트, 출전인정은 정규 라운드에서 ACE 결정전을 뺀 세트 · 제목을 누르면 정렬, 선수 줄을 누르면 경기별 기록
       </div>
     </>
   )
@@ -243,6 +267,7 @@ export function StandingsBoard({
   standings,
   players,
   teams,
+  matches,
   initialView = "team",
 }: {
   seasonName: string
@@ -250,6 +275,8 @@ export function StandingsBoard({
   standings: PlTeamStanding[]
   players: PlPlayerStat[]
   teams: { name: string; color: string }[]
+  /** 종료 경기 (선수 줄 펼치기 — 경기별 기록) */
+  matches: PlMatch[]
   initialView?: View
 }) {
   const [view, setView] = useState<View>(initialView)
@@ -269,7 +296,7 @@ export function StandingsBoard({
           </button>
         </div>
       </div>
-      {view === "team" ? <TeamTable standings={standings} winPoints={winPoints} /> : <PlayerTable players={players} teams={teams} />}
+      {view === "team" ? <TeamTable standings={standings} winPoints={winPoints} /> : <PlayerTable players={players} teams={teams} matches={matches} />}
     </section>
   )
 }

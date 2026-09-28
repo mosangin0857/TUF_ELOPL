@@ -428,3 +428,27 @@ export function findLastEntry(
   }
   return null
 }
+
+/**
+ * 경기별 방송 BJ (docs/sql/007_pl_broadcast_bjs.sql). 테이블이 아직 없으면(SQL 실행 전) 빈 값 — 화면은 그대로 동작.
+ * 반환: 경기 id → BJ 이름 목록(입력 순서)
+ */
+export async function fetchMatchBjs(matchIds: string[]): Promise<{ byMatch: Record<string, string[]>; ready: boolean }> {
+  if (!matchIds.length) return { byMatch: {}, ready: true }
+  const { data, error } = await createServiceClient()
+    .from("pl_match_bjs")
+    .select("match_id, name, sort_order")
+    .in("match_id", matchIds)
+    .order("sort_order", { ascending: true })
+  if (error) return { byMatch: {}, ready: false }
+  const byMatch: Record<string, string[]> = {}
+  for (const r of data ?? []) (byMatch[r.match_id as string] ??= []).push(r.name as string)
+  return { byMatch, ready: true }
+}
+
+/** 방송 BJ 입력 목록: 관리자 설정 › BJ 관리에 등록된 클랜 BJ 이름 */
+export async function fetchClanBjNames(): Promise<string[]> {
+  const { data, error } = await createServiceClient().from("clan_bjs").select("name").order("sort_order", { ascending: true })
+  if (error) return []
+  return (data ?? []).map((r) => r.name as string)
+}

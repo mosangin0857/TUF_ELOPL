@@ -24,6 +24,10 @@ export function PlManage({
   maps,
   matches,
   members,
+  bjByMatch,
+  bjReady,
+  clanBjs,
+  now,
   initialTab,
   initialMatchId,
 }: {
@@ -33,6 +37,10 @@ export function PlManage({
   maps: { id: string; name: string }[]
   matches: PlMatch[]
   members: { id: string; name: string }[]
+  bjByMatch: Record<string, string[]>
+  bjReady: boolean
+  clanBjs: string[]
+  now: number
   initialTab: ManageTab
   initialMatchId?: string
 }) {
@@ -63,7 +71,17 @@ export function PlManage({
       {season && tab === "teams" && <TeamsPanel seasonId={season.id} teams={teams} members={members} />}
       {season && tab === "maps" && <MapsPanel seasonId={season.id} maps={maps} />}
       {season && tab === "matches" && (
-        <MatchesPanel seasonId={season.id} teams={teams} matches={matches} maps={maps.map((m) => m.name)} initialMatchId={initialMatchId} />
+        <MatchesPanel
+          seasonId={season.id}
+          teams={teams}
+          matches={matches}
+          maps={maps.map((m) => m.name)}
+          bjByMatch={bjByMatch}
+          bjReady={bjReady}
+          clanBjs={clanBjs}
+          now={now}
+          initialMatchId={initialMatchId}
+        />
       )}
     </>
   )

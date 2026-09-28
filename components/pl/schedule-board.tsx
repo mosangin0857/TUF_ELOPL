@@ -47,9 +47,12 @@ export function ScheduleBoard({
   seasonName,
   matches,
   captains,
+  bjByMatch = {},
 }: {
   seasonName: string
   matches: PlMatch[]
+  /** 경기 id → 방송 BJ */
+  bjByMatch?: Record<string, string[]>
   /** 팀 id → 현재 팀장 · 부팀장 member id (엔트리 제출 버튼 표시용, 실제 권한은 서버에서 다시 확인) */
   captains: Record<string, string[]>
 }) {
@@ -131,6 +134,16 @@ export function ScheduleBoard({
                   <div className="md-meta">
                     <span>{shortWhen(m.scheduledAt)}</span>
                     {m.status === "forfeit" && <span className="pill">{m.forfeitWinner === "A" ? m.teamA.name : m.teamB.name} 몰수승</span>}
+                    {(bjByMatch[m.id] ?? []).length > 0 && (
+                      <span className="bj-tags">
+                        방송
+                        {bjByMatch[m.id].map((b) => (
+                          <span key={b} className="bj-tag">
+                            {b}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                     {m.note && <span className="text-ink-2">{m.note}</span>}
                     <span className="md-actions">
                       {canEntry && (

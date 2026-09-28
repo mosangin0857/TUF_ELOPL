@@ -456,7 +456,13 @@ export async function deleteMatchAction(id: string): Promise<ActionResult> {
 
 export type SetPlayerInput = { memberId: string; race: PlRace | null }
 export type SetInput = {
+  /** 저장할 자리(세트 번호) */
   setNo: number
+  /**
+   * 원래 몇 세트였는지 — 관리자가 세트 순서를 바꾼 경우(드래그). 지정 세트 정보(홈/어웨이 지정 · 개인전 맵 · 선택 시각)도
+   * 원래 세트에서 함께 옮겨 온다. 안 바꿨으면 setNo와 같다.
+   */
+  fromSetNo: number
   format: PlSetFormat
   mapName: string
   winner: PlSide | null
@@ -516,7 +522,7 @@ async function replacePlayers(setId: string, side: PlSide, players: SetPlayerInp
 /** 관리자: 경기 상태 + 세트별 형식 · 맵 · 출전 선수 · 승자 한 번에 저장 */
 export async function saveMatchResultAction(
   matchId: string,
-  input: { status: PlMatchStatus; forfeitWinner: PlSide | null; sets: SetInput[] },
+  input: { status: PlMatchStatus; forfeitWinner: PlSide | null; sets: SetInput[]; bjs: string[] },
 ): Promise<ActionResult> {
   const actor = await manager()
   if (!actor) return { ok: false, error: NO_PERMISSION }
@@ -529,6 +535,19 @@ export async function saveMatchResultAction(
   if (!match) return { ok: false, error: "해당 경기를 찾지 못했어요." }
   const [rosterA, rosterB] = await Promise.all([rosterIds(match.team_a_id, false), rosterIds(match.team_b_id, false)])
   const setBySetNo = new Map(match.pl_sets.map((s) => [s.set_no, s]))
+
+  // 세트 순서 바꾸기: ACE는 고정, 나머지는 서로 자리만 바뀐 것(같은 번호 집합)이어야 한다
+  const froms = input.sets.map((s) => s.fromSetNo)
+  if (new Set(froms).size !== froms.length || froms.some((no) => !setBySetNo.has(no))) {
+    return { ok: false, error: "세트 순서 정보가 올바르지 않아요. 새로고침 후 다시 시도해 주세요." }
+  }
+  if (input.sets.some((s) => setBySetNo.get(s.setNo)?.is_ace !== setBySetNo.get(s.fromSetNo)?.is_ace)) {
+    return { ok: false, error: "ACE 결정전은 자리를 바꿀 수 없어요." }
+  }
+
+  const bjs = [...new Set(input.bjs.map((b) => b.trim()).filter(Boolean))]
+  if (bjs.some((b) => b.length > 30)) return { ok: false, error: "방송 BJ 이름은 30자 이내로 입력해 주세요." }
+  if (bjs.length > 10) return { ok: false, error: "방송 BJ는 10명까지 넣을 수 있어요." }
 
   for (const s of input.sets) {
     const label = `${s.setNo}세트`
@@ -551,9 +570,17 @@ export async function saveMatchResultAction(
 
   for (const s of input.sets) {
     const setId = setBySetNo.get(s.setNo)!.id
+    const from = setBySetNo.get(s.fromSetNo)!
     const u = await supabase
       .from("pl_sets")
-      .update({ format: s.format, map_name: s.mapName.trim().slice(0, 40) || null, winner: s.winner })
+      .update({
+        format: s.format,
+        map_name: s.mapName.trim().slice(0, 40) || null,
+        winner: s.winner,
+        pick_by: from.pick_by,
+        solo_map: from.solo_map,
+        picked_at: from.picked_at,
+      })
       .eq("id", setId)
     if (u.error) return fail(`${s.setNo}세트를 저장하지 못했어요`, u.error)
     const ea = await replacePlayers(setId, "A", s.playersA)
@@ -562,8 +589,24 @@ export async function saveMatchResultAction(
     if (eb) return fail(`${s.setNo}세트 B팀 선수를 저장하지 못했어요`, eb)
   }
 
-  await insertAdminLog(actor.username, "PL 경기 결과 입력", matchCode(match.stage, match.match_no), STATUS_LABEL[input.status])
+  const moved = input.sets.filter((s) => s.fromSetNo !== s.setNo).map((s) => `${s.fromSetNo}→${s.setNo}`)
+  await insertAdminLog(
+    actor.username,
+    "PL 경기 결과 입력",
+    matchCode(match.stage, match.match_no),
+    [STATUS_LABEL[input.status], moved.length ? `세트 순서 ${moved.join(", ")}` : "", bjs.length ? `방송 ${bjs.join(", ")}` : ""].filter(Boolean).join(" · "),
+  )
   revalidatePl()
+
+  // 방송 BJ (docs/sql/007_pl_broadcast_bjs.sql) — 테이블이 없으면 결과는 저장된 채로 안내만
+  const del = await supabase.from("pl_match_bjs").delete().eq("match_id", matchId)
+  if (del.error) {
+    return { ok: false, error: "경기 결과는 저장했어요. 방송 BJ는 docs/sql/007_pl_broadcast_bjs.sql을 Supabase에서 실행한 뒤 다시 저장해 주세요." }
+  }
+  if (bjs.length) {
+    const ins = await supabase.from("pl_match_bjs").insert(bjs.map((name, i) => ({ match_id: matchId, name, sort_order: i })))
+    if (ins.error) return fail("경기 결과는 저장했지만 방송 BJ를 저장하지 못했어요", ins.error)
+  }
   return { ok: true }
 }
 

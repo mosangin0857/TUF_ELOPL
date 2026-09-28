@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
 import { createMatchAction, deleteMatchAction, resetPickAction, updateMatchAction, type MatchInput } from "@/app/pl/actions"
 import { Empty } from "@/components/ui/empty"
@@ -23,6 +23,7 @@ import {
 } from "@/lib/pl/rules"
 import type { PlMatch, PlTeam } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { entryCount, isLate, ManageSide } from "./manage-side"
 import { ResultEditor } from "./result-editor"
 import { ErrorLine, usePlAction } from "./use-pl-action"
 
@@ -77,20 +78,66 @@ function draftSets(m: PlMatch): SetDraft[] {
   }))
 }
 
-/** PL 관리 › 경기: 등록(세트 구성 포함) · 수정 · 삭제 · 결과 입력 */
+type Filter = "all" | "late" | "up" | "done"
+const FILTER_LABEL: Record<Filter, string> = { all: "전체", late: "결과 대기", up: "예정", done: "종료" }
+const ROUND_OF: Record<PlStage, string> = { R1: "R1", R2: "R2", R3: "R3", PO: "PO", FINAL: "PO" }
+
+/** PL 관리 › 경기: 처리할 경기 · 목록(필터) · 사이드(시즌 진행 · BJ 방송 횟수 · 확인할 것 · 맵) · 등록 · 결과 입력 */
 export function MatchesPanel({
   seasonId,
   teams,
   matches,
   maps,
+  bjByMatch,
+  bjReady,
+  clanBjs,
+  now,
   initialMatchId,
 }: {
   seasonId: string
   teams: PlTeam[]
   matches: PlMatch[]
   maps: string[]
+  /** 경기 id → 방송 BJ (007 SQL 실행 전이면 빈 값) */
+  bjByMatch: Record<string, string[]>
+  bjReady: boolean
+  /** 방송 BJ 입력 목록 (BJ 관리의 클랜 BJ) */
+  clanBjs: string[]
+  /** 서버에서 화면을 만든 시각 (결과 대기 · 다음 경기 판단) */
+  now: number
   initialMatchId?: string
 }) {
+  const [filter, setFilter] = useState<Filter>("all")
+  const [round, setRound] = useState("")
+  const [q, setQ] = useState("")
+
+  const kind = (m: PlMatch): Exclude<Filter, "all"> | "other" =>
+    isLate(m, now) ? "late" : isCounted(m.status) ? "done" : m.status === "canceled" ? "other" : "up"
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: matches.length, late: 0, up: 0, done: 0 }
+    for (const m of matches) {
+      const k = kind(m)
+      if (k !== "other") c[k]++
+    }
+    return c
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, now])
+  const query = q.trim().toLowerCase()
+  const visible = matches.filter(
+    (m) =>
+      (filter === "all" || kind(m) === filter) &&
+      (!round || ROUND_OF[m.stage] === round) &&
+      (!query || `${m.code} ${m.teamA.name} ${m.teamB.name}`.toLowerCase().includes(query)),
+  )
+
+  // 처리할 경기: 결과가 없는 지난 경기 → 다음 경기 (최대 4개)
+  const todo = [
+    ...matches.filter((m) => isLate(m, now)),
+    ...matches
+      .filter((m) => (m.status === "scheduled" || m.status === "live" || m.status === "postponed") && !isLate(m, now) && m.scheduledAt)
+      .sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!)),
+  ].slice(0, 4)
+
   const { busy, error, run } = usePlAction()
   const [confirm, setConfirm] = useState<string | null>(null)
 
@@ -172,6 +219,68 @@ export function MatchesPanel({
 
   return (
     <>
+      {todo.length > 0 && (
+        <section className="panel" aria-labelledby="pl-todo-title">
+          <div className="panel-head">
+            <div>
+              <div className="eyebrow">TO DO</div>
+              <h2 id="pl-todo-title">처리할 경기</h2>
+            </div>
+            <span className="note">결과가 안 들어간 지난 경기 → 다음 경기 순 · 최대 4개</span>
+          </div>
+          <div className="todo-grid">
+            {todo.map((m) => {
+              const late = isLate(m, now)
+              const a = entryCount(m, "A")
+              const b = entryCount(m, "B")
+              const noBj = bjReady && !(bjByMatch[m.id] ?? []).length
+              return (
+                <div key={m.id} className={cn("todo-card", late ? "late" : "next")}>
+                  <div className="tc-top">
+                    <b className="num">{m.code}</b>
+                    <span className={cn("pill", late ? "wait" : "soon")}>{late ? "결과 입력 대기" : m.status === "postponed" ? "연기된 경기" : "다음 경기"}</span>
+                  </div>
+                  <span className="note">
+                    {shortWhen(m.scheduledAt)}
+                    {late && " · 경기일 지남"}
+                  </span>
+                  <div className="tc-teams">
+                    <span>
+                      <Crest team={m.teamA.name} color={m.teamA.color} />
+                      {m.teamA.name}
+                    </span>
+                    <span className="vs num">vs</span>
+                    <span className="r">
+                      {m.teamB.name}
+                      <Crest team={m.teamB.name} color={m.teamB.color} />
+                    </span>
+                  </div>
+                  <div className="tc-entry">
+                    <span className={cn("e", a.filled === a.total ? "ok" : "bad")}>
+                      <i />홈 엔트리 {a.filled}/{a.total}
+                    </span>
+                    <span className={cn("e", b.filled === b.total ? "ok" : "bad")}>
+                      <i />원정 엔트리 {b.filled}/{b.total}
+                    </span>
+                    {late && noBj && (
+                      <span className="e bad">
+                        <i />방송 BJ 미입력
+                      </span>
+                    )}
+                  </div>
+                  <div className="tc-act">
+                    <button type="button" className={cn("mini-btn", late && "on")} onClick={() => openResult(m.id)}>
+                      {late ? "결과 입력" : "세트 순서 · 엔트리 보기"}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      <div className="pl-split">
       <section className="panel">
         <div className="panel-head">
           <div>
@@ -183,6 +292,25 @@ export function MatchesPanel({
           </button>
         </div>
         {teams.length < 2 && <p className="notice-inline">경기를 등록하려면 팀 · 선수단에서 팀을 2개 이상 먼저 만드세요.</p>}
+        {matches.length > 0 && (
+          <div className="toolbar">
+            <div className="seg" role="group" aria-label="상태">
+              {(Object.keys(FILTER_LABEL) as Filter[]).map((f) => (
+                <button key={f} type="button" className={cn(filter === f && "on")} aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                  {FILTER_LABEL[f]} <span className={cn("cnt", f === "late" && counts.late > 0 && "hot")}>{counts[f]}</span>
+                </button>
+              ))}
+            </div>
+            <select className="field" value={round} onChange={(e) => setRound(e.target.value)} aria-label="라운드">
+              <option value="">전체 라운드</option>
+              <option value="R1">1라운드</option>
+              <option value="R2">2라운드</option>
+              <option value="R3">3라운드</option>
+              <option value="PO">플레이오프 · 결승</option>
+            </select>
+            <input className="field grow-field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="팀 · 경기 코드 검색" aria-label="경기 검색" />
+          </div>
+        )}
         <ErrorLine error={error} />
         {matches.length === 0 ? (
           <Empty hint="경기를 등록할 때 세트별 형식 · 맵 · 홈/어웨이 지정을 함께 정해요.">등록된 경기가 없어요.</Empty>
@@ -195,12 +323,20 @@ export function MatchesPanel({
                   <th>일시</th>
                   <th>대진 (홈 vs 원정)</th>
                   <th>상태</th>
+                  <th>방송 BJ</th>
                   <th className="n">관리</th>
                 </tr>
               </thead>
               <tbody>
-                {matches.map((m) => (
-                  <tr key={m.id}>
+                {visible.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="note" style={{ padding: 18 }}>
+                      조건에 맞는 경기가 없어요.
+                    </td>
+                  </tr>
+                )}
+                {visible.map((m) => (
+                  <tr key={m.id} className={cn(isLate(m, now) && "late-row")}>
                     <td className="num">
                       <b>{m.code}</b>
                     </td>
@@ -217,7 +353,20 @@ export function MatchesPanel({
                       </span>
                     </td>
                     <td>
-                      <span className={cn("pill", `st-${m.status}`)}>{STATUS_LABEL[m.status]}</span>
+                      {isLate(m, now) ? <span className="pill wait">결과 대기</span> : <span className={cn("pill", `st-${m.status}`)}>{STATUS_LABEL[m.status]}</span>}
+                    </td>
+                    <td>
+                      {(bjByMatch[m.id] ?? []).length ? (
+                        <span className="bj-tags">
+                          {bjByMatch[m.id].map((b) => (
+                            <span key={b} className="bj-tag">
+                              {b}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-ink-3">—</span>
+                      )}
                     </td>
                     <td className="n" style={{ fontFamily: "inherit", fontSize: 13 }}>
                       {confirm === m.id ? (
@@ -251,6 +400,8 @@ export function MatchesPanel({
           </div>
         )}
       </section>
+      <ManageSide matches={matches} teams={teams} bjByMatch={bjByMatch} bjReady={bjReady} now={now} />
+      </div>
 
       <dialog ref={formRef} className="modal wide" aria-labelledby="match-form-title" onClose={() => setDraft(null)}>
         {draft && (
@@ -430,6 +581,8 @@ export function MatchesPanel({
             rosterA={rosterOf(resultMatch.teamA.id)}
             rosterB={rosterOf(resultMatch.teamB.id)}
             maps={maps}
+            bjs={bjByMatch[resultMatch.id] ?? []}
+            clanBjs={clanBjs}
             onClose={() => resultRef.current?.close()}
           />
         )}

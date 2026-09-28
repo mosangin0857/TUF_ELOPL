@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { X } from "lucide-react"
+import { GripVertical, X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
-import { FORMAT_LABEL, FORMAT_SIZE, matchScore, PICK_LABEL, STATUS_LABEL, winTarget, type PlMatchStatus, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import { FORMAT_LABEL, FORMAT_SIZE, matchScore, PICK_LABEL, STATUS_LABEL, winTarget, type PlMatchStatus, type PlPickBy, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
 import type { PlMatch, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { usePlAction } from "./use-pl-action"
@@ -13,8 +13,10 @@ const FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
 const STATUSES: PlMatchStatus[] = ["scheduled", "live", "done", "postponed", "canceled", "forfeit"]
 
 type SetDraft = {
-  setNo: number
+  /** 원래 세트 번호 (순서를 바꿔도 따라다님). 저장 자리는 배열 순서 */
+  from: number
   isAce: boolean
+  pickBy: PlPickBy | null
   format: PlSetFormat
   mapName: string
   winner: PlSide | null
@@ -22,38 +24,67 @@ type SetDraft = {
   playersB: SlotValue[]
 }
 
-/** 결과 입력 팝업 안 내용: 경기 상태 + 세트별 형식 · 맵 · 출전 선수 · 승자 */
+/**
+ * 결과 입력 팝업: 경기 상태 · 방송 BJ · 세트별 형식 · 맵 · 출전 선수 · 승자.
+ * 세트 순서 바꾸기: 손잡이를 끌어 다른 세트에 놓으면 두 세트 자리가 바뀐다 (내용은 그대로, 번호만). ACE는 고정.
+ */
 export function ResultEditor({
   match,
   rosterA,
   rosterB,
   maps,
+  bjs: initialBjs,
+  clanBjs,
   onClose,
 }: {
   match: PlMatch
   rosterA: PlTeamMember[]
   rosterB: PlTeamMember[]
   maps: string[]
+  /** 이 경기에 저장된 방송 BJ */
+  bjs: string[]
+  /** 관리자 설정 › BJ 관리에 등록된 클랜 BJ 이름 (입력 목록) */
+  clanBjs: string[]
   onClose: () => void
 }) {
   const { busy, error, run } = usePlAction()
   const [status, setStatus] = useState<PlMatchStatus>(match.status)
   const [forfeitWinner, setForfeitWinner] = useState<PlSide | null>(match.forfeitWinner)
-  const [sets, setSets] = useState<SetDraft[]>(() =>
+  const initial = (): SetDraft[] =>
     match.sets.map((s) => ({
-      setNo: s.setNo,
+      from: s.setNo,
       isAce: s.isAce,
+      pickBy: s.pickBy,
       format: s.format,
       mapName: s.mapName ?? "",
       winner: s.winner,
       playersA: s.playersA.map((p) => ({ memberId: p.memberId, race: p.race })),
       playersB: s.playersB.map((p) => ({ memberId: p.memberId, race: p.race })),
-    })),
-  )
+    }))
+  const [sets, setSets] = useState<SetDraft[]>(initial)
+  const [bjs, setBjs] = useState<string[]>(initialBjs)
+  const [bjInput, setBjInput] = useState("")
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
-  const patch = (setNo: number, p: Partial<SetDraft>) => setSets((list) => list.map((s) => (s.setNo === setNo ? { ...s, ...p } : s)))
+  const patch = (i: number, p: Partial<SetDraft>) => setSets((list) => list.map((s, j) => (j === i ? { ...s, ...p } : s)))
+  const swap = (i: number, j: number) =>
+    setSets((list) => {
+      if (i === j || list[i]?.isAce || list[j]?.isAce) return list
+      const next = [...list]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  const moved = sets.map((s, i) => (s.from !== i + 1 ? `${s.from}→${i + 1}` : null)).filter(Boolean)
+
   const score = matchScore(match.stage, status === "forfeit" ? "forfeit" : "done", forfeitWinner, sets.map((s) => s.winner))
   const target = winTarget(match.stage)
+
+  const addBj = () => {
+    const name = bjInput.trim()
+    if (name && !bjs.includes(name)) setBjs([...bjs, name])
+    setBjInput("")
+  }
 
   const save = () =>
     run(
@@ -61,14 +92,16 @@ export function ResultEditor({
         saveMatchResultAction(match.id, {
           status,
           forfeitWinner: status === "forfeit" ? forfeitWinner : null,
-          sets: sets.map((s) => ({
-            setNo: s.setNo,
+          sets: sets.map((s, i) => ({
+            setNo: i + 1,
+            fromSetNo: s.from,
             format: s.format,
             mapName: s.mapName,
             winner: s.winner,
             playersA: filled(s.playersA),
             playersB: filled(s.playersB),
           })),
+          bjs,
         }),
       onClose,
     )
@@ -117,35 +150,135 @@ export function ResultEditor({
           </div>
         )}
         <div className="result-score">
-          <small>세트 스코어</small>
+          <small>세트 스코어 (홈 : 원정)</small>
           <b className="num">
             {score.a} : {score.b}
           </b>
         </div>
       </div>
+
+      <div className="bj-box">
+        <span className="bj-box-title">
+          이 경기를 방송한 BJ <span className="note">— 클랜 BJ 목록에서 고르거나 닉네임 입력 · 여러 명 가능 · 시즌 BJ 방송 횟수에 집계</span>
+        </span>
+        <div className="bj-chips">
+          {bjs.length ? (
+            bjs.map((b) => (
+              <span key={b} className="bj-chip">
+                {b}
+                <button type="button" onClick={() => setBjs(bjs.filter((x) => x !== b))} aria-label={`${b} 빼기`}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))
+          ) : (
+            <span className="note">아직 없어요.</span>
+          )}
+        </div>
+        <div className="bj-add">
+          <input
+            className="field"
+            list="pl-bj-options"
+            value={bjInput}
+            onChange={(e) => setBjInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addBj()
+              }
+            }}
+            maxLength={30}
+            placeholder="BJ 닉네임"
+            aria-label="방송 BJ 추가"
+          />
+          <datalist id="pl-bj-options">
+            {clanBjs.filter((b) => !bjs.includes(b)).map((b) => (
+              <option key={b} value={b} />
+            ))}
+          </datalist>
+          <button type="button" className="mini-btn on" onClick={addBj} disabled={!bjInput.trim()}>
+            추가
+          </button>
+        </div>
+      </div>
+
+      <div className="reorder-note">
+        <b>세트 순서</b>
+        <span className="note">손잡이를 끌어 다른 세트에 놓으면 두 세트 자리가 바뀌어요 (형식 · 맵 · 선수는 그대로, 번호만). 손잡이에서 ↑↓ 키로도 돼요. ACE는 고정.</span>
+        {moved.length > 0 && (
+          <>
+            <span className="pill">바뀐 순서: {moved.join(", ")}세트</span>
+            <button type="button" className="mini-btn" onClick={() => setSets(initial())}>
+              원래 순서로
+            </button>
+          </>
+        )}
+      </div>
+
       <p className="note">
         {target}선승 · 1~{sets.length - 1}세트는 결과와 관계없이 모두 진행, ACE 결정전은 {target - 1}:{target - 1}일 때만. 결과를 다 넣으면 상태를 &apos;종료&apos;로 바꿔야 순위에
         반영돼요.
       </p>
 
       <div className="set-editor">
-        {sets.map((s) => {
+        {sets.map((s, i) => {
           const size = FORMAT_SIZE[s.format]
+          const no = i + 1
           return (
-            <div key={s.setNo} className={cn("set-edit-row", s.isAce && "ace")}>
+            <div
+              key={s.from}
+              className={cn("set-edit-row", s.isAce && "ace", s.from !== no && "moved", dragFrom === i && "dragging", dragOver === i && dragFrom !== i && "over")}
+              onDragOver={(e) => {
+                if (dragFrom === null || s.isAce) return
+                e.preventDefault()
+                setDragOver(i)
+              }}
+              onDragLeave={() => setDragOver((o) => (o === i ? null : o))}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragFrom !== null) swap(dragFrom, i)
+                setDragFrom(null)
+                setDragOver(null)
+              }}
+            >
               <div className="se-head">
-                <b>{s.isAce ? "ACE 결정전" : `SET ${s.setNo}`}</b>
-                {match.sets.find((x) => x.setNo === s.setNo)?.pickBy && (
-                  <span className="pill">{PICK_LABEL[match.sets.find((x) => x.setNo === s.setNo)!.pickBy!]}</span>
+                {!s.isAce && (
+                  <button
+                    type="button"
+                    className="grip"
+                    draggable
+                    onDragStart={(e) => {
+                      setDragFrom(i)
+                      e.dataTransfer.effectAllowed = "move"
+                      e.dataTransfer.setData("text/plain", String(i))
+                    }}
+                    onDragEnd={() => {
+                      setDragFrom(null)
+                      setDragOver(null)
+                    }}
+                    onKeyDown={(e) => {
+                      const j = e.key === "ArrowUp" ? i - 1 : e.key === "ArrowDown" ? i + 1 : null
+                      if (j === null || j < 0 || sets[j]?.isAce) return
+                      e.preventDefault()
+                      swap(i, j)
+                    }}
+                    aria-label={`${no}세트 옮기기 (끌기 또는 위아래 화살표)`}
+                    title="끌어서 순서 바꾸기"
+                  >
+                    <GripVertical size={16} aria-hidden />
+                  </button>
                 )}
+                <b>{s.isAce ? "ACE 결정전" : `SET ${no}`}</b>
+                {s.from !== no && <span className="pill moved-pill">원래 {s.from}세트</span>}
+                {s.pickBy && <span className="pill">{PICK_LABEL[s.pickBy]}</span>}
                 <select
                   className="field"
                   value={s.format}
-                  aria-label={`${s.setNo}세트 형식`}
+                  aria-label={`${no}세트 형식`}
                   onChange={(e) => {
                     const format = e.target.value as PlSetFormat
                     const n = FORMAT_SIZE[format]
-                    patch(s.setNo, { format, playersA: s.playersA.slice(0, n), playersB: s.playersB.slice(0, n) })
+                    patch(i, { format, playersA: s.playersA.slice(0, n), playersB: s.playersB.slice(0, n) })
                   }}
                 >
                   {FORMATS.map((f) => (
@@ -158,25 +291,25 @@ export function ResultEditor({
                   className="field"
                   list="pl-result-map-options"
                   value={s.mapName}
-                  onChange={(e) => patch(s.setNo, { mapName: e.target.value })}
+                  onChange={(e) => patch(i, { mapName: e.target.value })}
                   placeholder="맵"
-                  aria-label={`${s.setNo}세트 맵`}
+                  aria-label={`${no}세트 맵`}
                 />
               </div>
               <div className="se-body">
-                <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(s.setNo, { playersA: v })} label={`${s.setNo}세트 A팀`} />
-                <div className="seg se-winner" role="group" aria-label={`${s.setNo}세트 승자`}>
-                  <button type="button" className={cn(s.winner === "A" && "on")} onClick={() => patch(s.setNo, { winner: "A" })}>
-                    A 승
+                <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(i, { playersA: v })} label={`${no}세트 홈`} />
+                <div className="seg se-winner" role="group" aria-label={`${no}세트 승자`}>
+                  <button type="button" className={cn(s.winner === "A" && "on")} onClick={() => patch(i, { winner: "A" })}>
+                    홈 승
                   </button>
-                  <button type="button" className={cn(s.winner === null && "on")} onClick={() => patch(s.setNo, { winner: null })}>
+                  <button type="button" className={cn(s.winner === null && "on")} onClick={() => patch(i, { winner: null })}>
                     -
                   </button>
-                  <button type="button" className={cn(s.winner === "B" && "on")} onClick={() => patch(s.setNo, { winner: "B" })}>
-                    B 승
+                  <button type="button" className={cn(s.winner === "B" && "on")} onClick={() => patch(i, { winner: "B" })}>
+                    원정 승
                   </button>
                 </div>
-                <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(s.setNo, { playersB: v })} label={`${s.setNo}세트 B팀`} />
+                <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(i, { playersB: v })} label={`${no}세트 원정`} />
               </div>
             </div>
           )

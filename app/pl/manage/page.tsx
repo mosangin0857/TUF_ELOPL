@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { PlManage, type ManageTab } from "@/components/pl/manage/pl-manage"
 import { AdminRequired } from "@/components/ui/admin-required"
 import { DbError } from "@/components/ui/db-error"
-import { fetchActiveMembers, fetchCurrentSeason, fetchMaps, fetchMatches, fetchSeasons, fetchTeams } from "@/lib/data/pl"
+import { fetchActiveMembers, fetchClanBjNames, fetchCurrentSeason, fetchMaps, fetchMatchBjs, fetchMatches, fetchSeasons, fetchTeams } from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 
 export const metadata: Metadata = { title: "PL 관리" }
@@ -20,6 +20,7 @@ export default async function PlManagePage({ searchParams }: { searchParams: Pro
     const [seasons, season, members] = await Promise.all([fetchSeasons(), fetchCurrentSeason(), fetchActiveMembers()])
     const teams = season ? await fetchTeams(season.id) : []
     const [maps, matches] = season ? await Promise.all([fetchMaps(season.id), fetchMatches(season.id, teams, { revealAll: true })]) : [[], []]
+    const [bj, clanBjs] = await Promise.all([fetchMatchBjs(matches.map((m) => m.id)), fetchClanBjNames()])
 
     return (
       <PlManage
@@ -29,6 +30,10 @@ export default async function PlManagePage({ searchParams }: { searchParams: Pro
         maps={maps}
         matches={matches}
         members={members}
+        bjByMatch={bj.byMatch}
+        bjReady={bj.ready}
+        clanBjs={clanBjs}
+        now={Date.now()}
         initialTab={tab}
         initialMatchId={sp.match}
       />

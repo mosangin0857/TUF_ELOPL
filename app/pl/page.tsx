@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { ScheduleBoard } from "@/components/pl/schedule-board"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
-import { fetchCurrentSeason, fetchMatches, fetchTeams } from "@/lib/data/pl"
+import { fetchCurrentSeason, fetchMatchBjs, fetchMatches, fetchTeams } from "@/lib/data/pl"
 import type { PlMatch, PlSeason, PlTeam } from "@/lib/types"
 
 export const metadata: Metadata = { title: "프로리그 일정" }
@@ -15,11 +15,13 @@ export default async function PlSchedulePage() {
   let season: PlSeason | null
   let teams: PlTeam[] = []
   let matches: PlMatch[] = []
+  let bjByMatch: Record<string, string[]> = {}
   try {
     season = await fetchCurrentSeason()
     if (season) {
       teams = await fetchTeams(season.id)
       matches = await fetchMatches(season.id, teams)
+      bjByMatch = (await fetchMatchBjs(matches.map((m) => m.id))).byMatch
     }
   } catch (error) {
     return <DbError error={error} />
@@ -36,5 +38,5 @@ export default async function PlSchedulePage() {
   const captains = Object.fromEntries(
     teams.map((t) => [t.id, t.members.filter((m) => !m.leftOn && (m.role === "captain" || m.role === "vice")).map((m) => m.memberId)]),
   )
-  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} />
+  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} bjByMatch={bjByMatch} />
 }

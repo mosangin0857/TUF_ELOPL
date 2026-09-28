@@ -12,6 +12,15 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-09-28 · PL 관리 › 경기 개선 — 처리할 경기 · 사이드바 · 방송 BJ · 세트 순서 (PL 담당, `TUFPL_MSI`에만, main 미반영)**
+- **DB 변경 SQL: `docs/sql/007_pl_broadcast_bjs.sql` (아직 실행 안 함)** — 새 테이블 `pl_match_bjs`(경기별 방송 BJ 이름). main에 올리기 전 한 번에 실행 → 목록은 **`docs/sql/PENDING.md`**.
+  실행 전에도 사이트는 동작한다: `fetchMatchBjs`가 테이블이 없으면 빈 값(`ready: false`)을 돌려주고, 저장하면 "SQL 실행 필요" 안내.
+- PL 관리 › 경기: 탭 아래 **처리할 경기**(결과가 없는 지난 경기 → 다음 경기, 최대 4개, 엔트리 제출 현황) · 목록 상태 필터(전체 · 결과 대기 · 예정 · 종료) · 라운드 · 검색 · 방송 BJ 컬럼.
+- 본문 + 오른쪽 사이드 분할 (`components/pl/manage/manage-side.tsx`): 시즌 진행 · **BJ 방송 횟수**(시즌 집계) · 확인할 것(결과 대기 · 마감 임박 미제출 · 공개 시각 없음 · 팀장 없음 · 방송 BJ 미입력) · 맵 사용 횟수.
+- 결과 입력 팝업: **방송 BJ**(BJ 관리의 클랜 BJ 목록 + 직접 입력, 여러 명) · **세트 순서 바꾸기**(손잡이 드래그 또는 ↑↓, 두 세트 자리 교환, ACE 고정).
+  세트 순서를 바꾸면 형식 · 맵 · 선수 · 승자와 지정 세트 정보(`pick_by` · `solo_map` · `picked_at`)가 함께 옮겨가고 번호만 바뀐다 (`saveMatchResultAction`의 `fromSetNo`).
+- 프로리그 › 일정: 경기를 펼치면 방송 BJ 표시.
+
 **2026-09-24 · 프로리그 엔트리 규칙 — 홈/원정 · 지정 세트 · 마감 (PL 담당)**
 - **DB 변경 SQL: `docs/sql/006_pl_entry_rules.sql`** (실행 완료) — `pl_sets`에 `pick_by`(home · away) · `solo_map` · `picked_at` 추가, 새 테이블 `pl_entry_logs`(엔트리 제출 기록, anon 조회 정책 없음).
 - **A팀(왼쪽) = 홈팀, B팀(오른쪽) = 원정팀.**

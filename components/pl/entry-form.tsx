@@ -7,7 +7,7 @@ import { usePlAction } from "@/components/pl/manage/use-pl-action"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
-import { FORMAT_LABEL, FORMAT_SIZE, PICK_FORMATS, PICK_LABEL, SIDE_LABEL, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import { FORMAT_LABEL, FORMAT_SIZE, PICK_FORMATS, PICK_LABEL, setKindLabel, SIDE_LABEL, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -135,6 +135,8 @@ export function EntryForm({
   )
 
   const waiting = (s: PlSet) => !!s.pickBy && !s.pickedAt // 형식이 아직 안 정해진 지정 세트
+  /** 티어 세트는 그 티어 선수만 고를 수 있다 (서버에서도 검사) */
+  const rosterFor = (s: PlSet) => (s.tier ? roster.filter((m) => m.tier === s.tier) : roster)
   const slotsOf = (s: PlSet) => (waiting(s) ? [] : filled(draft[s.setNo] ?? []).slice(0, FORMAT_SIZE[s.format]))
   const doneCount = entrySets.filter((s) => !waiting(s) && slotsOf(s).length === FORMAT_SIZE[s.format]).length
 
@@ -152,7 +154,7 @@ export function EntryForm({
       const next = { ...d }
       for (const s of entrySets) {
         const prev = lastEntry.sets[s.setNo]
-        if (prev && !waiting(s)) next[s.setNo] = prev.filter((p) => roster.some((r) => r.memberId === p.memberId)).slice(0, FORMAT_SIZE[s.format])
+        if (prev && !waiting(s)) next[s.setNo] = prev.filter((p) => rosterFor(s).some((r) => r.memberId === p.memberId)).slice(0, FORMAT_SIZE[s.format])
       }
       return next
     })
@@ -241,7 +243,7 @@ export function EntryForm({
                   <div className="es-meta">
                     <b>SET {s.setNo}</b>
                     {s.pickBy && <span className="fmt pick">{PICK_LABEL[s.pickBy]}</span>}
-                    {!waiting(s) && <span className={cn("fmt", s.format !== "1v1" && "team")}>{FORMAT_LABEL[s.format]}</span>}
+                    {!waiting(s) && <span className={cn("fmt", s.format !== "1v1" && "team", s.tier && "tier")}>{setKindLabel(s.format, s.tier)}</span>}
                     {!waiting(s) && s.mapName && <span className="map">{s.mapName}</span>}
                   </div>
                   <div className="es-body">
@@ -261,7 +263,10 @@ export function EntryForm({
                         </p>
                       )
                     ) : (
-                      <SideSlots size={size} roster={roster} value={draft[s.setNo] ?? []} onChange={(v) => change(s.setNo, v)} disabled={!open} label={`${s.setNo}세트`} />
+                      <>
+                        <SideSlots size={size} roster={rosterFor(s)} value={draft[s.setNo] ?? []} onChange={(v) => change(s.setNo, v)} disabled={!open} label={`${s.setNo}세트`} />
+                        {s.tier && rosterFor(s).length === 0 && <p className="note">선수단에 {s.tier}티어 선수가 없어요. 관리자에게 알려 주세요.</p>}
+                      </>
                     )}
                   </div>
                 </div>

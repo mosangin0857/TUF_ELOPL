@@ -5,6 +5,7 @@ import { GripVertical, X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { FORMAT_LABEL, FORMAT_SIZE, matchScore, PICK_LABEL, STATUS_LABEL, winTarget, type PlMatchStatus, type PlPickBy, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import type { Tier } from "@/lib/types"
 import type { PlMatch, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { usePlAction } from "./use-pl-action"
@@ -17,6 +18,8 @@ type SetDraft = {
   from: number
   isAce: boolean
   pickBy: PlPickBy | null
+  /** 티어 세트 (순서를 바꾸면 같이 따라감) */
+  tier: Tier | null
   format: PlSetFormat
   mapName: string
   winner: PlSide | null
@@ -55,6 +58,7 @@ export function ResultEditor({
       from: s.setNo,
       isAce: s.isAce,
       pickBy: s.pickBy,
+      tier: s.tier,
       format: s.format,
       mapName: s.mapName ?? "",
       winner: s.winner,
@@ -271,6 +275,20 @@ export function ResultEditor({
                 <b>{s.isAce ? "ACE 결정전" : `SET ${no}`}</b>
                 {s.from !== no && <span className="pill moved-pill">원래 {s.from}세트</span>}
                 {s.pickBy && <span className="pill">{PICK_LABEL[s.pickBy]}</span>}
+                {s.tier && s.format === "1v1" && <span className="pill tier-pill">{s.tier}티어</span>}
+                {s.tier &&
+                  s.format === "1v1" &&
+                  (() => {
+                    const wrong = [
+                      ...filled(s.playersA).map((p) => rosterA.find((m) => m.memberId === p.memberId)),
+                      ...filled(s.playersB).map((p) => rosterB.find((m) => m.memberId === p.memberId)),
+                    ].filter((m) => m && m.tier !== s.tier)
+                    return wrong.length ? (
+                      <span className="tier-warn" title="시즌 중 티어가 바뀐 경우일 수 있어요. 저장은 돼요.">
+                        티어 다름: {wrong.map((m) => `${m!.name}(${m!.tier}티어)`).join(", ")}
+                      </span>
+                    ) : null
+                  })()}
                 <select
                   className="field"
                   value={s.format}

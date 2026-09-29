@@ -8,8 +8,6 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
   "elo/history": { title: "전적 기록", body: "경기유형·시즌·티어 필터가 있는 전체 전적 테이블.", items: ["필터 URL 공유 · 테이블 캡처"] },
   "elo/weekly": { title: "위클리 베스트", body: "주간 ELO 상승 TOP 5." },
 
-  "pl/teams": { title: "팀 · 선수단", body: "참가 팀 로고 · 슬로건 · 팀장/부팀장 · 로스터." },
-  "pl/results": { title: "경기 결과", body: "세트별 결과와 맵, 승자." },
   "pl/predictions": { title: "승부예측", body: "기존 tufpl 승부예측 기능이 들어갈 자리입니다." },
   "pl/rules": { title: "규정", body: "리그 운영 규정, 맵풀, 엔트리 규칙." },
 

@@ -15,6 +15,7 @@ import { Crest, RaceBadge } from "@/components/ui/race"
 import { ROLE_LABEL, type PlTeamRole } from "@/lib/pl/rules"
 import type { PlTeam } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { RosterImport } from "./roster-import"
 import { ErrorLine, usePlAction } from "./use-pl-action"
 
 const ROLES: PlTeamRole[] = ["captain", "vice", "player"]
@@ -169,15 +170,18 @@ export function TeamsPanel({ seasonId, teams, members }: { seasonId: string; tea
             <div className="eyebrow">TEAMS</div>
             <h2>팀 · 선수단</h2>
           </div>
-          <button type="button" className="btn" onClick={() => openTeam(null)}>
-            <Plus size={15} aria-hidden /> 팀 등록
-          </button>
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <RosterImport seasonId={seasonId} teams={teams} members={members} />
+            <button type="button" className="btn" onClick={() => openTeam(null)}>
+              <Plus size={15} aria-hidden /> 팀 등록
+            </button>
+          </span>
         </div>
         <p className="notice-inline">
           팀장 · 부팀장은 팀마다 한 명씩이고, 자기 팀 경기의 <b>엔트리를 제출</b>할 수 있어요 (사이트 관리자 권한과는 별개). 새로 지정하면 기존 사람은 선수로 바뀌어요.
         </p>
         <ErrorLine error={error} />
-        {teams.length === 0 && <Empty hint="오른쪽 위 '팀 등록'으로 이번 시즌 팀을 만드세요.">등록된 팀이 없어요.</Empty>}
+        {teams.length === 0 && <Empty hint="오른쪽 위 '팀 등록'으로 만들거나, '엑셀로 선수단 등록'으로 팀과 선수를 한 번에 넣으세요.">등록된 팀이 없어요.</Empty>}
       </section>
 
       {teams.map((t) => (

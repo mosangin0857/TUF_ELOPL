@@ -91,6 +91,48 @@ export const SIDE_LABEL: Record<PlSide, string> = { A: "홈", B: "원정" }
 /** 지정 세트에서 고를 수 있는 형식 (개인전은 관리자가 정한 맵, 팀플은 맵풀에서 선택) */
 export const PICK_FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
 
+/**
+ * 세트 종류 — 경기 등록 화면 · 엑셀 양식 공통 (docs/sql/PENDING.md)
+ *   1티어~4티어 = 그 티어 선수만 나가는 개인전 / 개인전 = 티어 제한 없는 개인전 / 팀플2~4 = 2:2~4:4
+ *   홈지정 · 어웨이지정(플레이오프만) = 그 팀이 개인전/팀플을 고르는 세트
+ */
+export type SetKind = "t1" | "t2" | "t3" | "t4" | "solo" | "2v2" | "3v3" | "4v4" | "home" | "away"
+export const SET_KIND_LABEL: Record<SetKind, string> = {
+  t1: "1티어",
+  t2: "2티어",
+  t3: "3티어",
+  t4: "4티어",
+  solo: "개인전 (티어 없음)",
+  "2v2": "팀플2 (2:2)",
+  "3v3": "팀플3 (3:3)",
+  "4v4": "팀플4 (4:4)",
+  home: "홈지정",
+  away: "어웨이지정",
+}
+
+export function toSetKind(format: PlSetFormat, tier: number | null, pickBy: PlPickBy | null): SetKind {
+  if (pickBy) return pickBy
+  if (format !== "1v1") return format
+  return tier ? (`t${tier}` as SetKind) : "solo"
+}
+
+export function fromSetKind(kind: SetKind): { format: PlSetFormat; tier: 1 | 2 | 3 | 4 | null; pickBy: PlPickBy | null } {
+  if (kind === "home" || kind === "away") return { format: "1v1", tier: null, pickBy: kind }
+  if (kind === "2v2" || kind === "3v3" || kind === "4v4") return { format: kind, tier: null, pickBy: null }
+  if (kind === "solo") return { format: "1v1", tier: null, pickBy: null }
+  return { format: "1v1", tier: Number(kind.slice(1)) as 1 | 2 | 3 | 4, pickBy: null }
+}
+
+/** 세트 표시: 티어가 있으면 '1티어', 없으면 형식 (개인전 · 2:2 …) */
+export function setKindLabel(format: PlSetFormat, tier: number | null | undefined): string {
+  return tier ? `${tier}티어` : FORMAT_LABEL[format]
+}
+
+/** Supabase 에러가 'pl_sets.tier 컬럼 없음'인지 (docs/sql/008_pl_set_tier.sql 실행 전) */
+export function isMissingTierColumn(error: { message?: string; code?: string } | null | undefined): boolean {
+  return !!error && /tier/.test(error.message ?? "") && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))
+}
+
 /** 엔트리 마감 = 공개 2시간 전 */
 export const ENTRY_DEADLINE_HOURS = 2
 

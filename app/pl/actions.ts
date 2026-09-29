@@ -6,6 +6,7 @@ import { getMemberManager } from "@/lib/permissions"
 import { getCaptainSide } from "@/lib/pl/permissions"
 import {
   entryOpen,
+  isMissingTierColumn,
   FORMAT_LABEL,
   FORMAT_SIZE,
   matchCode,
@@ -25,6 +26,7 @@ import {
   type PlTeamRole,
 } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
+import type { Tier } from "@/lib/types"
 import { seoulDate } from "@/lib/utils"
 
 /**
@@ -32,9 +34,12 @@ import { seoulDate } from "@/lib/utils"
  * 모든 변경은 admin_logs에 "PL …"로 기록하고, 프로리그 화면 · 대문을 다시 만든다.
  */
 
-export type ActionResult = { ok: true } | { ok: false; error: string }
+/** 성공이어도 notice가 있으면 화면에 안내 (예: SQL 실행 전이라 일부만 저장) */
+export type ActionResult = { ok: true; notice?: string } | { ok: false; error: string }
 
 const NO_PERMISSION = "관리자 로그인 후 사용할 수 있어요."
+const TIER_NOTICE =
+  "경기는 저장했어요. 세트 티어는 docs/sql/008_pl_set_tier.sql을 Supabase에서 실행한 뒤 다시 저장하면 들어가요."
 const FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
 const STATUSES: PlMatchStatus[] = ["scheduled", "live", "done", "postponed", "canceled", "forfeit"]
 const RACES: PlRace[] = ["T", "P", "Z", "R"]
@@ -45,7 +50,7 @@ function revalidatePl() {
   revalidatePath("/")
 }
 
-function fail(prefix: string, error: { message: string; code?: string } | null, duplicate?: string): ActionResult {
+function fail(prefix: string, error: { message: string; code?: string } | null, duplicate?: string): { ok: false; error: string } {
   if (error?.code === "23505" && duplicate) return { ok: false, error: duplicate }
   return { ok: false, error: `${prefix}: ${error?.message ?? "알 수 없는 오류"}` }
 }
@@ -277,6 +282,139 @@ export async function removeTeamMemberAction(teamMemberId: string): Promise<Acti
   return { ok: true }
 }
 
+export type RosterInput = { team: string; name: string; role: PlTeamRole; color: string | null; slogan: string | null }
+export type RosterBulkResult =
+  | { ok: true; teamsCreated: string[]; added: number; updated: number; skipped: { name: string; reason: string }[] }
+  | { ok: false; error: string }
+
+/** 새 팀 색 (색을 비우면 이 시즌에서 안 쓴 색부터) */
+const TEAM_PALETTE = ["#c9463a", "#4a6fa5", "#2f8f6b", "#5b4a9e", "#c07a12", "#a3324f", "#2b8a9e", "#6b8e23", "#b04a8a", "#3f5b8c", "#8c5a2e", "#546e7a"]
+
+/**
+ * 엑셀 선수단 일괄 등록 — 브라우저에서 검사한 줄을 서버에서 다시 확인한다.
+ * 이 시즌에 없는 팀 이름은 새 팀으로 만들고, 다른 팀 소속 선수는 건너뛴다(이적은 먼저 제외). 한 줄씩 처리하므로 중간에 실패해도 앞 줄은 남는다.
+ */
+export async function bulkAddRosterAction(seasonId: string, inputs: RosterInput[]): Promise<RosterBulkResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  if (!inputs.length) return { ok: false, error: "등록할 선수가 없어요." }
+  if (inputs.length > 300) return { ok: false, error: "한 번에 300명까지 올릴 수 있어요." }
+
+  const supabase = createServiceClient()
+  const { data: season } = await supabase.from("pl_seasons").select("id").eq("id", seasonId).maybeSingle()
+  if (!season) return { ok: false, error: "시즌을 찾지 못했어요." }
+
+  const { data: teamRows, error: teamErr } = await supabase.from("pl_teams").select("id, name, color, sort_order").eq("season_id", seasonId)
+  if (teamErr) return fail("팀을 읽지 못했어요", teamErr)
+  const teamId = new Map((teamRows ?? []).map((t) => [t.name as string, t.id as string]))
+  const usedColors = new Set((teamRows ?? []).map((t) => (t.color as string).toLowerCase()))
+  let sortOrder = Math.max(-1, ...(teamRows ?? []).map((t) => t.sort_order as number))
+
+  const names = [...new Set(inputs.map((r) => r.name.trim()))]
+  const { data: memberRows, error: memErr } = await supabase.from("members").select("id, name, is_active").in("name", names)
+  if (memErr) return fail("클랜원을 읽지 못했어요", memErr)
+  const memberByName = new Map((memberRows ?? []).map((m) => [m.name as string, m as { id: string; name: string; is_active: boolean }]))
+
+  const { data: curRows, error: curErr } = await supabase
+    .from("pl_team_members")
+    .select("id, team_id, member_id, role, pl_teams!inner(name, season_id)")
+    .is("left_on", null)
+    .eq("pl_teams.season_id", seasonId)
+  if (curErr) return fail("선수단을 읽지 못했어요", curErr)
+  const current = new Map(
+    ((curRows ?? []) as unknown as { id: string; team_id: string; member_id: string; role: PlTeamRole; pl_teams: { name: string } }[]).map((r) => [r.member_id, r]),
+  )
+
+  const teamsCreated: string[] = []
+  const skipped: { name: string; reason: string }[] = []
+  const badTeams = new Map<string, string>()
+  let added = 0
+  let updated = 0
+
+  for (const row of inputs) {
+    const label = `${row.team} · ${row.name}`
+    if (!ROLES.includes(row.role)) {
+      skipped.push({ name: label, reason: "역할 값이 올바르지 않아요." })
+      continue
+    }
+
+    // 팀: 없으면 새로 만든다
+    let tid = teamId.get(row.team.trim())
+    if (!tid) {
+      const bad = badTeams.get(row.team.trim())
+      if (bad) {
+        skipped.push({ name: label, reason: bad })
+        continue
+      }
+      const color = (row.color && /^#[0-9a-fA-F]{6}$/.test(row.color) ? row.color : TEAM_PALETTE.find((c) => !usedColors.has(c))) ?? TEAM_PALETTE[teamsCreated.length % TEAM_PALETTE.length]
+      const v = validTeam({ name: row.team, color, slogan: row.slogan ?? "" })
+      if ("error" in v) {
+        badTeams.set(row.team.trim(), v.error as string)
+        skipped.push({ name: label, reason: v.error as string })
+        continue
+      }
+      const { data: created, error } = await supabase
+        .from("pl_teams")
+        .insert({ season_id: seasonId, ...v, sort_order: ++sortOrder })
+        .select("id")
+        .single()
+      if (error || !created) {
+        const reason = `팀 '${v.name}'을 만들지 못했어요${error ? ` (${error.message})` : ""}`
+        badTeams.set(row.team.trim(), reason)
+        skipped.push({ name: label, reason })
+        continue
+      }
+      tid = created.id as string
+      teamId.set(v.name, tid)
+      usedColors.add(color.toLowerCase())
+      teamsCreated.push(v.name)
+    }
+
+    const member = memberByName.get(row.name.trim())
+    if (!member) {
+      skipped.push({ name: label, reason: "클랜원을 찾지 못했어요." })
+      continue
+    }
+    if (!member.is_active) {
+      skipped.push({ name: label, reason: "탈퇴한 클랜원이에요." })
+      continue
+    }
+
+    const cur = current.get(member.id)
+    if (cur && cur.team_id !== tid) {
+      skipped.push({ name: label, reason: `이미 '${cur.pl_teams.name}' 팀 소속이에요.` })
+      continue
+    }
+    if (cur && cur.role === row.role) {
+      skipped.push({ name: label, reason: "이미 이 팀 선수예요." })
+      continue
+    }
+
+    await freeRole(tid, row.role, cur?.id)
+    const { error } = cur
+      ? await supabase.from("pl_team_members").update({ role: row.role }).eq("id", cur.id)
+      : await supabase.from("pl_team_members").insert({ team_id: tid, member_id: member.id, role: row.role, joined_on: seoulDate() })
+    if (error) {
+      skipped.push({ name: label, reason: error.message })
+      continue
+    }
+    if (cur) updated++
+    else {
+      added++
+      current.set(member.id, { id: "", team_id: tid, member_id: member.id, role: row.role, pl_teams: { name: row.team } })
+    }
+  }
+
+  await insertAdminLog(
+    actor.username,
+    "PL 선수단 일괄 등록",
+    `${added}명 추가${updated ? ` · 역할 ${updated}명` : ""}`,
+    [teamsCreated.length ? `새 팀 ${teamsCreated.join(", ")}` : "", skipped.length ? `건너뜀 ${skipped.length}건` : ""].filter(Boolean).join(" · ") || undefined,
+  )
+  revalidatePl()
+  return { ok: true, teamsCreated, added, updated, skipped }
+}
+
 /* ---------------- 맵풀 ---------------- */
 
 export async function addMapAction(seasonId: string, rawName: string): Promise<ActionResult> {
@@ -315,7 +453,8 @@ export async function deleteMapAction(id: string): Promise<ActionResult> {
 /* ---------------- 경기 ---------------- */
 
 /** 경기 등록 때 정하는 세트 구성: 형식 · 맵 · 지정(홈/어웨이). 지정 세트의 맵은 '개인전을 고르면 쓰는 맵' */
-export type SetConfigInput = { setNo: number; format: PlSetFormat; mapName: string; pickBy: PlPickBy | null }
+/** 경기 등록 때 정하는 세트 구성. tier는 개인전 세트만 (1~4 = 그 티어 선수만), 팀플 · 지정 · ACE는 null */
+export type SetConfigInput = { setNo: number; format: PlSetFormat; mapName: string; pickBy: PlPickBy | null; tier: Tier | null }
 
 export type MatchInput = {
   stage: PlStage
@@ -342,6 +481,8 @@ function validMatch(input: MatchInput): string | null {
     if (c.pickBy && c.pickBy !== "home" && c.pickBy !== "away") return `${c.setNo}세트: 지정 값이 올바르지 않아요.`
     if (c.pickBy === "away" && REGULAR_STAGES.includes(input.stage)) return `${c.setNo}세트: 어웨이 지정은 플레이오프 · 결승에만 쓸 수 있어요.`
     if (c.pickBy && c.setNo === n) return "ACE 결정전은 지정 세트로 둘 수 없어요."
+    if (c.tier !== null && ![1, 2, 3, 4].includes(c.tier)) return `${c.setNo}세트: 티어 값이 올바르지 않아요.`
+    if (c.tier !== null && (c.pickBy || c.format !== "1v1" || c.setNo === n)) return `${c.setNo}세트: 티어는 개인전 세트에만 정할 수 있어요 (팀플 · 지정 세트 · ACE는 제한 없음).`
   }
   return null
 }
@@ -365,29 +506,41 @@ async function syncSets(matchId: string, stage: PlStage) {
  * 세트 구성 저장. 지정 세트는 map_name 대신 solo_map(개인전 맵)에 넣고,
  * 아직 지정 팀이 고르지 않았으면 실제 형식 · 맵을 '개인전 + 개인전 맵'으로 둔다. 이미 골랐으면 고른 값을 유지한다.
  */
-async function applySetConfig(matchId: string, sets: SetConfigInput[]) {
+async function applySetConfig(matchId: string, sets: SetConfigInput[]): Promise<{ error: { message: string; code?: string } | null; tierSkipped: boolean }> {
   const supabase = createServiceClient()
   const { data } = await supabase.from("pl_sets").select("id, set_no, picked_at").eq("match_id", matchId)
   const bySetNo = new Map((data ?? []).map((r) => [r.set_no as number, r as { id: string; picked_at: string | null }]))
+  let tierReady = true
+  let tierSkipped = false
   for (const c of sets) {
     const row = bySetNo.get(c.setNo)
     if (!row) continue
     const map = c.mapName.trim().slice(0, 40) || null
     let update: Record<string, unknown>
-    if (!c.pickBy) update = { pick_by: null, solo_map: null, picked_at: null, format: c.format, map_name: map }
-    else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map }
-    else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map }
-    const { error } = await supabase.from("pl_sets").update(update).eq("id", row.id)
-    if (error) return error
+    if (!c.pickBy) update = { pick_by: null, solo_map: null, picked_at: null, format: c.format, map_name: map, tier: c.format === "1v1" ? c.tier : null }
+    else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map, tier: null }
+    else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map, tier: null }
+    if (!tierReady) delete update.tier
+    let { error } = await supabase.from("pl_sets").update(update).eq("id", row.id)
+    if (error && isMissingTierColumn(error)) {
+      // 008_pl_set_tier.sql 실행 전 — 티어만 빼고 저장
+      tierReady = false
+      delete update.tier
+      ;({ error } = await supabase.from("pl_sets").update(update).eq("id", row.id))
+    }
+    if (error) return { error, tierSkipped }
+    if (!tierReady && c.tier !== null) tierSkipped = true
   }
-  return null
+  return { error: null, tierSkipped }
 }
 
-export async function createMatchAction(seasonId: string, input: MatchInput): Promise<ActionResult> {
-  const actor = await manager()
-  if (!actor) return { ok: false, error: NO_PERMISSION }
+/** 경기 1개 등록 (한 경기 등록 · 엑셀 일괄 등록 공통). 로그 · 화면 갱신은 부르는 쪽에서 */
+async function insertMatch(
+  seasonId: string,
+  input: MatchInput,
+): Promise<{ ok: true; tierSkipped: boolean } | { ok: false; error: string; duplicate: boolean }> {
   const invalid = validMatch(input)
-  if (invalid) return { ok: false, error: invalid }
+  if (invalid) return { ok: false, error: invalid, duplicate: false }
 
   const { data, error } = await createServiceClient()
     .from("pl_matches")
@@ -403,14 +556,57 @@ export async function createMatchAction(seasonId: string, input: MatchInput): Pr
     })
     .select("id")
     .single()
-  if (error) return fail("경기를 만들지 못했어요", error, input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO)
+  if (error) {
+    const duplicate = error.code === "23505"
+    const msg = duplicate ? (input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO) : `경기를 만들지 못했어요: ${error.message}`
+    return { ok: false, error: msg, duplicate }
+  }
 
   await syncSets(data.id as string, input.stage)
-  const cfgErr = await applySetConfig(data.id as string, input.sets)
-  if (cfgErr) return fail("세트 구성을 저장하지 못했어요", cfgErr)
+  const cfg = await applySetConfig(data.id as string, input.sets)
+  if (cfg.error) return { ok: false, error: `세트 구성을 저장하지 못했어요: ${cfg.error.message}`, duplicate: false }
+  return { ok: true, tierSkipped: cfg.tierSkipped }
+}
+
+export async function createMatchAction(seasonId: string, input: MatchInput): Promise<ActionResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  const res = await insertMatch(seasonId, input)
+  if (!res.ok) return { ok: false, error: res.error }
   await insertAdminLog(actor.username, "PL 경기 등록", matchCode(input.stage, input.matchNo))
   revalidatePl()
-  return { ok: true }
+  return res.tierSkipped ? { ok: true, notice: TIER_NOTICE } : { ok: true }
+}
+
+export type BulkResult =
+  | { ok: true; created: number; skipped: { code: string; reason: string }[]; tierSkipped: boolean }
+  | { ok: false; error: string }
+
+/**
+ * 엑셀 일괄 등록 — 브라우저에서 검사를 통과한 경기만 받는다. 같은 번호가 이미 있으면 건너뛴다(덮어쓰지 않음).
+ * 한 경기씩 등록하므로 중간에 실패해도 앞에서 등록된 경기는 남는다 (결과에 건너뛴 이유가 나옴).
+ */
+export async function bulkCreateMatchesAction(seasonId: string, inputs: MatchInput[]): Promise<BulkResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  if (!inputs.length) return { ok: false, error: "등록할 경기가 없어요." }
+  if (inputs.length > 200) return { ok: false, error: "한 번에 200경기까지 올릴 수 있어요." }
+
+  let created = 0
+  let tierSkipped = false
+  const skipped: { code: string; reason: string }[] = []
+  for (const input of inputs) {
+    const code = matchCode(input.stage, input.matchNo)
+    const res = await insertMatch(seasonId, input)
+    if (res.ok) {
+      created++
+      tierSkipped ||= res.tierSkipped
+    } else skipped.push({ code, reason: res.duplicate ? "같은 번호가 이미 있어서 건너뜀" : res.error })
+  }
+
+  await insertAdminLog(actor.username, "PL 경기 일괄 등록", `${created}경기`, skipped.length ? `건너뜀 ${skipped.length}건` : undefined)
+  revalidatePl()
+  return { ok: true, created, skipped, tierSkipped }
 }
 
 export async function updateMatchAction(id: string, input: MatchInput): Promise<ActionResult> {
@@ -434,11 +630,11 @@ export async function updateMatchAction(id: string, input: MatchInput): Promise<
   if (error) return fail("경기를 수정하지 못했어요", error, input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO)
 
   await syncSets(id, input.stage)
-  const cfgErr = await applySetConfig(id, input.sets)
-  if (cfgErr) return fail("세트 구성을 저장하지 못했어요", cfgErr)
+  const cfg = await applySetConfig(id, input.sets)
+  if (cfg.error) return fail("세트 구성을 저장하지 못했어요", cfg.error)
   await insertAdminLog(actor.username, "PL 경기 수정", matchCode(input.stage, input.matchNo))
   revalidatePl()
-  return { ok: true }
+  return cfg.tierSkipped ? { ok: true, notice: TIER_NOTICE } : { ok: true }
 }
 
 export async function deleteMatchAction(id: string): Promise<ActionResult> {
@@ -479,15 +675,30 @@ type MatchForWrite = {
   status: PlMatchStatus
   entry_reveal_at: string | null
   season_id: string
-  pl_sets: { id: string; set_no: number; is_ace: boolean; format: PlSetFormat; pick_by: PlPickBy | null; solo_map: string | null; picked_at: string | null }[]
+  pl_sets: {
+    id: string
+    set_no: number
+    is_ace: boolean
+    format: PlSetFormat
+    pick_by: PlPickBy | null
+    solo_map: string | null
+    picked_at: string | null
+    /** 008 실행 전이면 undefined */
+    tier?: number | null
+  }[]
 }
 
 async function loadMatch(id: string): Promise<MatchForWrite | null> {
-  const { data } = await createServiceClient()
-    .from("pl_matches")
-    .select("id, season_id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format, pick_by, solo_map, picked_at)")
-    .eq("id", id)
-    .maybeSingle()
+  const select = (withTier: boolean) =>
+    createServiceClient()
+      .from("pl_matches")
+      .select(
+        `id, season_id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format, pick_by, solo_map, picked_at${withTier ? ", tier" : ""})`,
+      )
+      .eq("id", id)
+      .maybeSingle()
+  let { data, error } = await select(true)
+  if (isMissingTierColumn(error)) ({ data, error } = await select(false))
   return (data as unknown as MatchForWrite | null) ?? null
 }
 
@@ -580,6 +791,7 @@ export async function saveMatchResultAction(
         pick_by: from.pick_by,
         solo_map: from.solo_map,
         picked_at: from.picked_at,
+        ...(from.tier !== undefined ? { tier: s.format === "1v1" ? from.tier : null } : {}),
       })
       .eq("id", setId)
     if (u.error) return fail(`${s.setNo}세트를 저장하지 못했어요`, u.error)
@@ -640,6 +852,11 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
   const roster = await rosterIds(teamId, true)
   const setBySetNo = new Map(match.pl_sets.map((s) => [s.set_no, s]))
 
+  // 티어 세트: 그 티어 선수만 (지금 members.tier 기준)
+  const ids = [...new Set(sets.flatMap((s) => s.players.map((p) => p.memberId)))]
+  const { data: tierRows } = ids.length ? await createServiceClient().from("members").select("id, name, tier").in("id", ids) : { data: [] }
+  const memberTier = new Map((tierRows ?? []).map((m) => [m.id as string, { name: m.name as string, tier: m.tier as number }]))
+
   for (const s of sets) {
     const set = setBySetNo.get(s.setNo)
     if (!set) return { ok: false, error: `${s.setNo}세트를 찾지 못했어요.` }
@@ -649,6 +866,10 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
     }
     const bad = checkPlayers(s.players, FORMAT_SIZE[set.format], roster, `${s.setNo}세트`)
     if (bad) return { ok: false, error: bad }
+    if (set.tier) {
+      const wrong = s.players.map((p) => memberTier.get(p.memberId)).find((m) => m && m.tier !== set.tier)
+      if (wrong) return { ok: false, error: `${s.setNo}세트는 ${set.tier}티어 세트라 ${set.tier}티어 선수만 나갈 수 있어요 (${wrong.name}은 ${wrong.tier}티어).` }
+    }
   }
 
   for (const s of sets) {

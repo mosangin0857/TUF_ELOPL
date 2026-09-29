@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { RaceBadge } from "@/components/ui/race"
 import { matchWhen } from "@/lib/pl/format"
-import { FORMAT_LABEL, isPlayoff, type PlRace, type PlSetFormat, type PlStage } from "@/lib/pl/rules"
+import { isPlayoff, setKindLabel, type PlRace, type PlSetFormat, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -16,6 +16,7 @@ type LogRow = {
   setNo: number
   isAce: boolean
   format: PlSetFormat
+  tier: number | null
   map: string | null
   mine: PlSetPlayer[]
   opp: PlSetPlayer[]
@@ -47,6 +48,7 @@ export function playerLog(memberId: string, matches: PlMatch[]): LogRow[] {
         setNo: s.setNo,
         isAce: s.isAce,
         format: s.format,
+        tier: s.tier,
         map: s.mapName,
         mine: side === "A" ? s.playersA : s.playersB,
         opp: side === "A" ? s.playersB : s.playersA,
@@ -163,7 +165,7 @@ export function PlayerRecord({ memberId, name, matches }: { memberId: string; na
                 <span className="pr-when note">{when ? `${Number(when.md.slice(0, 2))}/${Number(when.md.slice(3))}` : "—"}</span>
                 <span className={cn("pr-set num", r.isAce && "ace")}>{r.isAce ? "ACE" : `SET ${r.setNo}`}</span>
                 <span className="pr-fmt">
-                  {FORMAT_LABEL[r.format]}
+                  {setKindLabel(r.format, r.tier)}
                   {r.map && <small> · {r.map}</small>}
                 </span>
                 <span className="pr-ppl">

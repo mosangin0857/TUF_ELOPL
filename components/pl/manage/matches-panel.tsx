@@ -9,32 +9,32 @@ import { fromLocalInput, shortWhen, toLocalInput } from "@/lib/pl/format"
 import {
   ENTRY_DEADLINE_HOURS,
   FORMAT_LABEL,
+  fromSetKind,
   isCounted,
   isPlayoff,
   matchCode,
-  PICK_LABEL,
+  SET_KIND_LABEL,
   setCount,
   STAGE_LABEL,
   STAGES,
   STATUS_LABEL,
-  type PlPickBy,
-  type PlSetFormat,
+  toSetKind,
   type PlStage,
+  type SetKind,
 } from "@/lib/pl/rules"
 import type { PlMatch, PlTeam } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { BulkImport } from "./bulk-import"
 import { entryCount, isLate, ManageSide } from "./manage-side"
 import { ResultEditor } from "./result-editor"
-import { ErrorLine, usePlAction } from "./use-pl-action"
-
-const FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
+import { ErrorLine, NoticeLine, usePlAction } from "./use-pl-action"
 
 type SetDraft = {
   setNo: number
-  format: PlSetFormat
+  /** 세트 종류 (1티어 · 팀플2 · 홈지정 …) — 엑셀 양식과 같은 말 */
+  kind: SetKind
   /** 지정 세트면 '개인전을 고르면 쓰는 맵' */
   mapName: string
-  pickBy: PlPickBy | null
   /** 이미 지정 팀이 고른 세트 (수정 화면에서만) */
   picked?: { setId: string; label: string }
 }
@@ -61,19 +61,18 @@ function nextNo(matches: PlMatch[], stage: PlStage): string {
 function fitSets(list: SetDraft[], stage: PlStage): SetDraft[] {
   const n = setCount(stage)
   return Array.from({ length: n }, (_, i) => {
-    const prev = list[i] ?? { setNo: i + 1, format: "1v1" as const, mapName: "", pickBy: null }
-    let pickBy = i === n - 1 ? null : prev.pickBy
-    if (pickBy === "away" && !isPlayoff(stage)) pickBy = null
-    return { ...prev, setNo: i + 1, pickBy, format: i === n - 1 ? "1v1" : prev.format }
+    const prev: SetDraft = list[i] ?? { setNo: i + 1, kind: "solo", mapName: "" }
+    let kind: SetKind = i === n - 1 ? "solo" : prev.kind // ACE는 티어 없는 개인전
+    if (kind === "away" && !isPlayoff(stage)) kind = "solo"
+    return { ...prev, setNo: i + 1, kind }
   })
 }
 
 function draftSets(m: PlMatch): SetDraft[] {
   return m.sets.map((s) => ({
     setNo: s.setNo,
-    format: s.pickBy ? "1v1" : s.format,
+    kind: s.isAce ? "solo" : toSetKind(s.pickBy ? "1v1" : s.format, s.pickBy ? null : s.tier, s.pickBy),
     mapName: (s.pickBy ? s.soloMap : s.mapName) ?? "",
-    pickBy: s.pickBy,
     picked: s.pickBy && s.pickedAt ? { setId: s.id, label: `${FORMAT_LABEL[s.format]}${s.mapName ? ` · ${s.mapName}` : ""}` } : undefined,
   }))
 }
@@ -204,7 +203,7 @@ export function MatchesPanel({
       scheduledAt: fromLocalInput(draft.scheduledAt),
       entryRevealAt: fromLocalInput(draft.entryRevealAt),
       note: draft.note,
-      sets: draft.sets.map((s) => ({ setNo: s.setNo, format: s.pickBy ? "1v1" : s.format, mapName: s.mapName, pickBy: s.pickBy })),
+      sets: draft.sets.map((s) => ({ setNo: s.setNo, mapName: s.mapName, ...fromSetKind(s.kind) })),
     }
     form.run(() => (draft.id ? updateMatchAction(draft.id, input) : createMatchAction(seasonId, input)), () => formRef.current?.close())
   }
@@ -287,9 +286,12 @@ export function MatchesPanel({
             <div className="eyebrow">MATCHES</div>
             <h2>경기</h2>
           </div>
-          <button type="button" className="btn" onClick={() => openForm(null)} disabled={teams.length < 2}>
-            <Plus size={15} aria-hidden /> 경기 등록
-          </button>
+          <span className="inline-flex items-center gap-2">
+            <BulkImport seasonId={seasonId} teams={teams} maps={maps} matches={matches} />
+            <button type="button" className="btn" onClick={() => openForm(null)} disabled={teams.length < 2}>
+              <Plus size={15} aria-hidden /> 경기 등록
+            </button>
+          </span>
         </div>
         {teams.length < 2 && <p className="notice-inline">경기를 등록하려면 팀 · 선수단에서 팀을 2개 이상 먼저 만드세요.</p>}
         {matches.length > 0 && (
@@ -312,6 +314,7 @@ export function MatchesPanel({
           </div>
         )}
         <ErrorLine error={error} />
+        <NoticeLine notice={form.notice} />
         {matches.length === 0 ? (
           <Empty hint="경기를 등록할 때 세트별 형식 · 맵 · 홈/어웨이 지정을 함께 정해요.">등록된 경기가 없어요.</Empty>
         ) : (
@@ -479,40 +482,25 @@ export function MatchesPanel({
               <div className="sc-head">
                 <b>세트 구성</b>
                 <span className="note">
-                  맵은 여기서 정해서 엔트리 공개 때 함께 보여요. {isPlayoff(draft.stage) ? "홈 지정 · 어웨이 지정" : "홈 지정"} 세트는 그 팀 팀장이 개인전(아래 맵) 또는 팀플 2:2~4:4(맵풀에서 선택)을 골라요.
+                  종류 · 맵은 엔트리 공개 때 함께 보여요. N티어 = 그 티어 선수만 나가는 개인전. {isPlayoff(draft.stage) ? "홈지정 · 어웨이지정" : "홈지정"} 세트는 그 팀 팀장이 개인전(적은 맵) 또는 팀플 2:2~4:4(맵풀에서 선택)을 골라요.
                 </span>
               </div>
               {draft.sets.map((s, i) => {
                 const ace = i === draft.sets.length - 1
                 return (
-                  <div key={s.setNo} className={cn("sc-row", ace && "ace", s.pickBy && "pick")}>
+                  <div key={s.setNo} className={cn("sc-row", ace && "ace", (s.kind === "home" || s.kind === "away") && "pick")}>
                     <b className="sc-no">{ace ? "ACE" : `SET ${s.setNo}`}</b>
-                    <select
-                      className="field"
-                      value={ace ? "" : (s.pickBy ?? "")}
-                      disabled={ace}
-                      aria-label={`${s.setNo}세트 지정`}
-                      onChange={(e) => patchSet(s.setNo, { pickBy: (e.target.value || null) as PlPickBy | null })}
-                    >
-                      <option value="">지정 없음</option>
-                      <option value="home">{PICK_LABEL.home}</option>
-                      {isPlayoff(draft.stage) && <option value="away">{PICK_LABEL.away}</option>}
-                    </select>
-                    {s.pickBy ? (
-                      <span className="sc-fmt note">개인전이면 →</span>
+                    {ace ? (
+                      <span className="sc-kind-fixed">에결 (개인전 · 티어 없음)</span>
                     ) : (
-                      <select
-                        className="field"
-                        value={s.format}
-                        disabled={ace}
-                        aria-label={`${s.setNo}세트 형식`}
-                        onChange={(e) => patchSet(s.setNo, { format: e.target.value as PlSetFormat })}
-                      >
-                        {FORMATS.map((f) => (
-                          <option key={f} value={f}>
-                            {FORMAT_LABEL[f]}
-                          </option>
-                        ))}
+                      <select className="field" value={s.kind} aria-label={`${s.setNo}세트 종류`} onChange={(e) => patchSet(s.setNo, { kind: e.target.value as SetKind })}>
+                        {(Object.keys(SET_KIND_LABEL) as SetKind[])
+                          .filter((k) => k !== "away" || isPlayoff(draft.stage))
+                          .map((k) => (
+                            <option key={k} value={k}>
+                              {SET_KIND_LABEL[k]}
+                            </option>
+                          ))}
                       </select>
                     )}
                     <input
@@ -520,12 +508,12 @@ export function MatchesPanel({
                       list="pl-map-options"
                       value={s.mapName}
                       onChange={(e) => patchSet(s.setNo, { mapName: e.target.value })}
-                      placeholder={s.pickBy ? "개인전 맵" : "맵"}
+                      placeholder={s.kind === "home" || s.kind === "away" ? "개인전을 고르면 쓰는 맵" : "맵"}
                       aria-label={`${s.setNo}세트 맵`}
                     />
                     {s.picked && (
                       <span className="sc-picked">
-                        {s.pickBy === "away" ? "원정" : "홈"} 선택: <b>{s.picked.label}</b>
+                        {s.kind === "away" ? "원정" : "홈"} 선택: <b>{s.picked.label}</b>
                         <button
                           type="button"
                           className="mini-btn danger"

@@ -7,7 +7,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { entryOpen, FORMAT_LABEL, isCounted, PICK_LABEL, STATUS_LABEL, type PlStage } from "@/lib/pl/rules"
+import { entryOpen, isCounted, PICK_LABEL, setKindLabel, STATUS_LABEL, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -176,7 +176,7 @@ export function ScheduleBoard({
                               </>
                             ) : (
                               <>
-                                {FORMAT_LABEL[s.format]}
+                                {setKindLabel(s.format, s.tier)}
                                 {s.mapName && <small> · {s.mapName}</small>}
                                 {s.pickBy && <small> ({PICK_LABEL[s.pickBy]})</small>}
                               </>

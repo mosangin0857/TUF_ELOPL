@@ -219,6 +219,8 @@ export interface PlSet {
   soloMap: string | null
   /** 지정 팀이 형식을 고른 시각 (null = 아직) */
   pickedAt: string | null
+  /** 이 티어 선수만 출전 (개인전 세트). null = 티어 제한 없음 — docs/sql/008_pl_set_tier.sql */
+  tier: Tier | null
   winner: PlSide | null
   playersA: PlSetPlayer[]
   playersB: PlSetPlayer[]

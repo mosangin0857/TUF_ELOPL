@@ -12,15 +12,15 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-05 · 프로리그 지정 세트 규칙 변경 — 지정 티어 개인전 / 생컨 (PL 담당, `TUFPL_MSI`에만, main 미반영)**
-- **DB 변경 SQL: `docs/sql/009_pl_set_tier_sum.sql` (아직 실행 안 함)** — `pl_sets.tier_sum`(2~8 · null). main에 올리기 전 실행 → `docs/sql/PENDING.md`.
+**2026-10-05 · 프로리그 지정 세트 규칙 변경 — 지정 티어 개인전 / 생컨 (PL 담당)**
+- **DB 변경 SQL: `docs/sql/009_pl_set_tier_sum.sql`** (2026-10-05 실행 완료) — `pl_sets.tier_sum`(2~8 · null).
   실행 전에도 동작: `fetchMatches` · `loadMatch`가 컬럼이 없으면 tier_sum 없이 다시 읽고(`isMissingTierSumColumn`), 생컨을 고르면 티어합만 빼고 저장 + 안내.
 - 2026 시즌 공지: 홈 지정 · 어웨이 지정 세트에서 지정 팀이 **지정 티어 개인전**(1~4티어 중 선택 → `tier`, 맵 = `solo_map`) 또는 **생컨**(2:2 · 폴리포이드 고정 · 티어합 지정 → `tier_sum`)을 고른다. 이전의 '팀플 2:2~4:4 + 맵풀' 선택은 없어짐.
   `pickSetFormatAction(matchId, setNo, choice: PickChoice)` (`lib/pl/rules.ts`의 `PickChoice` · `SAENGCON_*` · `TIER_SUMS` · `tierSumOk`).
 - 생컨 티어합 = 출전 두 선수 티어 합의 **최솟값**(합 ≥ 값). 엔트리 제출 때 서버 검사(`members.tier` 기준), 결과 입력(관리자)은 '티어합 미달' 경고만. 표시는 `setKindLabel(format, tier, tierSum)` → '생컨 · 티어합 5↑'.
 - 관리자 '지정 되돌리기'(`resetPickAction`)는 tier · tier_sum도 비운다. 일반 세트의 팀플2~4는 그대로.
 
-**2026-09-29 · 프로리그 세트 티어 · 엑셀 일괄 등록 · 경기 결과 · 팀 · 선수단 (PL 담당, main 반영)**
+**2026-09-29 · 프로리그 세트 티어 · 엑셀 일괄 등록 · 경기 결과 · 팀 · 선수단 (PL 담당)**
 - **DB 변경 SQL: `docs/sql/008_pl_set_tier.sql`** (실행 완료) — `pl_sets.tier`(1~4 · null). 1~4 = 그 티어 선수만 나가는 개인전 세트, null = 티어 제한 없음(팀플 · 홈/어웨이 지정 · ACE).
   세트 종류는 `lib/pl/rules.ts`의 `SetKind`(t1~t4 · solo · 2v2 · 3v3 · 4v4 · home · away)로 통일 — 경기 등록 · 수정의 '종류' 목록과 엑셀 양식이 같은 값.
   엔트리 제출은 그 티어 선수만(서버 검사, `members.tier` 기준), 결과 입력(관리자)은 막지 않고 '티어 다름' 경고만. 일정 · 결과 화면에 '1티어 · 맵' 표시.

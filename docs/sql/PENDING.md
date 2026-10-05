@@ -6,9 +6,7 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-| 순서 | 파일 | 내용 | 실행 안 하면 |
-| --- | --- | --- | --- |
-| 1 | [`009_pl_set_tier_sum.sql`](009_pl_set_tier_sum.sql) | `pl_sets.tier_sum` 컬럼 (생컨 티어합 2~8) | 지정 세트에서 생컨은 고를 수 있지만 티어합이 저장 · 검사되지 않고 "SQL 실행 필요" 안내 (지정 티어 개인전은 그대로 동작) |
+(없음 — 2026-10-05에 009 실행 완료)
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 
@@ -58,3 +56,4 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 | `006_pl_entry_rules.sql` | 2026-09-24 |
 | `007_pl_broadcast_bjs.sql` | 2026-09-29 |
 | `008_pl_set_tier.sql` | 2026-09-29 |
+| `009_pl_set_tier_sum.sql` | 2026-10-05 |

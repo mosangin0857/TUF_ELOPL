@@ -176,7 +176,7 @@ export function ScheduleBoard({
                               </>
                             ) : (
                               <>
-                                {setKindLabel(s.format, s.tier)}
+                                {setKindLabel(s.format, s.tier, s.tierSum)}
                                 {s.mapName && <small> · {s.mapName}</small>}
                                 {s.pickBy && <small> ({PICK_LABEL[s.pickBy]})</small>}
                               </>

@@ -88,13 +88,22 @@ export const PICK_LABEL: Record<PlPickBy, string> = { home: "홈 지정", away: 
 export const pickSide = (pickBy: PlPickBy): PlSide => (pickBy === "home" ? "A" : "B")
 export const SIDE_LABEL: Record<PlSide, string> = { A: "홈", B: "원정" }
 
-/** 지정 세트에서 고를 수 있는 형식 (개인전은 관리자가 정한 맵, 팀플은 맵풀에서 선택) */
-export const PICK_FORMATS: PlSetFormat[] = ["1v1", "2v2", "3v3", "4v4"]
+/**
+ * 지정 세트(홈 지정 · 어웨이 지정)에서 지정 팀이 고르는 것 — 2026 시즌 공지
+ *   지정 티어 개인전: 1~4티어 중 하나 (맵은 관리자가 정한 solo_map)
+ *   생컨: 2:2 · 폴리포이드 고정, 티어합(두 선수 티어 합의 최솟값)도 지정 팀이 정함 — docs/sql/009_pl_set_tier_sum.sql
+ */
+export type PickChoice = { kind: "tier"; tier: 1 | 2 | 3 | 4 } | { kind: "saengcon"; tierSum: number }
+export const SAENGCON_LABEL = "생컨"
+export const SAENGCON_FORMAT: PlSetFormat = "2v2"
+export const SAENGCON_MAP = "폴리포이드"
+/** 생컨 티어합으로 고를 수 있는 값 (1+1=2 ~ 4+4=8). 출전 두 선수 티어 합이 이 값 이상이어야 한다 */
+export const TIER_SUMS = [2, 3, 4, 5, 6, 7, 8] as const
 
 /**
  * 세트 종류 — 경기 등록 화면 · 엑셀 양식 공통 (docs/sql/PENDING.md)
  *   1티어~4티어 = 그 티어 선수만 나가는 개인전 / 개인전 = 티어 제한 없는 개인전 / 팀플2~4 = 2:2~4:4
- *   홈지정 · 어웨이지정(플레이오프만) = 그 팀이 개인전/팀플을 고르는 세트
+ *   홈지정 · 어웨이지정(플레이오프만) = 그 팀이 지정 티어 개인전 또는 생컨을 고르는 세트 (PickChoice)
  */
 export type SetKind = "t1" | "t2" | "t3" | "t4" | "solo" | "2v2" | "3v3" | "4v4" | "home" | "away"
 export const SET_KIND_LABEL: Record<SetKind, string> = {
@@ -123,9 +132,22 @@ export function fromSetKind(kind: SetKind): { format: PlSetFormat; tier: 1 | 2 |
   return { format: "1v1", tier: Number(kind.slice(1)) as 1 | 2 | 3 | 4, pickBy: null }
 }
 
-/** 세트 표시: 티어가 있으면 '1티어', 없으면 형식 (개인전 · 2:2 …) */
-export function setKindLabel(format: PlSetFormat, tier: number | null | undefined): string {
-  return tier ? `${tier}티어` : FORMAT_LABEL[format]
+/** 세트 표시: 티어가 있으면 '1티어', 생컨이면 '생컨 · 티어합 5↑', 아니면 형식 (개인전 · 2:2 …) */
+export function setKindLabel(format: PlSetFormat, tier: number | null | undefined, tierSum?: number | null): string {
+  if (tier) return `${tier}티어`
+  if (tierSum) return `${SAENGCON_LABEL} · 티어합 ${tierSum}↑`
+  return FORMAT_LABEL[format]
+}
+
+/** 생컨 출전 선수 티어 합이 정한 티어합 이상인지 (선수가 다 안 찼으면 true) */
+export function tierSumOk(tierSum: number | null | undefined, tiers: number[], size: number): boolean {
+  if (!tierSum || tiers.length < size) return true
+  return tiers.reduce((a, b) => a + b, 0) >= tierSum
+}
+
+/** Supabase 에러가 'pl_sets.tier_sum 컬럼 없음'인지 (docs/sql/009_pl_set_tier_sum.sql 실행 전) */
+export function isMissingTierSumColumn(error: { message?: string; code?: string } | null | undefined): boolean {
+  return !!error && /tier_sum/.test(error.message ?? "") && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))
 }
 
 /** Supabase 에러가 'pl_sets.tier 컬럼 없음'인지 (docs/sql/008_pl_set_tier.sql 실행 전) */

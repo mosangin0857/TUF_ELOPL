@@ -200,7 +200,7 @@ function MatchResult({ m, bjs, tierOf }: { m: PlMatch; bjs: string[]; tierOf: Re
 
 function SetRow({ s, counted, hidden, tierOf }: { s: PlSet; counted: boolean; hidden: boolean; tierOf: Record<string, number> }) {
   const hasPlayers = s.playersA.length > 0 || s.playersB.length > 0
-  const kind = s.isAce ? "ACE" : s.pickBy && !s.pickedAt ? `${PICK_LABEL[s.pickBy]} · 선택 전` : `${setKindLabel(s.format, s.tier)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
+  const kind = s.isAce ? "ACE" : s.pickBy && !s.pickedAt ? `${PICK_LABEL[s.pickBy]} · 선택 전` : `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
   return (
     <div className={cn("res-set", !s.winner && hasPlayers && "idle", s.isAce && "ace")}>
       <Side list={s.playersA} result={s.winner ? (s.winner === "A" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} />

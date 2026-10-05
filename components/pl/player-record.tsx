@@ -17,6 +17,7 @@ type LogRow = {
   isAce: boolean
   format: PlSetFormat
   tier: number | null
+  tierSum: number | null
   map: string | null
   mine: PlSetPlayer[]
   opp: PlSetPlayer[]
@@ -49,6 +50,7 @@ export function playerLog(memberId: string, matches: PlMatch[]): LogRow[] {
         isAce: s.isAce,
         format: s.format,
         tier: s.tier,
+        tierSum: s.tierSum,
         map: s.mapName,
         mine: side === "A" ? s.playersA : s.playersB,
         opp: side === "A" ? s.playersB : s.playersA,
@@ -165,7 +167,7 @@ export function PlayerRecord({ memberId, name, matches }: { memberId: string; na
                 <span className="pr-when note">{when ? `${Number(when.md.slice(0, 2))}/${Number(when.md.slice(3))}` : "—"}</span>
                 <span className={cn("pr-set num", r.isAce && "ace")}>{r.isAce ? "ACE" : `SET ${r.setNo}`}</span>
                 <span className="pr-fmt">
-                  {setKindLabel(r.format, r.tier)}
+                  {setKindLabel(r.format, r.tier, r.tierSum)}
                   {r.map && <small> · {r.map}</small>}
                 </span>
                 <span className="pr-ppl">

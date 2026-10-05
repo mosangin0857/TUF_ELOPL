@@ -7,11 +7,18 @@ import { getCaptainSide } from "@/lib/pl/permissions"
 import {
   entryOpen,
   isMissingTierColumn,
+  isMissingTierSumColumn,
   FORMAT_LABEL,
   FORMAT_SIZE,
   matchCode,
   PICK_LABEL,
   pickSide,
+  SAENGCON_FORMAT,
+  SAENGCON_LABEL,
+  SAENGCON_MAP,
+  TIER_SUMS,
+  tierSumOk,
+  type PickChoice,
   ROLE_LABEL,
   setCount,
   REGULAR_STAGES,
@@ -511,17 +518,26 @@ async function applySetConfig(matchId: string, sets: SetConfigInput[]): Promise<
   const { data } = await supabase.from("pl_sets").select("id, set_no, picked_at").eq("match_id", matchId)
   const bySetNo = new Map((data ?? []).map((r) => [r.set_no as number, r as { id: string; picked_at: string | null }]))
   let tierReady = true
+  let sumReady = true
   let tierSkipped = false
   for (const c of sets) {
     const row = bySetNo.get(c.setNo)
     if (!row) continue
     const map = c.mapName.trim().slice(0, 40) || null
     let update: Record<string, unknown>
-    if (!c.pickBy) update = { pick_by: null, solo_map: null, picked_at: null, format: c.format, map_name: map, tier: c.format === "1v1" ? c.tier : null }
-    else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map, tier: null }
-    else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map, tier: null }
+    if (!c.pickBy) update = { pick_by: null, solo_map: null, picked_at: null, format: c.format, map_name: map, tier: c.format === "1v1" ? c.tier : null, tier_sum: null }
+    // 이미 지정 팀이 골랐으면 고른 형식 · 맵 · 티어 · 티어합을 그대로 둔다
+    else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map }
+    else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map, tier: null, tier_sum: null }
     if (!tierReady) delete update.tier
+    if (!sumReady) delete update.tier_sum
     let { error } = await supabase.from("pl_sets").update(update).eq("id", row.id)
+    if (error && isMissingTierSumColumn(error)) {
+      // 009_pl_set_tier_sum.sql 실행 전 — 티어합만 빼고 저장
+      sumReady = false
+      delete update.tier_sum
+      ;({ error } = await supabase.from("pl_sets").update(update).eq("id", row.id))
+    }
     if (error && isMissingTierColumn(error)) {
       // 008_pl_set_tier.sql 실행 전 — 티어만 빼고 저장
       tierReady = false
@@ -683,22 +699,23 @@ type MatchForWrite = {
     pick_by: PlPickBy | null
     solo_map: string | null
     picked_at: string | null
-    /** 008 실행 전이면 undefined */
     tier?: number | null
+    /** 009 실행 전이면 undefined */
+    tier_sum?: number | null
   }[]
 }
 
 async function loadMatch(id: string): Promise<MatchForWrite | null> {
-  const select = (withTier: boolean) =>
+  const select = (withTierSum: boolean) =>
     createServiceClient()
       .from("pl_matches")
       .select(
-        `id, season_id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format, pick_by, solo_map, picked_at${withTier ? ", tier" : ""})`,
+        `id, season_id, stage, match_no, team_a_id, team_b_id, status, entry_reveal_at, pl_sets(id, set_no, is_ace, format, pick_by, solo_map, picked_at, tier${withTierSum ? ", tier_sum" : ""})`,
       )
       .eq("id", id)
       .maybeSingle()
   let { data, error } = await select(true)
-  if (isMissingTierColumn(error)) ({ data, error } = await select(false))
+  if (isMissingTierSumColumn(error)) ({ data, error } = await select(false))
   return (data as unknown as MatchForWrite | null) ?? null
 }
 
@@ -792,6 +809,7 @@ export async function saveMatchResultAction(
         solo_map: from.solo_map,
         picked_at: from.picked_at,
         ...(from.tier !== undefined ? { tier: s.format === "1v1" ? from.tier : null } : {}),
+        ...(from.tier_sum !== undefined ? { tier_sum: s.format === SAENGCON_FORMAT ? from.tier_sum : null } : {}),
       })
       .eq("id", setId)
     if (u.error) return fail(`${s.setNo}세트를 저장하지 못했어요`, u.error)
@@ -870,6 +888,13 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
       const wrong = s.players.map((p) => memberTier.get(p.memberId)).find((m) => m && m.tier !== set.tier)
       if (wrong) return { ok: false, error: `${s.setNo}세트는 ${set.tier}티어 세트라 ${set.tier}티어 선수만 나갈 수 있어요 (${wrong.name}은 ${wrong.tier}티어).` }
     }
+    // 생컨: 두 선수 티어 합이 정한 티어합 이상
+    if (set.tier_sum) {
+      const tiers = s.players.map((p) => memberTier.get(p.memberId)?.tier ?? 4)
+      if (!tierSumOk(set.tier_sum, tiers, FORMAT_SIZE[set.format])) {
+        return { ok: false, error: `${s.setNo}세트 ${SAENGCON_LABEL}은 두 선수 티어 합이 ${set.tier_sum} 이상이어야 해요 (지금 ${tiers.join("+")}=${tiers.reduce((a, b) => a + b, 0)}).` }
+      }
+    }
   }
 
   for (const s of sets) {
@@ -885,10 +910,12 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
 }
 
 /**
- * 지정 세트(홈 지정 · 어웨이 지정): 지정 팀의 팀장 · 부팀장이 형식을 고른다.
- * 개인전 → 관리자가 정한 맵(solo_map), 팀플 2:2 · 3:3 · 4:4 → 맵풀에서 고른 맵. 한 번 고르면 관리자만 되돌릴 수 있다.
+ * 지정 세트(홈 지정 · 어웨이 지정): 지정 팀의 팀장 · 부팀장이 고른다 (2026 시즌 공지).
+ *   지정 티어 개인전 → 1~4티어 중 하나, 맵은 관리자가 정한 solo_map
+ *   생컨 → 2:2 · 폴리포이드 고정, 티어합(두 선수 티어 합의 최솟값)도 지정 팀이 정함
+ * 한 번 고르면 관리자만 되돌릴 수 있다.
  */
-export async function pickSetFormatAction(matchId: string, setNo: number, format: PlSetFormat, rawMap: string): Promise<ActionResult> {
+export async function pickSetFormatAction(matchId: string, setNo: number, choice: PickChoice): Promise<ActionResult> {
   const match = await loadMatch(matchId)
   if (!match) return { ok: false, error: "해당 경기를 찾지 못했어요." }
   const captain = await getCaptainSide(match.team_a_id, match.team_b_id)
@@ -898,33 +925,42 @@ export async function pickSetFormatAction(matchId: string, setNo: number, format
   const set = match.pl_sets.find((s) => s.set_no === setNo)
   if (!set?.pick_by) return { ok: false, error: `${setNo}세트는 지정 세트가 아니에요.` }
   if (pickSide(set.pick_by) !== captain.side) return { ok: false, error: `${setNo}세트는 상대 팀이 고르는 ${PICK_LABEL[set.pick_by]} 세트예요.` }
-  if (set.picked_at) return { ok: false, error: "이미 형식을 골랐어요. 바꾸려면 관리자에게 요청해 주세요." }
-  if (!FORMATS.includes(format)) return { ok: false, error: "형식 값이 올바르지 않아요." }
+  if (set.picked_at) return { ok: false, error: "이미 골랐어요. 바꾸려면 관리자에게 요청해 주세요." }
 
-  let map = set.solo_map
-  if (format !== "1v1") {
-    map = rawMap.trim()
-    const { data: pool } = await createServiceClient().from("pl_maps").select("name").eq("season_id", match.season_id).eq("name", map).maybeSingle()
-    if (!pool) return { ok: false, error: "팀플 맵을 맵풀에서 골라 주세요." }
+  let update: Record<string, unknown>
+  let what: string
+  if (choice.kind === "tier") {
+    if (![1, 2, 3, 4].includes(choice.tier)) return { ok: false, error: "티어를 1~4 중에서 골라 주세요." }
+    update = { format: "1v1", map_name: set.solo_map, tier: choice.tier, tier_sum: null }
+    what = `${setNo}세트 ${choice.tier}티어 개인전${set.solo_map ? ` · ${set.solo_map}` : ""} 선택`
+  } else if (choice.kind === "saengcon") {
+    if (!(TIER_SUMS as readonly number[]).includes(choice.tierSum)) {
+      return { ok: false, error: `티어합을 ${TIER_SUMS[0]}~${TIER_SUMS[TIER_SUMS.length - 1]} 중에서 골라 주세요.` }
+    }
+    update = { format: SAENGCON_FORMAT, map_name: SAENGCON_MAP, tier: null, tier_sum: choice.tierSum }
+    what = `${setNo}세트 ${SAENGCON_LABEL} · ${SAENGCON_MAP} · 티어합 ${choice.tierSum} 이상 선택`
+  } else return { ok: false, error: "고른 값이 올바르지 않아요." }
+
+  const supabase = createServiceClient()
+  const save = () => supabase.from("pl_sets").update({ ...update, picked_at: new Date().toISOString() }).eq("id", set.id).is("picked_at", null).select("id")
+  let { data, error } = await save()
+  let sumSkipped = false
+  if (error && isMissingTierSumColumn(error)) {
+    // 009_pl_set_tier_sum.sql 실행 전 — 티어합만 빼고 저장
+    sumSkipped = choice.kind === "saengcon"
+    delete update.tier_sum
+    ;({ data, error } = await save())
   }
+  if (error) return fail("저장하지 못했어요", error)
+  if (!data?.length) return { ok: false, error: "방금 다른 사람이 정했어요. 새로고침해 주세요." }
 
-  const { data, error } = await createServiceClient()
-    .from("pl_sets")
-    .update({ format, map_name: map, picked_at: new Date().toISOString() })
-    .eq("id", set.id)
-    .is("picked_at", null)
-    .select("id")
-  if (error) return fail("형식을 저장하지 못했어요", error)
-  if (!data?.length) return { ok: false, error: "방금 형식이 정해졌어요. 새로고침해 주세요." }
-
-  const what = `${setNo}세트 ${FORMAT_LABEL[format]}${map ? ` · ${map}` : ""} 선택`
   await entryLog(match.id, captain.side, captain.memberId, captain.username, what)
   await insertAdminLog(captain.username, "PL 지정 세트 선택", matchCode(match.stage, match.match_no), what)
   revalidatePl()
-  return { ok: true }
+  return sumSkipped ? { ok: true, notice: "생컨으로 정했어요. 티어합은 docs/sql/009_pl_set_tier_sum.sql을 실행한 뒤부터 저장 · 검사돼요." } : { ok: true }
 }
 
-/** 관리자: 지정 세트 선택 되돌리기 — 개인전 + 개인전 맵으로 돌리고, 인원이 바뀔 수 있으니 양 팀 선수도 비운다 */
+/** 관리자: 지정 세트 선택 되돌리기 — 개인전 + 개인전 맵으로 돌리고(티어 · 티어합도 비움), 인원이 바뀔 수 있으니 양 팀 선수도 비운다 */
 export async function resetPickAction(setId: string): Promise<ActionResult> {
   const actor = await manager()
   if (!actor) return { ok: false, error: NO_PERMISSION }
@@ -932,7 +968,12 @@ export async function resetPickAction(setId: string): Promise<ActionResult> {
   const { data: set } = await supabase.from("pl_sets").select("set_no, solo_map, pl_matches(stage, match_no)").eq("id", setId).maybeSingle()
   if (!set) return { ok: false, error: "해당 세트를 찾지 못했어요." }
 
-  const { error } = await supabase.from("pl_sets").update({ picked_at: null, format: "1v1", map_name: set.solo_map }).eq("id", setId)
+  const reset: Record<string, unknown> = { picked_at: null, format: "1v1", map_name: set.solo_map, tier: null, tier_sum: null }
+  let { error } = await supabase.from("pl_sets").update(reset).eq("id", setId)
+  if (error && isMissingTierSumColumn(error)) {
+    delete reset.tier_sum
+    ;({ error } = await supabase.from("pl_sets").update(reset).eq("id", setId))
+  }
   if (error) return fail("되돌리지 못했어요", error)
   await supabase.from("pl_set_players").delete().eq("set_id", setId)
 

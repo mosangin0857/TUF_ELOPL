@@ -4,7 +4,21 @@ import { useState } from "react"
 import { GripVertical, X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
-import { FORMAT_LABEL, FORMAT_SIZE, matchScore, PICK_LABEL, STATUS_LABEL, winTarget, type PlMatchStatus, type PlPickBy, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import {
+  FORMAT_LABEL,
+  FORMAT_SIZE,
+  matchScore,
+  PICK_LABEL,
+  SAENGCON_FORMAT,
+  SAENGCON_LABEL,
+  STATUS_LABEL,
+  tierSumOk,
+  winTarget,
+  type PlMatchStatus,
+  type PlPickBy,
+  type PlSetFormat,
+  type PlSide,
+} from "@/lib/pl/rules"
 import type { Tier } from "@/lib/types"
 import type { PlMatch, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -20,6 +34,7 @@ type SetDraft = {
   pickBy: PlPickBy | null
   /** 티어 세트 (순서를 바꾸면 같이 따라감) */
   tier: Tier | null
+  tierSum: number | null
   format: PlSetFormat
   mapName: string
   winner: PlSide | null
@@ -59,6 +74,7 @@ export function ResultEditor({
       isAce: s.isAce,
       pickBy: s.pickBy,
       tier: s.tier,
+      tierSum: s.tierSum,
       format: s.format,
       mapName: s.mapName ?? "",
       winner: s.winner,
@@ -276,6 +292,27 @@ export function ResultEditor({
                 {s.from !== no && <span className="pill moved-pill">원래 {s.from}세트</span>}
                 {s.pickBy && <span className="pill">{PICK_LABEL[s.pickBy]}</span>}
                 {s.tier && s.format === "1v1" && <span className="pill tier-pill">{s.tier}티어</span>}
+                {s.tierSum && s.format === SAENGCON_FORMAT && (
+                  <span className="pill tier-pill">
+                    {SAENGCON_LABEL} · 티어합 {s.tierSum}↑
+                  </span>
+                )}
+                {s.tierSum &&
+                  s.format === SAENGCON_FORMAT &&
+                  (() => {
+                    const tiersOf = (list: SlotValue[], roster: PlTeamMember[]) => filled(list).map((p) => roster.find((m) => m.memberId === p.memberId)?.tier ?? 4)
+                    const bad = (
+                      [
+                        ["홈", tiersOf(s.playersA, rosterA)],
+                        ["원정", tiersOf(s.playersB, rosterB)],
+                      ] as const
+                    ).filter(([, t]) => !tierSumOk(s.tierSum, [...t], FORMAT_SIZE[s.format]))
+                    return bad.length ? (
+                      <span className="tier-warn" title="시즌 중 티어가 바뀐 경우일 수 있어요. 저장은 돼요.">
+                        티어합 미달: {bad.map(([side, t]) => `${side} ${t.join("+")}=${t.reduce((a, b) => a + b, 0)}`).join(", ")}
+                      </span>
+                    ) : null
+                  })()}
                 {s.tier &&
                   s.format === "1v1" &&
                   (() => {

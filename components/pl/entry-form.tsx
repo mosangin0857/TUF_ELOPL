@@ -7,7 +7,18 @@ import { usePlAction } from "@/components/pl/manage/use-pl-action"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
-import { FORMAT_LABEL, FORMAT_SIZE, PICK_FORMATS, PICK_LABEL, setKindLabel, SIDE_LABEL, type PlSetFormat, type PlSide } from "@/lib/pl/rules"
+import {
+  FORMAT_SIZE,
+  PICK_LABEL,
+  SAENGCON_LABEL,
+  SAENGCON_MAP,
+  setKindLabel,
+  SIDE_LABEL,
+  TIER_SUMS,
+  tierSumOk,
+  type PickChoice,
+  type PlSide,
+} from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlTeamMember } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -42,48 +53,63 @@ function Deadline({ deadline, open }: { deadline: string | null; open: boolean }
   )
 }
 
-/** 지정 세트: 우리 팀이 형식을 고를 차례 */
-function PickBox({ set, maps, pickLabel, busy, onPick }: { set: PlSet; maps: string[]; pickLabel: string; busy: boolean; onPick: (f: PlSetFormat, map: string) => void }) {
-  const [format, setFormat] = useState<PlSetFormat>("1v1")
-  const [map, setMap] = useState("")
+/** 생컨 티어합 예시: 합이 딱 그 값인 조합 (1+4, 2+3 …) */
+function sumExamples(sum: number) {
+  const out: string[] = []
+  for (let a = 1; a <= 4; a++) for (let b = a; b <= 4; b++) if (a + b === sum) out.push(`${a}+${b}`)
+  return out.join(", ")
+}
+
+/** 지정 세트: 우리 팀이 고를 차례 — 지정 티어 개인전 또는 생컨 (2026 시즌 공지) */
+function PickBox({ set, pickLabel, busy, onPick }: { set: PlSet; pickLabel: string; busy: boolean; onPick: (c: PickChoice) => void }) {
+  const [kind, setKind] = useState<PickChoice["kind"]>("tier")
+  const [tier, setTier] = useState<1 | 2 | 3 | 4>(1)
+  const [sum, setSum] = useState(5)
   const [confirm, setConfirm] = useState(false)
-  const ready = format === "1v1" || !!map
+  const choice: PickChoice = kind === "tier" ? { kind, tier } : { kind, tierSum: sum }
+  const text = kind === "tier" ? `${tier}티어 개인전${set.soloMap ? ` · ${set.soloMap}` : ""}` : `${SAENGCON_LABEL} 2:2 · ${SAENGCON_MAP} · 티어합 ${sum} 이상`
+  const pick = <T,>(fn: (v: T) => void) => (v: T) => {
+    fn(v)
+    setConfirm(false)
+  }
   return (
     <div className="pick-box">
       <p className="note">
-        <b>{pickLabel}</b> 세트예요. 형식을 고르면 상대 팀에도 바로 보이고, 한 번 고르면 바꿀 수 없어요.
+        <b>{pickLabel}</b> 세트예요. 지정 티어 개인전이나 {SAENGCON_LABEL} 중에서 고르면 상대 팀에도 바로 보이고, 한 번 고르면 바꿀 수 없어요.
       </p>
-      <div className="seg" role="group" aria-label={`${set.setNo}세트 형식`}>
-        {PICK_FORMATS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={cn(format === f && "on")}
-            aria-pressed={format === f}
-            onClick={() => {
-              setFormat(f)
-              setConfirm(false)
-            }}
-          >
-            {f === "1v1" ? `개인전${set.soloMap ? ` · ${set.soloMap}` : ""}` : FORMAT_LABEL[f]}
-          </button>
-        ))}
+      <div className="seg" role="group" aria-label={`${set.setNo}세트 종류`}>
+        <button type="button" className={cn(kind === "tier" && "on")} aria-pressed={kind === "tier"} onClick={() => pick(setKind)("tier")}>
+          지정 티어 개인전{set.soloMap ? ` · ${set.soloMap}` : ""}
+        </button>
+        <button type="button" className={cn(kind === "saengcon" && "on")} aria-pressed={kind === "saengcon"} onClick={() => pick(setKind)("saengcon")}>
+          {SAENGCON_LABEL} 2:2 · {SAENGCON_MAP}
+        </button>
       </div>
-      {format !== "1v1" && (
-        <select className="field" value={map} onChange={(e) => setMap(e.target.value)} aria-label={`${set.setNo}세트 팀플 맵`}>
-          <option value="">— 팀플 맵 선택 (맵풀) —</option>
-          {maps.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
+      {kind === "tier" ? (
+        <div className="seg" role="group" aria-label={`${set.setNo}세트 티어`}>
+          {([1, 2, 3, 4] as const).map((t) => (
+            <button key={t} type="button" className={cn(tier === t && "on")} aria-pressed={tier === t} onClick={() => pick(setTier)(t)}>
+              {t}티어
+            </button>
           ))}
-        </select>
+        </div>
+      ) : (
+        <label className="pick-sum">
+          <span>티어합</span>
+          <select className="field" value={sum} onChange={(e) => pick(setSum)(Number(e.target.value))} aria-label={`${set.setNo}세트 생컨 티어합`}>
+            {TIER_SUMS.map((n) => (
+              <option key={n} value={n}>
+                {n} 이상
+              </option>
+            ))}
+          </select>
+          <small className="note">두 선수 티어 합이 {sum} 이상 (가장 센 조합: {sumExamples(sum)})</small>
+        </label>
       )}
       {confirm ? (
-        <span className="inline-flex items-center gap-2">
-          {FORMAT_LABEL[format]}
-          {format === "1v1" ? (set.soloMap ? ` · ${set.soloMap}` : "") : ` · ${map}`}(으)로 확정할까요?
-          <button type="button" className="mini-btn on" disabled={busy} onClick={() => onPick(format, map)}>
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {text}(으)로 확정할까요?
+          <button type="button" className="mini-btn on" disabled={busy} onClick={() => onPick(choice)}>
             확정
           </button>
           <button type="button" className="mini-btn" onClick={() => setConfirm(false)}>
@@ -91,11 +117,26 @@ function PickBox({ set, maps, pickLabel, busy, onPick }: { set: PlSet; maps: str
           </button>
         </span>
       ) : (
-        <button type="button" className="mini-btn on" disabled={!ready || busy} onClick={() => setConfirm(true)}>
-          이 형식으로 정하기
+        <button type="button" className="mini-btn on" disabled={busy} onClick={() => setConfirm(true)}>
+          이걸로 정하기
         </button>
       )}
     </div>
+  )
+}
+
+/** 생컨 세트: 고른 두 선수 티어 합 확인 (서버에서도 검사) */
+function TierSumHint({ tierSum, tiers, size }: { tierSum: number; tiers: number[]; size: number }) {
+  const total = tiers.reduce((a, b) => a + b, 0)
+  if (tiers.length < size) return <p className="note">두 선수 티어 합이 {tierSum} 이상이어야 해요.</p>
+  return tierSumOk(tierSum, tiers, size) ? (
+    <p className="note">
+      티어 합 {tiers.join("+")}={total} · {tierSum} 이상 ✓
+    </p>
+  ) : (
+    <p className="note form-error" role="alert">
+      티어 합 {tiers.join("+")}={total} — {tierSum} 이상이어야 해요. 선수를 바꿔 주세요.
+    </p>
   )
 }
 
@@ -109,7 +150,6 @@ export function EntryForm({
   opponent,
   logs,
   lastEntry,
-  maps,
   pickers,
 }: {
   match: PlMatch
@@ -120,7 +160,6 @@ export function EntryForm({
   opponent: OpponentStatus
   logs: { at: string; name: string; action: string }[]
   lastEntry: LastEntry
-  maps: string[]
   /** 지정 세트 번호 → 우리가 고르는지(us) / 상대가 고르는지(them) */
   pickers: Record<number, "us" | "them">
 }) {
@@ -243,7 +282,7 @@ export function EntryForm({
                   <div className="es-meta">
                     <b>SET {s.setNo}</b>
                     {s.pickBy && <span className="fmt pick">{PICK_LABEL[s.pickBy]}</span>}
-                    {!waiting(s) && <span className={cn("fmt", s.format !== "1v1" && "team", s.tier && "tier")}>{setKindLabel(s.format, s.tier)}</span>}
+                    {!waiting(s) && <span className={cn("fmt", s.format !== "1v1" && "team", s.tier && "tier")}>{setKindLabel(s.format, s.tier, s.tierSum)}</span>}
                     {!waiting(s) && s.mapName && <span className="map">{s.mapName}</span>}
                   </div>
                   <div className="es-body">
@@ -251,21 +290,21 @@ export function EntryForm({
                       mine && open ? (
                         <PickBox
                           set={s}
-                          maps={maps}
                           pickLabel={PICK_LABEL[s.pickBy!]}
                           busy={busy}
-                          onPick={(f, map) => run(() => pickSetFormatAction(match.id, s.setNo, f, map), () => setSaved(`${s.setNo}세트 형식을 정했어요.`))}
+                          onPick={(c) => run(() => pickSetFormatAction(match.id, s.setNo, c), () => setSaved(`${s.setNo}세트를 정했어요.`))}
                         />
                       ) : (
                         <p className="note">
-                          {mine ? "마감이 지나 형식을 고를 수 없어요." : `${opp.name}(${PICK_LABEL[s.pickBy!]})가 형식을 고르는 중이에요. 정해지면 선수를 낼 수 있어요.`}
-                          {s.soloMap && ` 개인전이면 ${s.soloMap}.`}
+                          {mine ? "마감이 지나 고를 수 없어요." : `${opp.name}(${PICK_LABEL[s.pickBy!]})가 고르는 중이에요. 정해지면 선수를 낼 수 있어요.`}
+                          {` 지정 티어 개인전이면 ${s.soloMap ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 2:2 · ${SAENGCON_MAP}.`}
                         </p>
                       )
                     ) : (
                       <>
                         <SideSlots size={size} roster={rosterFor(s)} value={draft[s.setNo] ?? []} onChange={(v) => change(s.setNo, v)} disabled={!open} label={`${s.setNo}세트`} />
                         {s.tier && rosterFor(s).length === 0 && <p className="note">선수단에 {s.tier}티어 선수가 없어요. 관리자에게 알려 주세요.</p>}
+                        {s.tierSum && <TierSumHint tierSum={s.tierSum} tiers={slotsOf(s).map((p) => roster.find((r) => r.memberId === p.memberId)?.tier ?? 4)} size={size} />}
                       </>
                     )}
                   </div>

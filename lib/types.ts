@@ -221,6 +221,8 @@ export interface PlSet {
   pickedAt: string | null
   /** 이 티어 선수만 출전 (개인전 세트). null = 티어 제한 없음 — docs/sql/008_pl_set_tier.sql */
   tier: Tier | null
+  /** 생컨(지정 세트 2:2): 두 선수 티어 합이 이 값 이상이어야 함. null = 없음 — docs/sql/009_pl_set_tier_sum.sql */
+  tierSum: number | null
   winner: PlSide | null
   playersA: PlSetPlayer[]
   playersB: PlSetPlayer[]

@@ -3376,6 +3376,22 @@
   .pick-box .field {
     max-width: 280px;
   }
+  .pick-sum {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .pick-sum .field {
+    width: 110px;
+  }
+  .pick-sum small {
+    flex-basis: 100%;
+    font-weight: 400;
+  }
   .roster-list {
     list-style: none;
     margin: 0;

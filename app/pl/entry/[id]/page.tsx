@@ -3,7 +3,7 @@ import Link from "next/link"
 import { EntryForm, type OpponentStatus } from "@/components/pl/entry-form"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
-import { fetchEntryLogs, fetchMaps, fetchMatchContext, findLastEntry } from "@/lib/data/pl"
+import { fetchEntryLogs, fetchMatchContext, findLastEntry } from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 import { getCaptainSide } from "@/lib/pl/permissions"
 import { entryDeadline, entryOpen, FORMAT_SIZE, pickSide } from "@/lib/pl/rules"
@@ -29,7 +29,7 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const { match, matches, teams, season } = ctx
+  const { match, matches, teams } = ctx
   const captain = await getCaptainSide(match.teamA.id, match.teamB.id)
   if (!captain) {
     const admin = await getMemberManager()
@@ -68,7 +68,7 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
 
   const teamId = side === "A" ? match.teamA.id : match.teamB.id
   const roster = (teams.find((t) => t.id === teamId)?.members ?? []).filter((m) => !m.leftOn)
-  const [logs, maps] = await Promise.all([fetchEntryLogs(match.id, side), fetchMaps(season.id)])
+  const logs = await fetchEntryLogs(match.id, side)
   const lastEntry = findLastEntry(matches, teamId, match.id)
   // 지정 세트 중 우리가 고를 차례인 것 / 상대가 아직 안 고른 것
   const pickers = Object.fromEntries(match.sets.filter((s) => s.pickBy).map((s) => [s.setNo, pickSide(s.pickBy!) === side ? "us" : "them"])) as Record<
@@ -86,7 +86,6 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
       opponent={opponent}
       logs={logs}
       lastEntry={lastEntry}
-      maps={maps.map((m) => m.name)}
       pickers={pickers}
     />
   )

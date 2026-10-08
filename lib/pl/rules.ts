@@ -145,6 +145,15 @@ export function tierSumOk(tierSum: number | null | undefined, tiers: number[], s
   return tiers.reduce((a, b) => a + b, 0) >= tierSum
 }
 
+/** Supabase 에러가 '그 컬럼 없음'인지 (새 SQL 실행 전) */
+export function isMissingColumn(error: { message?: string; code?: string } | null | undefined, column: string): boolean {
+  return !!error && (error.message ?? "").includes(column) && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))
+}
+
+/** 미정 팀(플레이오프 '리그 4위' 등): 팀 대신 표시 이름만 둔 쪽 — docs/sql/010_pl_match_tbd_teams.sql */
+export const TBD_TEAM_COLOR = "#8b857a"
+export const TBD_SQL_NOTICE = "미정 팀은 docs/sql/010_pl_match_tbd_teams.sql을 Supabase에서 실행한 뒤 쓸 수 있어요."
+
 /** Supabase 에러가 'pl_sets.tier_sum 컬럼 없음'인지 (docs/sql/009_pl_set_tier_sum.sql 실행 전) */
 export function isMissingTierSumColumn(error: { message?: string; code?: string } | null | undefined): boolean {
   return !!error && /tier_sum/.test(error.message ?? "") && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))

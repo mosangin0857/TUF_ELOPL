@@ -43,13 +43,19 @@ type Draft = {
   id: string | null
   stage: PlStage
   matchNo: string
+  /** 팀 id, 'tbd' = 미정 팀 (플레이오프 · 결승) */
   teamAId: string
   teamBId: string
+  teamALabel: string
+  teamBLabel: string
   scheduledAt: string
   entryRevealAt: string
   note: string
   sets: SetDraft[]
 }
+
+/** 팀 선택 값: 미정 팀 */
+const TBD = "tbd"
 
 /** 다음 매치 번호: 정규 라운드는 1R~3R 전체에서 이어서, 플레이오프는 PO끼리 */
 function nextNo(matches: PlMatch[], stage: PlStage): string {
@@ -168,8 +174,10 @@ export function MatchesPanel({
             id: m.id,
             stage: m.stage,
             matchNo: m.matchNo ? String(m.matchNo) : "",
-            teamAId: m.teamA.id,
-            teamBId: m.teamB.id,
+            teamAId: m.teamA.tbd ? TBD : m.teamA.id,
+            teamBId: m.teamB.tbd ? TBD : m.teamB.id,
+            teamALabel: m.teamA.tbd ? m.teamA.name : "",
+            teamBLabel: m.teamB.tbd ? m.teamB.name : "",
             scheduledAt: toLocalInput(m.scheduledAt),
             entryRevealAt: toLocalInput(m.entryRevealAt),
             note: m.note ?? "",
@@ -181,6 +189,8 @@ export function MatchesPanel({
             matchNo: nextNo(matches, stage),
             teamAId: "",
             teamBId: "",
+            teamALabel: "",
+            teamBLabel: "",
             scheduledAt: "",
             entryRevealAt: "",
             note: "",
@@ -199,8 +209,10 @@ export function MatchesPanel({
     const input: MatchInput = {
       stage: draft.stage,
       matchNo: draft.stage === "FINAL" ? null : Number(draft.matchNo),
-      teamAId: draft.teamAId,
-      teamBId: draft.teamBId,
+      teamAId: draft.teamAId === TBD ? null : draft.teamAId,
+      teamBId: draft.teamBId === TBD ? null : draft.teamBId,
+      teamALabel: draft.teamALabel,
+      teamBLabel: draft.teamBLabel,
       scheduledAt: fromLocalInput(draft.scheduledAt),
       entryRevealAt: fromLocalInput(draft.entryRevealAt),
       note: draft.note,
@@ -269,9 +281,15 @@ export function MatchesPanel({
                     )}
                   </div>
                   <div className="tc-act">
-                    <button type="button" className={cn("mini-btn", late && "on")} onClick={() => openResult(m.id)}>
-                      {late ? "결과 입력" : "세트 순서 · 엔트리 보기"}
-                    </button>
+                    {m.teamA.tbd || m.teamB.tbd ? (
+                      <button type="button" className="mini-btn" onClick={() => openForm(m)}>
+                        팀 정하기
+                      </button>
+                    ) : (
+                      <button type="button" className={cn("mini-btn", late && "on")} onClick={() => openResult(m.id)}>
+                        {late ? "결과 입력" : "세트 순서 · 엔트리 보기"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -385,7 +403,13 @@ export function MatchesPanel({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-2">
-                          <button type="button" className="mini-btn on" onClick={() => openResult(m.id)}>
+                          <button
+                            type="button"
+                            className="mini-btn on"
+                            onClick={() => openResult(m.id)}
+                            disabled={m.teamA.tbd || m.teamB.tbd}
+                            title={m.teamA.tbd || m.teamB.tbd ? "팀이 정해지면 입력할 수 있어요 (수정에서 팀 선택)" : undefined}
+                          >
                             결과 입력
                           </button>
                           <button type="button" className="mini-btn" onClick={() => openForm(m)}>
@@ -456,19 +480,42 @@ export function MatchesPanel({
                   required={draft.stage !== "FINAL"}
                 />
               </label>
-              {(["teamAId", "teamBId"] as const).map((k, i) => (
-                <label key={k} className="form-row">
-                  <span>{i === 0 ? "홈팀 (A · 왼쪽)" : "원정팀 (B · 오른쪽)"}</span>
-                  <select className="field" value={draft[k]} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} required>
-                    <option value="">— 팀 선택 —</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+              {(["A", "B"] as const).map((side) => {
+                const k = side === "A" ? "teamAId" : "teamBId"
+                const lk = side === "A" ? "teamALabel" : "teamBLabel"
+                const tbdOk = isPlayoff(draft.stage)
+                return (
+                  <div key={side} className="form-row">
+                    <span>{side === "A" ? "홈팀 (A · 왼쪽)" : "원정팀 (B · 오른쪽)"}</span>
+                    <select
+                      className="field"
+                      value={draft[k] === TBD && !tbdOk ? "" : draft[k]}
+                      onChange={(e) => setDraft({ ...draft, [k]: e.target.value })}
+                      aria-label={side === "A" ? "홈팀" : "원정팀"}
+                      required
+                    >
+                      <option value="">— 팀 선택 —</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                      {tbdOk && <option value={TBD}>미정 — 표시 이름으로 (예: 리그 4위)</option>}
+                    </select>
+                    {draft[k] === TBD && tbdOk && (
+                      <input
+                        className="field"
+                        value={draft[lk]}
+                        onChange={(e) => setDraft({ ...draft, [lk]: e.target.value })}
+                        maxLength={20}
+                        placeholder="리그 4위 · 준PO 승자 …"
+                        aria-label={`${side === "A" ? "홈팀" : "원정팀"} 표시 이름`}
+                        required
+                      />
+                    )}
+                  </div>
+                )
+              })}
               <label className="form-row">
                 <span>경기 일시</span>
                 <input className="field" type="datetime-local" value={draft.scheduledAt} onChange={(e) => setDraft({ ...draft, scheduledAt: e.target.value })} />

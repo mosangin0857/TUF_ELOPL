@@ -6,6 +6,7 @@ import { getMemberManager } from "@/lib/permissions"
 import { getCaptainSide } from "@/lib/pl/permissions"
 import {
   entryOpen,
+  isMissingColumn,
   isMissingTierColumn,
   isMissingTierSumColumn,
   FORMAT_LABEL,
@@ -24,6 +25,7 @@ import {
   REGULAR_STAGES,
   STAGES,
   STATUS_LABEL,
+  TBD_SQL_NOTICE,
   type PlMatchStatus,
   type PlPickBy,
   type PlRace,
@@ -466,8 +468,11 @@ export type SetConfigInput = { setNo: number; format: PlSetFormat; mapName: stri
 export type MatchInput = {
   stage: PlStage
   matchNo: number | null
-  teamAId: string
-  teamBId: string
+  /** null = 미정 팀 (플레이오프 · 결승만) → teamALabel에 '리그 4위' 같은 표시 이름 */
+  teamAId: string | null
+  teamBId: string | null
+  teamALabel?: string
+  teamBLabel?: string
   scheduledAt: string | null
   entryRevealAt: string | null
   note: string
@@ -479,8 +484,16 @@ function validMatch(input: MatchInput): string | null {
   if (input.stage !== "FINAL" && (!Number.isInteger(input.matchNo) || (input.matchNo ?? 0) < 1 || (input.matchNo ?? 0) > 999)) {
     return "매치 번호를 1~999로 입력해 주세요."
   }
-  if (!input.teamAId || !input.teamBId) return "두 팀을 모두 골라 주세요."
-  if (input.teamAId === input.teamBId) return "같은 팀끼리는 경기를 만들 수 없어요."
+  for (const [id, label, side] of [
+    [input.teamAId, input.teamALabel, "홈팀"],
+    [input.teamBId, input.teamBLabel, "원정팀"],
+  ] as const) {
+    if (id) continue
+    if (REGULAR_STAGES.includes(input.stage)) return "정규 라운드는 두 팀을 모두 골라 주세요. (미정 팀은 플레이오프 · 결승만)"
+    const l = (label ?? "").trim()
+    if (!l || l.length > 20) return `${side}이 미정이면 '리그 4위'처럼 표시 이름을 1~20자로 적어 주세요.`
+  }
+  if (input.teamAId && input.teamAId === input.teamBId) return "같은 팀끼리는 경기를 만들 수 없어요."
   const n = setCount(input.stage)
   for (const c of input.sets) {
     if (c.setNo < 1 || c.setNo > n) return `${c.setNo}세트는 이 라운드에 없어요.`
@@ -492,6 +505,16 @@ function validMatch(input: MatchInput): string | null {
     if (c.tier !== null && (c.pickBy || c.format !== "1v1" || c.setNo === n)) return `${c.setNo}세트: 티어는 개인전 세트에만 정할 수 있어요 (팀플 · 지정 세트 · ACE는 제한 없음).`
   }
   return null
+}
+
+/** 경기 행의 팀 칸. 미정 팀이 없으면 표시 이름 컬럼은 건드리지 않는다 (010 실행 전에도 동작) — clearLabels면 null로 비움 */
+function teamCols(input: MatchInput, clearLabels: boolean): Record<string, unknown> {
+  const cols: Record<string, unknown> = { team_a_id: input.teamAId || null, team_b_id: input.teamBId || null }
+  if (!input.teamAId || !input.teamBId || clearLabels) {
+    cols.team_a_label = input.teamAId ? null : (input.teamALabel ?? "").trim()
+    cols.team_b_label = input.teamBId ? null : (input.teamBLabel ?? "").trim()
+  }
+  return cols
 }
 
 const DUP_MATCH_NO = "같은 번호의 경기가 이미 있어요. (정규 라운드는 1R~3R 전체에서 번호가 이어져요)"
@@ -564,14 +587,14 @@ async function insertMatch(
       season_id: seasonId,
       stage: input.stage,
       match_no: input.stage === "FINAL" ? null : input.matchNo,
-      team_a_id: input.teamAId,
-      team_b_id: input.teamBId,
+      ...teamCols(input, false),
       scheduled_at: input.scheduledAt,
       entry_reveal_at: input.entryRevealAt,
       note: input.note.trim().slice(0, 200) || null,
     })
     .select("id")
     .single()
+  if (error && (isMissingColumn(error, "team_a_label") || error.code === "23502")) return { ok: false, error: TBD_SQL_NOTICE, duplicate: false }
   if (error) {
     const duplicate = error.code === "23505"
     const msg = duplicate ? (input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO) : `경기를 만들지 못했어요: ${error.message}`
@@ -631,18 +654,21 @@ export async function updateMatchAction(id: string, input: MatchInput): Promise<
   const invalid = validMatch(input)
   if (invalid) return { ok: false, error: invalid }
 
-  const { error } = await createServiceClient()
-    .from("pl_matches")
-    .update({
-      stage: input.stage,
-      match_no: input.stage === "FINAL" ? null : input.matchNo,
-      team_a_id: input.teamAId,
-      team_b_id: input.teamBId,
-      scheduled_at: input.scheduledAt,
-      entry_reveal_at: input.entryRevealAt,
-      note: input.note.trim().slice(0, 200) || null,
-    })
-    .eq("id", id)
+  const row = (clearLabels: boolean) => ({
+    stage: input.stage,
+    match_no: input.stage === "FINAL" ? null : input.matchNo,
+    ...teamCols(input, clearLabels),
+    scheduled_at: input.scheduledAt,
+    entry_reveal_at: input.entryRevealAt,
+    note: input.note.trim().slice(0, 200) || null,
+  })
+  const supabase = createServiceClient()
+  // 미정 팀을 실제 팀으로 바꾸면 표시 이름도 비운다. 010 실행 전이면 표시 이름 없이 다시
+  let { error } = await supabase.from("pl_matches").update(row(true)).eq("id", id)
+  if (error && isMissingColumn(error, "team_a_label")) {
+    if (!input.teamAId || !input.teamBId) return { ok: false, error: TBD_SQL_NOTICE }
+    ;({ error } = await supabase.from("pl_matches").update(row(false)).eq("id", id))
+  }
   if (error) return fail("경기를 수정하지 못했어요", error, input.stage === "FINAL" ? "이 시즌에 결승 경기가 이미 있어요." : DUP_MATCH_NO)
 
   await syncSets(id, input.stage)
@@ -686,8 +712,9 @@ type MatchForWrite = {
   id: string
   stage: PlStage
   match_no: number | null
-  team_a_id: string
-  team_b_id: string
+  /** null = 미정 팀 */
+  team_a_id: string | null
+  team_b_id: string | null
   status: PlMatchStatus
   entry_reveal_at: string | null
   season_id: string
@@ -761,6 +788,7 @@ export async function saveMatchResultAction(
 
   const match = await loadMatch(matchId)
   if (!match) return { ok: false, error: "해당 경기를 찾지 못했어요." }
+  if (!match.team_a_id || !match.team_b_id) return { ok: false, error: "아직 팀이 정해지지 않은 경기예요. 경기 수정에서 두 팀을 고른 뒤 결과를 입력해 주세요." }
   const [rosterA, rosterB] = await Promise.all([rosterIds(match.team_a_id, false), rosterIds(match.team_b_id, false)])
   const setBySetNo = new Map(match.pl_sets.map((s) => [s.set_no, s]))
 
@@ -866,7 +894,8 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
     return { ok: false, error: "엔트리 마감(공개 2시간 전)이 지나서 제출 · 수정할 수 없어요. 관리자에게 요청해 주세요." }
   }
 
-  const teamId = captain.side === "A" ? match.team_a_id : match.team_b_id
+  // captain이 있으면 두 팀 모두 정해진 경기 (getCaptainSide)
+  const teamId = (captain.side === "A" ? match.team_a_id : match.team_b_id)!
   const roster = await rosterIds(teamId, true)
   const setBySetNo = new Map(match.pl_sets.map((s) => [s.set_no, s]))
 

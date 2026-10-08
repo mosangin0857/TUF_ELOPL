@@ -234,8 +234,9 @@ export interface PlMatch {
   matchNo: number | null
   /** 1R-18M · PO-1M · PO-FINAL */
   code: string
-  teamA: { id: string; name: string; color: string }
-  teamB: { id: string; name: string; color: string }
+  /** tbd = 아직 팀이 정해지지 않은 쪽 (id ''. name은 '리그 4위' 같은 표시 이름) — 플레이오프 */
+  teamA: { id: string; name: string; color: string; tbd: boolean }
+  teamB: { id: string; name: string; color: string; tbd: boolean }
   scheduledAt: string | null
   status: PlMatchStatus
   forfeitWinner: PlSide | null

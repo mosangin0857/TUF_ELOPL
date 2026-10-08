@@ -1,5 +1,5 @@
 import "server-only"
-import { isCounted, isMissingTierSumColumn, matchCode, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
+import { isCounted, isMissingColumn, matchCode, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { PlMatch, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { seoulDate, seoulTime } from "@/lib/utils"
@@ -93,8 +93,11 @@ type MatchRow = {
   id: string
   stage: PlStage
   match_no: number | null
-  team_a_id: string
-  team_b_id: string
+  team_a_id: string | null
+  team_b_id: string | null
+  /** 010 실행 전이면 undefined */
+  team_a_label?: string | null
+  team_b_label?: string | null
   scheduled_at: string | null
   status: PlMatchStatus
   forfeit_winner: PlSide | null
@@ -126,22 +129,23 @@ export function entriesVisibleAt(status: PlMatchStatus, entryRevealAt: string | 
  * 시즌 경기 전체 (일정순). revealAll이면 공개 전 엔트리도 채운다 (관리자 · 엔트리 제출 화면 전용).
  */
 export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAll = false } = {}): Promise<PlMatch[]> {
-  const select = (withTierSum: boolean) =>
+  const select = (withLabels: boolean) =>
     createServiceClient()
       .from("pl_matches")
       .select(
-        `id, stage, match_no, team_a_id, team_b_id, scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, pick_by, solo_map, picked_at, tier, ${withTierSum ? "tier_sum, " : ""}winner, pl_set_players(side, slot, race, member_id, members(name)))`,
+        `id, stage, match_no, team_a_id, team_b_id, ${withLabels ? "team_a_label, team_b_label, " : ""}scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, pick_by, solo_map, picked_at, tier, tier_sum, winner, pl_set_players(side, slot, race, member_id, members(name)))`,
       )
       .eq("season_id", seasonId)
   let { data, error } = await select(true)
-  // 009_pl_set_tier_sum.sql 실행 전이면 tier_sum 없이 다시 읽는다 (생컨 티어합 없음)
-  if (isMissingTierSumColumn(error)) ({ data, error } = await select(false))
+  // 010_pl_match_tbd_teams.sql 실행 전이면 미정 팀 표시 이름 없이 다시 읽는다
+  if (isMissingColumn(error, "team_a_label")) ({ data, error } = await select(false))
   if (error) throw new Error(`pl_matches 조회 실패: ${error.message}`)
 
   const teamById = new Map(teams.map((t) => [t.id, t]))
-  const teamRef = (id: string) => {
+  const teamRef = (id: string | null, label: string | null | undefined) => {
+    if (!id) return { id: "", name: label?.trim() || "미정", color: TBD_TEAM_COLOR, tbd: true }
     const t = teamById.get(id)
-    return { id, name: t?.name ?? "(삭제된 팀)", color: t?.color ?? "#8b857a" }
+    return { id, name: t?.name ?? "(삭제된 팀)", color: t?.color ?? TBD_TEAM_COLOR, tbd: false }
   }
 
   const matches = ((data ?? []) as unknown as MatchRow[]).map((m): PlMatch => {
@@ -183,8 +187,8 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
       stage: m.stage,
       matchNo: m.match_no,
       code: matchCode(m.stage, m.match_no),
-      teamA: teamRef(m.team_a_id),
-      teamB: teamRef(m.team_b_id),
+      teamA: teamRef(m.team_a_id, m.team_a_label),
+      teamB: teamRef(m.team_b_id, m.team_b_label),
       scheduledAt: m.scheduled_at,
       status: m.status,
       forfeitWinner: m.forfeit_winner,

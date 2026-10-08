@@ -30,7 +30,7 @@ export default async function PlEntryPage({ params }: { params: Promise<{ id: st
   }
 
   const { match, matches, teams } = ctx
-  const captain = await getCaptainSide(match.teamA.id, match.teamB.id)
+  const captain = await getCaptainSide(match.teamA.id || null, match.teamB.id || null)
   if (!captain) {
     const admin = await getMemberManager()
     return (

@@ -12,9 +12,9 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-08 · TFPL_S4 실제 일정 등록 + 플레이오프 미정 팀 (PL 담당, 코드는 `TUFPL_MSI`에만)**
+**2026-10-08 · TFPL_S4 실제 일정 등록 + 플레이오프 미정 팀 (PL 담당)**
 - **DB 데이터**: 현재 시즌 TFPL_S4에 팀 6개(티트와라트 · 신과함께 · 만능브라더스 · 룡어게인 · BRG · RIP, 선수단은 아직 없음) · 맵풀 11개 · 정규 45경기(1R-1M ~ 3R-45M, 21:00 시작 · 19:00 엔트리 공개 · 17:00 마감)를 `TFPL S4 일정.xlsx`에서 넣음. admin_logs에 'PL 담당(스크립트)'로 기록.
-- **DB 변경 SQL: `docs/sql/010_pl_match_tbd_teams.sql` (아직 실행 안 함)** — `pl_matches.team_a_id` · `team_b_id` null 허용 + `team_a_label` · `team_b_label`(미정 팀 표시 이름). 플레이오프 3경기(준PO · PO · 결승)는 이 SQL 실행 뒤 '리그 4위' 등으로 등록 예정.
+- **DB 변경 SQL: `docs/sql/010_pl_match_tbd_teams.sql`** (2026-10-08 실행 완료) — `pl_matches.team_a_id` · `team_b_id` null 허용 + `team_a_label` · `team_b_label`(미정 팀 표시 이름). 플레이오프 3경기(PO-1M 준PO · PO-2M · PO-FINAL)를 '리그 4위' 등으로 등록, 시간 미정(21:00 임시 · 메모), 엔트리 공개 · 세트 구성은 비움.
 - 코드: `PlMatch.teamA/teamB.tbd`(미정이면 id '' · name = 표시 이름 · 회색). `MatchInput.teamAId`가 null이면 `teamALabel` 필수, **플레이오프 · 결승만**. 미정 팀 경기는 결과 입력 · 엔트리 제출 불가(`getCaptainSide`가 null).
   PL 관리 › 경기 등록 · 수정의 팀 목록 맨 아래 '미정 — 표시 이름으로'. 010 실행 전에도 기존 화면은 동작(`isMissingColumn(error, "team_a_label")` 대비).
 

@@ -150,7 +150,7 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 | pl_match_bjs (`007`) | match_id(cascade), name, sort_order · UNIQUE(match_id, name) | 경기별 방송 BJ 이름 (clan_bjs와 FK 없이 이름 저장). anon 조회 가능 |
 | pl_sets 추가 컬럼 (`008`) | tier(1~4 · null) | 1~4 = 그 티어 선수만 나가는 개인전 세트, null = 제한 없음(팀플 · 지정 세트 · ACE). 엔트리 제출 때 서버에서 검사 |
 | pl_sets 추가 컬럼 (`009`) | tier_sum(2~8 · null) | 생컨(지정 세트 2:2 · 폴리포이드): 출전 두 선수 티어 합이 이 값 이상이어야 함. 지정 팀이 고를 때 정함 |
-| pl_matches 변경 (`010`, **실행 대기**) | team_a_id · team_b_id null 허용, team_a_label · team_b_label(1~20자) · CHECK(팀 또는 표시 이름) | 플레이오프 미정 팀('리그 4위' 등). 순위 확정 후 수정에서 실제 팀으로 |
+| pl_matches 변경 (`010`) | team_a_id · team_b_id null 허용, team_a_label · team_b_label(1~20자) · CHECK(팀 또는 표시 이름) | 플레이오프 미정 팀('리그 4위' 등). 순위 확정 후 수정에서 실제 팀으로 |
 | pl_entry_logs (`006`) | match_id(cascade), side, member_id(set null), actor_name, action, created_at | 엔트리 제출 · 지정 세트 선택 기록. anon 조회 정책 없음 |
 
 - A팀 = 홈, B팀 = 원정. 엔트리 마감 = `entry_reveal_at` 2시간 전 (코드에서 계산, 저장 안 함)

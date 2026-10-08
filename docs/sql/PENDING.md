@@ -6,9 +6,7 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-| 순서 | 파일 | 내용 | 실행 안 하면 |
-| --- | --- | --- | --- |
-| 1 | [`010_pl_match_tbd_teams.sql`](010_pl_match_tbd_teams.sql) | `pl_matches` 팀 칸 비워 두기 허용 + `team_a_label` · `team_b_label` (미정 팀 표시 이름) | 플레이오프를 '리그 4위' 같은 미정 팀으로 만들 수 없음 ("SQL 실행 필요" 안내). 기존 경기는 그대로 동작 |
+(없음 — 2026-10-08에 010 실행 완료)
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 
@@ -63,3 +61,4 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 | `007_pl_broadcast_bjs.sql` | 2026-09-29 |
 | `008_pl_set_tier.sql` | 2026-09-29 |
 | `009_pl_set_tier_sum.sql` | 2026-10-05 |
+| `010_pl_match_tbd_teams.sql` | 2026-10-08 |

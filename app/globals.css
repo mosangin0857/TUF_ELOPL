@@ -3591,7 +3591,7 @@
 @layer components {
   .todo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 12px;
     padding: 0 20px 18px;
   }
@@ -3627,13 +3627,13 @@
     gap: 8px;
     font-weight: 600;
   }
-  .tc-teams span {
+  .tc-teams > span {
     display: flex;
     align-items: center;
     gap: 7px;
     min-width: 0;
   }
-  .tc-teams .r {
+  .tc-teams > .r {
     justify-content: flex-end;
     text-align: right;
   }

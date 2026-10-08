@@ -136,13 +136,13 @@ export function MatchesPanel({
       (!query || `${m.code} ${m.teamA.name} ${m.teamB.name}`.toLowerCase().includes(query)),
   )
 
-  // 처리할 경기: 결과가 없는 지난 경기 → 다음 경기 (최대 4개)
+  // 처리할 경기: 결과가 없는 지난 경기 → 다음 경기 (최대 3개, 한 줄)
   const todo = [
     ...matches.filter((m) => isLate(m, now)),
     ...matches
       .filter((m) => (m.status === "scheduled" || m.status === "live" || m.status === "postponed") && !isLate(m, now) && m.scheduledAt)
       .sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!)),
-  ].slice(0, 4)
+  ].slice(0, 3)
 
   const { busy, error, run } = usePlAction()
   const [confirm, setConfirm] = useState<string | null>(null)
@@ -238,7 +238,7 @@ export function MatchesPanel({
               <div className="eyebrow">TO DO</div>
               <h2 id="pl-todo-title">처리할 경기</h2>
             </div>
-            <span className="note">결과가 안 들어간 지난 경기 → 다음 경기 순 · 최대 4개</span>
+            <span className="note">결과가 안 들어간 지난 경기 → 다음 경기 순 · 최대 3개</span>
           </div>
           <div className="todo-grid">
             {todo.map((m) => {

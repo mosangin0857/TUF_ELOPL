@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, FilePlus2, FileText, Lock, Pencil, RotateCcw, Trash2, UserPlus, X } from "lucide-react"
+import { AlertTriangle, FilePlus2, FileText, KeyRound, Lock, Pencil, RotateCcw, Trash2, UserPlus, X } from "lucide-react"
 import {
   addMemberAction,
   countMemberMatchesAction,
   purgeMemberAction,
   reactivateMemberAction,
+  resetMemberPinAction,
   saveMemberMemoAction,
   updateMemberAction,
   withdrawMemberAction,
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils"
 
 type Sort = "tier" | "name" | "joined"
 type Status = "active" | "left" | "all"
-type DialogMode = "add" | "memo" | "edit" | "withdraw" | "restore" | "purge"
+type DialogMode = "add" | "memo" | "edit" | "resetPin" | "withdraw" | "restore" | "purge"
 
 const SORT_LABEL: Record<Sort, string> = { tier: "티어순", name: "이름순", joined: "최근 가입순" }
 const RACE_LABEL: Record<Race, string> = { T: "테란", P: "프로토스", Z: "저그" }
@@ -28,11 +29,14 @@ const LOCKED_TITLE = "관리자 로그인 후 사용할 수 있어요"
 export function RosterTable({
   members: initial,
   canEdit,
+  isSuper = false,
   memoMaxLength,
 }: {
   members: RosterMember[]
   /** 관리자 권한이 있으면 메모 · 수정 · 탈퇴 · 복귀 · 삭제 가능, 없으면 잠금 표시 */
   canEdit: boolean
+  /** 로그인한 관리자가 최고 관리자인지 (관리자 계정 PIN 초기화는 최고 관리자만) */
+  isSuper?: boolean
   memoMaxLength: number
 }) {
   const router = useRouter()
@@ -134,6 +138,7 @@ export function RosterTable({
 
     if (mode === "memo") run(() => saveMemberMemoAction(member.id, memoDraft), (list, memo) => patch({ adminMemo: memo })(list))
     if (mode === "edit") run(() => updateMemberAction({ id: member.id, ...editDraft }), patch({ ...editDraft, name: editDraft.name.trim() }))
+    if (mode === "resetPin") run(() => resetMemberPinAction(member.id), patch({ hasPin: false }))
     if (mode === "withdraw") run(() => withdrawMemberAction(member.id), patch({ isActive: false }))
     if (mode === "restore") run(() => reactivateMemberAction(member.id), patch({ isActive: true }))
     if (mode === "purge") run(() => purgeMemberAction(member.id, purgeInfo.confirm), (list) => list.filter((m) => m.id !== member.id))
@@ -285,6 +290,19 @@ export function RosterTable({
                           <IconAction label={`${row.name} 수정`} disabled={!canEdit} onClick={() => open("edit", row)}>
                             <Pencil size={15} />
                           </IconAction>
+                          <IconAction
+                            label={
+                              row.role && row.role !== "member" && !isSuper
+                                ? `${row.name} PIN 초기화 (관리자 계정은 최고 관리자만)`
+                                : row.hasPin === false
+                                  ? `${row.name} PIN 초기화 (아직 PIN을 정하지 않았어요)`
+                                  : `${row.name} PIN 초기화`
+                            }
+                            disabled={!canEdit || row.hasPin === false || (!!row.role && row.role !== "member" && !isSuper)}
+                            onClick={() => open("resetPin", row)}
+                          >
+                            <KeyRound size={15} />
+                          </IconAction>
                           <IconAction label={`${row.name} 탈퇴 처리`} disabled={!canEdit} onClick={() => open("withdraw", row)}>
                             <Trash2 size={15} />
                           </IconAction>
@@ -326,6 +344,7 @@ export function RosterTable({
                       add: "클랜원 추가",
                       memo: "관리자 메모",
                       edit: "클랜원 수정",
+                      resetPin: "PIN 초기화",
                       withdraw: "클랜 탈퇴 처리",
                       restore: "클랜 복귀 처리",
                       purge: "완전 삭제 (제명)",
@@ -400,6 +419,19 @@ export function RosterTable({
               </div>
             )}
 
+            {dialog.mode === "resetPin" && m && (
+              <div className="confirm-text">
+                <p>
+                  <b>{m.name}</b> 선수의 PIN(비밀번호)을 초기화할까요?
+                </p>
+                <p className="text-ink-2">지금 로그인된 기기에서도 모두 로그아웃돼요. 다음에 이 닉네임으로 처음 로그인할 때 입력한 PIN이 새 비밀번호가 돼요.</p>
+                <p className="danger-line">
+                  <AlertTriangle size={16} aria-hidden />
+                  초기화 직후에는 누구든 이 닉네임으로 먼저 로그인하면 PIN을 정할 수 있어요. 본인에게 바로 알려 새 PIN을 정하게 해 주세요.
+                </p>
+              </div>
+            )}
+
             {dialog.mode === "withdraw" && m && (
               <div className="confirm-text">
                 <p>
@@ -462,12 +494,12 @@ export function RosterTable({
                 </button>
                 <button
                   type="submit"
-                  className={cn("btn", (dialog.mode === "withdraw" || dialog.mode === "purge") && "danger")}
+                  className={cn("btn", (dialog.mode === "withdraw" || dialog.mode === "purge" || dialog.mode === "resetPin") && "danger")}
                   disabled={pending || (dialog.mode === "purge" && !purgeReady)}
                 >
                   {pending
                     ? "처리 중…"
-                    : { add: "추가하기", memo: "저장", edit: "저장", withdraw: "탈퇴 처리", restore: "복귀 처리", purge: "완전 삭제" }[dialog.mode]}
+                    : { add: "추가하기", memo: "저장", edit: "저장", resetPin: "PIN 초기화", withdraw: "탈퇴 처리", restore: "복귀 처리", purge: "완전 삭제" }[dialog.mode]}
                 </button>
               </div>
             </div>

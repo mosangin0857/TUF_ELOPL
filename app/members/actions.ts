@@ -150,6 +150,41 @@ export async function withdrawMemberAction(id: string): Promise<ActionResult> {
   return { ok: true, data: null }
 }
 
+/**
+ * PIN(비밀번호) 초기화: PIN을 지우고 로그인 중인 기기도 모두 로그아웃시킨다.
+ * 다음에 그 닉네임으로 처음 로그인하는 사람이 새 PIN을 정하므로, 본인에게 바로 알려 새로 정하게 해야 한다.
+ * 관리자 · 최고 관리자 계정은 최고 관리자만 초기화할 수 있다 (권한 가로채기 방지). 탈퇴한 클랜원은 대상 아님.
+ */
+export async function resetMemberPinAction(id: string): Promise<ActionResult> {
+  const manager = await getMemberManager()
+  if (!manager) return { ok: false, error: NO_PERMISSION }
+
+  const supabase = createServiceClient()
+  const { data: member } = await supabase.from("members").select("name, is_active, role, session_version").eq("id", id).maybeSingle()
+  if (!member) return { ok: false, error: "해당 클랜원을 찾지 못했어요." }
+  if (!member.is_active) return { ok: false, error: "탈퇴한 클랜원은 PIN을 초기화할 수 없어요." }
+  if ((member.role === "admin" || member.role === "super") && manager.role !== "super") {
+    return { ok: false, error: "관리자 · 최고 관리자 계정의 PIN은 최고 관리자만 초기화할 수 있어요." }
+  }
+
+  const { error } = await supabase
+    .from("members")
+    .update({
+      pin_hash: null,
+      pin_set_at: null,
+      pin_failed_attempts: 0,
+      pin_locked_until: null,
+      // 세션 버전을 올려 기존 로그인을 모두 끊는다 (lib/auth/session.ts)
+      session_version: ((member.session_version as number | null) ?? 0) + 1,
+    })
+    .eq("id", id)
+  if (error) return { ok: false, error: `PIN을 초기화하지 못했어요: ${error.message}` }
+
+  await insertAdminLog(manager.username, "클랜원 PIN 초기화", member.name as string)
+  revalidateMemberPaths()
+  return { ok: true, data: null }
+}
+
 /** 복귀 처리: 현재 시즌 경기가 없으면 ELO · 승패 · 연속을 티어 시작값으로 초기화 */
 export async function reactivateMemberAction(id: string): Promise<ActionResult<{ resetElo: number | null }>> {
   const manager = await getMemberManager()

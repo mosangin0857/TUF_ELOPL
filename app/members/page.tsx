@@ -20,7 +20,8 @@ const RACES: { key: Race; label: string }[] = [
 
 /** 클랜원 명단 관리 */
 export default async function MembersPage() {
-  const editable = (await getMemberManager()) !== null
+  const manager = await getMemberManager()
+  const editable = manager !== null
   if (!editable) {
     return (
       <main className="content">
@@ -96,7 +97,7 @@ export default async function MembersPage() {
         </div>
       </section>
 
-      <RosterTable members={members} canEdit={editable} memoMaxLength={ADMIN_MEMO_MAX_LEN} />
+      <RosterTable members={members} canEdit={editable} isSuper={manager?.role === "super"} memoMaxLength={ADMIN_MEMO_MAX_LEN} />
     </main>
   )
 }

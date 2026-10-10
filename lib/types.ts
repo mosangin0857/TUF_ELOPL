@@ -39,6 +39,8 @@ export interface RosterMember extends Member {
   adminMemo?: string | null
   /** 관리자 화면일 때만 채워짐 */
   role?: MemberRole
+  /** 관리자 화면일 때만: PIN을 정했는지 (해시는 화면에 보내지 않음) */
+  hasPin?: boolean
 }
 
 export interface Season {

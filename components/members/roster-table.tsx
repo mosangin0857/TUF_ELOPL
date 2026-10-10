@@ -35,7 +35,7 @@ export function RosterTable({
   members: RosterMember[]
   /** 관리자 권한이 있으면 메모 · 수정 · 탈퇴 · 복귀 · 삭제 가능, 없으면 잠금 표시 */
   canEdit: boolean
-  /** 로그인한 관리자가 최고 관리자인지 (관리자 계정 PIN 초기화는 최고 관리자만) */
+  /** 로그인한 관리자가 최고 관리자인지 (최고 관리자 계정 PIN 초기화는 최고 관리자만) */
   isSuper?: boolean
   memoMaxLength: number
 }) {
@@ -287,21 +287,21 @@ export function RosterTable({
                     <span className="row-actions">
                       {row.isActive ? (
                         <>
-                          <IconAction label={`${row.name} 수정`} disabled={!canEdit} onClick={() => open("edit", row)}>
-                            <Pencil size={15} />
-                          </IconAction>
                           <IconAction
                             label={
-                              row.role && row.role !== "member" && !isSuper
-                                ? `${row.name} PIN 초기화 (관리자 계정은 최고 관리자만)`
+                              row.role === "super" && !isSuper
+                                ? `${row.name} PIN 초기화 (최고 관리자 계정은 최고 관리자만)`
                                 : row.hasPin === false
                                   ? `${row.name} PIN 초기화 (아직 PIN을 정하지 않았어요)`
                                   : `${row.name} PIN 초기화`
                             }
-                            disabled={!canEdit || row.hasPin === false || (!!row.role && row.role !== "member" && !isSuper)}
+                            disabled={!canEdit || row.hasPin === false || (row.role === "super" && !isSuper)}
                             onClick={() => open("resetPin", row)}
                           >
                             <KeyRound size={15} />
+                          </IconAction>
+                          <IconAction label={`${row.name} 수정`} disabled={!canEdit} onClick={() => open("edit", row)}>
+                            <Pencil size={15} />
                           </IconAction>
                           <IconAction label={`${row.name} 탈퇴 처리`} disabled={!canEdit} onClick={() => open("withdraw", row)}>
                             <Trash2 size={15} />

@@ -164,6 +164,14 @@ export function isMissingTierColumn(error: { message?: string; code?: string } |
   return !!error && /tier/.test(error.message ?? "") && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))
 }
 
+/** 지정 세트를 엔트리 마감까지 고르지 않으면 자동으로 정하는 값: 1티어 개인전 (맵은 경기 등록 때 적은 solo_map) */
+export const AUTO_PICK_TIER = 1 as const
+
+/** pl_entry_logs의 action이 팀장 · 부팀장의 엔트리 저장인지 (빈 엔트리 · 지정 세트 선택 · 자동 확정 제외) */
+export function isEntrySubmitLog(action: string): boolean {
+  return action.endsWith("저장") && !action.startsWith("빈 엔트리")
+}
+
 /** 엔트리 마감 = 공개 2시간 전 */
 export const ENTRY_DEADLINE_HOURS = 2
 

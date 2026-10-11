@@ -5,6 +5,9 @@ import type { PlMatch, PlTeam } from "@/lib/types"
 
 /** 경기 한쪽이 엔트리를 몇 세트 채웠는지 (ACE 제외, 형식 인원수를 다 채운 세트) */
 export function entryCount(m: PlMatch, side: PlSide): { filled: number; total: number } {
+  // 가려진 쪽은 선수가 비어 있으니 서버가 세어 둔 값
+  const sealed = m.sealed?.[side]
+  if (sealed) return sealed
   const sets = m.sets.filter((s) => !s.isAce)
   const filled = sets.filter((s) => !(s.pickBy && !s.pickedAt) && (side === "A" ? s.playersA : s.playersB).length === FORMAT_SIZE[s.format]).length
   return { filled, total: sets.length }

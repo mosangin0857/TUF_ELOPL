@@ -8,6 +8,7 @@ import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
 import {
+  AUTO_PICK_TIER,
   FORMAT_SIZE,
   PICK_LABEL,
   SAENGCON_LABEL,
@@ -76,6 +77,7 @@ function PickBox({ set, pickLabel, busy, onPick }: { set: PlSet; pickLabel: stri
     <div className="pick-box">
       <p className="note">
         <b>{pickLabel}</b> 세트예요. 지정 티어 개인전이나 {SAENGCON_LABEL} 중에서 고르면 상대 팀에도 바로 보이고, 한 번 고르면 바꿀 수 없어요.
+        {` 엔트리 마감까지 고르지 않으면 ${AUTO_PICK_TIER}티어 개인전${set.soloMap ? `(${set.soloMap})` : ""}으로 자동으로 정해져요.`}
       </p>
       <div className="seg" role="group" aria-label={`${set.setNo}세트 종류`}>
         <button type="button" className={cn(kind === "tier" && "on")} aria-pressed={kind === "tier"} onClick={() => pick(setKind)("tier")}>
@@ -298,6 +300,7 @@ export function EntryForm({
                         <p className="note">
                           {mine ? "마감이 지나 고를 수 없어요." : `${opp.name}(${PICK_LABEL[s.pickBy!]})가 고르는 중이에요. 정해지면 선수를 낼 수 있어요.`}
                           {` 지정 티어 개인전이면 ${s.soloMap ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 2:2 · ${SAENGCON_MAP}.`}
+                          {` 마감까지 안 고르면 ${AUTO_PICK_TIER}티어 개인전으로 자동 확정.`}
                         </p>
                       )
                     ) : (

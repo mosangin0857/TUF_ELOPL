@@ -1,5 +1,5 @@
 import "server-only"
-import { isCounted, isMissingColumn, matchCode, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
+import { AUTO_PICK_TIER, entryDeadline, FORMAT_SIZE, isCounted, isEntrySubmitLog, isMissingColumn, matchCode, pickSide, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { PlMatch, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { seoulDate, seoulTime } from "@/lib/utils"
@@ -119,6 +119,78 @@ type MatchRow = {
   }[]
 }
 
+/**
+ * 지정 세트 자동 확정: 엔트리 마감이 지났는데 지정 팀이 고르지 않은 세트는 1티어 개인전(경기 등록 때 적은 맵)으로 정한다.
+ * 따로 예약 작업 없이 경기를 읽을 때 처리하고(한 번 정해지면 picked_at이 있어 다시 안 함), 제출 기록에 '자동'으로 남긴다.
+ */
+async function settleExpiredPicks(rows: MatchRow[], now = Date.now()) {
+  const supabase = createServiceClient()
+  for (const m of rows) {
+    if (m.status !== "scheduled" && m.status !== "postponed") continue
+    const deadline = entryDeadline(m.entry_reveal_at)
+    if (!deadline || new Date(deadline).getTime() > now) continue
+    for (const s of m.pl_sets) {
+      if (!s.pick_by || s.picked_at || s.is_ace) continue
+      const update = { format: "1v1" as PlSetFormat, map_name: s.solo_map ?? s.map_name, tier: AUTO_PICK_TIER, tier_sum: null, picked_at: deadline }
+      const { data } = await supabase.from("pl_sets").update(update).eq("id", s.id).is("picked_at", null).select("id")
+      if (!data?.length) continue
+      Object.assign(s, update)
+      await supabase.from("pl_entry_logs").insert({
+        match_id: m.id,
+        side: pickSide(s.pick_by),
+        member_id: null,
+        actor_name: "자동",
+        action: `${s.set_no}세트 마감까지 선택 없음 → ${AUTO_PICK_TIER}티어 개인전${update.map_name ? ` · ${update.map_name}` : ""} 자동 확정`,
+      })
+    }
+  }
+}
+
+/** 팀장 · 부팀장이 엔트리를 제출한 쪽 (경기 id → A/B) */
+async function fetchSubmittedSides(matchIds: string[]): Promise<Map<string, Set<PlSide>>> {
+  const out = new Map<string, Set<PlSide>>()
+  if (!matchIds.length) return out
+  const { data } = await createServiceClient().from("pl_entry_logs").select("match_id, side, action").in("match_id", matchIds)
+  for (const r of data ?? []) {
+    if (!isEntrySubmitLog(r.action as string)) continue
+    const set = out.get(r.match_id as string) ?? new Set<PlSide>()
+    set.add(r.side as PlSide)
+    out.set(r.match_id as string, set)
+  }
+  return out
+}
+
+/** 이 경기에서 지금 가려야 하는 쪽: 엔트리 공개 전이고 팀장이 제출한 쪽 (결과 저장 서버 검사용) */
+export async function sealedSides(matchId: string, status: PlMatchStatus, entryRevealAt: string | null): Promise<Set<PlSide>> {
+  if (entriesVisibleAt(status, entryRevealAt)) return new Set()
+  return (await fetchSubmittedSides([matchId])).get(matchId) ?? new Set()
+}
+
+/**
+ * PL 관리용: 팀장이 제출한 쪽 명단은 엔트리 공개 전까지 관리자에게도 가린다.
+ * 그 쪽 선수를 비워서 내보내고(화면 · 브라우저에 아예 안 감) 제출한 세트 수만 sealed에 남긴다.
+ * matches는 revealAll로 읽은 목록.
+ */
+export async function sealSubmittedEntries(matches: PlMatch[], now = Date.now()): Promise<PlMatch[]> {
+  const pending = matches.filter((m) => !entriesVisibleAt(m.status, m.entryRevealAt, now))
+  const submitted = await fetchSubmittedSides(pending.map((m) => m.id))
+  return matches.map((m) => {
+    const sides = submitted.get(m.id)
+    if (!sides?.size || entriesVisibleAt(m.status, m.entryRevealAt, now)) return m
+    const sealed: NonNullable<PlMatch["sealed"]> = {}
+    const entrySets = m.sets.filter((s) => !s.isAce)
+    for (const side of sides) {
+      const filled = entrySets.filter((s) => !(s.pickBy && !s.pickedAt) && (side === "A" ? s.playersA : s.playersB).length === FORMAT_SIZE[s.format]).length
+      sealed[side] = { filled, total: entrySets.length }
+    }
+    return {
+      ...m,
+      sealed,
+      sets: m.sets.map((s) => (s.isAce ? s : { ...s, playersA: sealed.A ? [] : s.playersA, playersB: sealed.B ? [] : s.playersB })),
+    }
+  })
+}
+
 /** 엔트리(세트 출전 선수) 공개 여부: 공개 시각이 지났거나, 경기가 시작 · 종료됐으면 공개 */
 export function entriesVisibleAt(status: PlMatchStatus, entryRevealAt: string | null, now = Date.now()) {
   if (status === "live" || status === "done" || status === "forfeit") return true
@@ -140,6 +212,7 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
   // 010_pl_match_tbd_teams.sql 실행 전이면 미정 팀 표시 이름 없이 다시 읽는다
   if (isMissingColumn(error, "team_a_label")) ({ data, error } = await select(false))
   if (error) throw new Error(`pl_matches 조회 실패: ${error.message}`)
+  await settleExpiredPicks((data ?? []) as unknown as MatchRow[])
 
   const teamById = new Map(teams.map((t) => [t.id, t]))
   const teamRef = (id: string | null, label: string | null | undefined) => {

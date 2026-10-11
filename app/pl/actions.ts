@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { insertAdminLog } from "@/lib/admin-log"
 import { getMemberManager } from "@/lib/permissions"
+import { sealedSides } from "@/lib/data/pl"
 import { getCaptainSide } from "@/lib/pl/permissions"
 import {
   entryOpen,
@@ -801,6 +802,36 @@ export async function saveMatchResultAction(
     return { ok: false, error: "ACE 결정전은 자리를 바꿀 수 없어요." }
   }
 
+  // 팀장이 제출한 쪽은 엔트리 공개 전까지 가려져 있다 → 그 쪽 선수는 화면 값 대신 DB 값을 그대로 둔다 (순서를 바꾸면 따라감)
+  const sealed = await sealedSides(match.id, match.status, match.entry_reveal_at)
+  const existing = new Map<string, { A: SetPlayerInput[]; B: SetPlayerInput[] }>()
+  if (sealed.size) {
+    if (input.sets.some((s) => s.winner)) return { ok: false, error: "엔트리 공개 전이라 제출된 명단이 가려져 있어요. 공개 시각 뒤에 세트 승자를 입력해 주세요." }
+    if (input.sets.some((s) => s.format !== setBySetNo.get(s.fromSetNo)?.format)) {
+      return { ok: false, error: "제출된 명단이 가려진 동안에는 세트 형식을 바꿀 수 없어요." }
+    }
+    const { data: rows } = await createServiceClient()
+      .from("pl_set_players")
+      .select("set_id, side, slot, member_id, race")
+      .in(
+        "set_id",
+        match.pl_sets.map((s) => s.id),
+      )
+      .order("slot")
+    for (const r of rows ?? []) {
+      const e = existing.get(r.set_id as string) ?? { A: [], B: [] }
+      e[r.side as PlSide].push({ memberId: r.member_id as string, race: r.race as PlRace | null })
+      existing.set(r.set_id as string, e)
+    }
+    for (const s of input.sets) {
+      // ACE 결정전은 엔트리로 내지 않으니 가리지 않는다
+      if (setBySetNo.get(s.fromSetNo)!.is_ace) continue
+      const keep = existing.get(setBySetNo.get(s.fromSetNo)!.id) ?? { A: [], B: [] }
+      if (sealed.has("A")) s.playersA = keep.A
+      if (sealed.has("B")) s.playersB = keep.B
+    }
+  }
+
   const bjs = [...new Set(input.bjs.map((b) => b.trim()).filter(Boolean))]
   if (bjs.some((b) => b.length > 30)) return { ok: false, error: "방송 BJ 이름은 30자 이내로 입력해 주세요." }
   if (bjs.length > 10) return { ok: false, error: "방송 BJ는 10명까지 넣을 수 있어요." }
@@ -810,7 +841,10 @@ export async function saveMatchResultAction(
     if (!setBySetNo.has(s.setNo)) return { ok: false, error: `${label}를 찾지 못했어요. 새로고침 후 다시 시도해 주세요.` }
     if (!FORMATS.includes(s.format)) return { ok: false, error: `${label}: 형식 값이 올바르지 않아요.` }
     const size = FORMAT_SIZE[s.format]
-    const bad = checkPlayers(s.playersA, size, rosterA, `${label} A팀`) ?? checkPlayers(s.playersB, size, rosterB, `${label} B팀`)
+    const hidden = !setBySetNo.get(s.fromSetNo)!.is_ace
+    const bad =
+      (sealed.has("A") && hidden ? null : checkPlayers(s.playersA, size, rosterA, `${label} A팀`)) ??
+      (sealed.has("B") && hidden ? null : checkPlayers(s.playersB, size, rosterB, `${label} B팀`))
     if (bad) return { ok: false, error: bad }
     if (s.winner && (s.playersA.length !== size || s.playersB.length !== size)) {
       return { ok: false, error: `${label}: 승자를 정하려면 양쪽 출전 선수를 ${size}명씩 모두 넣어 주세요.` }

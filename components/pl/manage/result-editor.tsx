@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { GripVertical, X } from "lucide-react"
+import { EyeOff, GripVertical, X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
 import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
+import { shortWhen } from "@/lib/pl/format"
 import {
   FORMAT_LABEL,
   FORMAT_SIZE,
@@ -82,6 +83,10 @@ export function ResultEditor({
       playersB: s.playersB.map((p) => ({ memberId: p.memberId, race: p.race })),
     }))
   const [sets, setSets] = useState<SetDraft[]>(initial)
+  // 팀장이 제출한 쪽: 엔트리 공개 전까지 가림 (서버가 선수를 비워서 보냄, 저장해도 그 쪽은 그대로)
+  const sealedA = !!match.sealed?.A
+  const sealedB = !!match.sealed?.B
+  const anySealed = sealedA || sealedB
   const [bjs, setBjs] = useState<string[]>(initialBjs)
   const [bjInput, setBjInput] = useState("")
   const [dragFrom, setDragFrom] = useState<number | null>(null)
@@ -235,6 +240,17 @@ export function ResultEditor({
         )}
       </div>
 
+      {anySealed && (
+        <p className="notice-inline seal-notice">
+          <EyeOff size={15} aria-hidden />
+          <span>
+            {[sealedA && match.teamA.name, sealedB && match.teamB.name].filter(Boolean).join(" · ")} 팀장이 제출한 명단은 엔트리 공개
+            {match.entryRevealAt ? `(${shortWhen(match.entryRevealAt)})` : ""} 전까지 가려져 있어요. 공개 전에는 보거나 고칠 수 없고, 세트 승자 · 형식도 정할 수 없어요.
+            {!sealedA || !sealedB ? " 아직 제출하지 않은 팀은 직접 선수를 넣을 수 있어요." : ""}
+          </span>
+        </p>
+      )}
+
       <p className="note">
         {target}선승 · 1~{sets.length - 1}세트는 결과와 관계없이 모두 진행, ACE 결정전은 {target - 1}:{target - 1}일 때만. 결과를 다 넣으면 상태를 &apos;종료&apos;로 바꿔야 순위에
         반영돼요.
@@ -329,6 +345,7 @@ export function ResultEditor({
                 <select
                   className="field"
                   value={s.format}
+                  disabled={anySealed}
                   aria-label={`${no}세트 형식`}
                   onChange={(e) => {
                     const format = e.target.value as PlSetFormat
@@ -352,19 +369,27 @@ export function ResultEditor({
                 />
               </div>
               <div className="se-body">
-                <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(i, { playersA: v })} label={`${no}세트 홈`} />
+                {sealedA && !s.isAce ? (
+                  <SealCover team={match.teamA.name} />
+                ) : (
+                  <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(i, { playersA: v })} label={`${no}세트 홈`} />
+                )}
                 <div className="seg se-winner" role="group" aria-label={`${no}세트 승자`}>
-                  <button type="button" className={cn(s.winner === "A" && "on")} onClick={() => patch(i, { winner: "A" })}>
+                  <button type="button" className={cn(s.winner === "A" && "on")} disabled={anySealed} onClick={() => patch(i, { winner: "A" })}>
                     홈 승
                   </button>
-                  <button type="button" className={cn(s.winner === null && "on")} onClick={() => patch(i, { winner: null })}>
+                  <button type="button" className={cn(s.winner === null && "on")} disabled={anySealed} onClick={() => patch(i, { winner: null })}>
                     -
                   </button>
-                  <button type="button" className={cn(s.winner === "B" && "on")} onClick={() => patch(i, { winner: "B" })}>
+                  <button type="button" className={cn(s.winner === "B" && "on")} disabled={anySealed} onClick={() => patch(i, { winner: "B" })}>
                     원정 승
                   </button>
                 </div>
-                <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(i, { playersB: v })} label={`${no}세트 원정`} />
+                {sealedB && !s.isAce ? (
+                  <SealCover team={match.teamB.name} />
+                ) : (
+                  <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(i, { playersB: v })} label={`${no}세트 원정`} />
+                )}
               </div>
             </div>
           )
@@ -392,5 +417,17 @@ export function ResultEditor({
         </div>
       </div>
     </form>
+  )
+}
+
+/** 가리개: 팀장이 제출한 명단 (엔트리 공개 전) */
+function SealCover({ team }: { team: string }) {
+  return (
+    <div className="seal-cover" role="note" aria-label={`${team} 제출한 명단 · 공개 전까지 가려짐`}>
+      <EyeOff size={15} aria-hidden />
+      <span>
+        <b>{team}</b> 제출 완료 · 공개 전까지 가려져요
+      </span>
+    </div>
   )
 }

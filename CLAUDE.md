@@ -12,6 +12,12 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-11 · 프로리그 엔트리 가리개 · 지정 세트 자동 확정 (PL 담당, `TUFPL_MSI`에만)**
+- **가리개**: 팀장 · 부팀장이 제출한 쪽 명단은 엔트리 공개 전까지 **관리자에게도** 가린다. `sealSubmittedEntries`(lib/data/pl.ts)가 PL 관리로 보낼 때 그 쪽 선수를 비우고 제출 수만 `PlMatch.sealed`에 남김.
+  '제출'은 `pl_entry_logs`의 'N세트 저장' 기록(`isEntrySubmitLog`, 빈 엔트리 · 지정 선택 · 자동 확정 제외). 아직 제출 안 한 팀은 관리자가 직접 선수를 넣을 수 있음.
+  `saveMatchResultAction`도 `sealedSides`로 다시 확인 — 가려진 쪽 선수는 DB 값을 그대로 두고(세트 순서를 바꾸면 따라감), 세트 승자 · 형식 변경은 막음. ACE 결정전은 가리지 않음.
+- **지정 세트 자동 확정**: 엔트리 마감까지 지정 팀이 고르지 않으면 **1티어 개인전**(solo_map)으로 확정(`AUTO_PICK_TIER`). 예약 작업 없이 `fetchMatches`가 읽을 때 처리(`settleExpiredPicks`, picked_at = 마감 시각), 제출 기록에 actor '자동'. 선수는 여전히 고른 뒤에만 낼 수 있어서 자동 확정된 세트는 관리자가 경기 날 입력.
+
 **2026-10-11 · 프로리그 팀 로고 (PL 담당)**
 - `public/pl/team-logos/<파일>.webp`(256px) + `lib/pl/logos.ts`의 `teamLogo(팀 이름)`. `components/ui/race.tsx`의 `Crest`와 대문 팀 소개 카드(`app/page.tsx`)가 로고가 있으면 이미지, 없으면 기존 색 동그라미. DB 변경 없음.
 

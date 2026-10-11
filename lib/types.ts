@@ -249,6 +249,8 @@ export interface PlMatch {
   winner: PlSide | null
   /** false면 세트 출전 선수(엔트리)를 비공개 처리해서 비워 둔 상태 */
   entriesVisible: boolean
+  /** PL 관리: 팀장이 제출한 쪽은 엔트리 공개 전까지 가림 — 그 쪽 선수는 비워서 보내고 제출 수만 (sealSubmittedEntries) */
+  sealed?: Partial<Record<PlSide, { filled: number; total: number }>>
   sets: PlSet[]
 }
 

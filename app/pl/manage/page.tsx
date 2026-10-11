@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { PlManage, type ManageTab } from "@/components/pl/manage/pl-manage"
 import { AdminRequired } from "@/components/ui/admin-required"
 import { DbError } from "@/components/ui/db-error"
-import { fetchActiveMembers, fetchClanBjNames, fetchCurrentSeason, fetchMaps, fetchMatchBjs, fetchMatches, fetchSeasons, fetchTeams } from "@/lib/data/pl"
+import { fetchActiveMembers, fetchClanBjNames, fetchCurrentSeason, fetchMaps, fetchMatchBjs, fetchMatches, fetchSeasons, fetchTeams, sealSubmittedEntries } from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 
 export const metadata: Metadata = { title: "PL 관리" }
@@ -19,7 +19,9 @@ export default async function PlManagePage({ searchParams }: { searchParams: Pro
   try {
     const [seasons, season, members] = await Promise.all([fetchSeasons(), fetchCurrentSeason(), fetchActiveMembers()])
     const teams = season ? await fetchTeams(season.id) : []
-    const [maps, matches] = season ? await Promise.all([fetchMaps(season.id), fetchMatches(season.id, teams, { revealAll: true })]) : [[], []]
+    const [maps, allMatches] = season ? await Promise.all([fetchMaps(season.id), fetchMatches(season.id, teams, { revealAll: true })]) : [[], []]
+    // 팀장이 제출한 명단은 엔트리 공개 전까지 관리자에게도 가린다 (선수는 아예 안 보냄)
+    const matches = await sealSubmittedEntries(allMatches)
     const [bj, clanBjs] = await Promise.all([fetchMatchBjs(matches.map((m) => m.id)), fetchClanBjNames()])
 
     return (

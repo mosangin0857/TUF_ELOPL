@@ -59,6 +59,14 @@
 
 ## 기록
 
+### 2026-10-11 — 팀 로고 6장 추가 → main 반영
+**한 일**
+- `public/pl/team-logos/`에 TFPL_S4 6팀 로고 (titwarat · singwahamkke · manneung · ryongagain · brg · rip .png, 1024px 원본). 파일 · 팀 대응표는 폴더 README
+- main 반영: 처리할 경기 3개 · 카드 엠블럼 정렬, 클랜원 PIN 초기화, 로고 폴더 · 로고
+
+**다음 할 일**
+- 로고를 사이트 엠블럼에 연결 (256px WEBP로 줄여서), 6팀 선수단 등록
+
 ### 2026-10-10 — PIN 초기화 버튼 위치 · 권한 조정 (TUFPL_MSI에만)
 **한 일**
 - 열쇠 아이콘을 연필(수정) 왼쪽으로

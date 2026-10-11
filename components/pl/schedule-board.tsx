@@ -7,7 +7,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { entryOpen, isCounted, PICK_LABEL, setKindLabel, STATUS_LABEL, type PlStage } from "@/lib/pl/rules"
+import { entryOpen, isCounted, PICK_LABEL, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -165,7 +165,6 @@ export function ScheduleBoard({
                   )}
                   <div className="set-list">
                     {m.sets
-                      .filter((s) => !s.isAce || s.winner || s.playersA.length || s.playersB.length)
                       .map((s) => (
                         <div key={s.id} className={cn("set-row", s.isAce && "ace")}>
                           <span className="set-no">{s.isAce ? "ACE" : `SET ${s.setNo}`}</span>
@@ -185,7 +184,17 @@ export function ScheduleBoard({
                           <span className={cn("set-side", s.winner === "A" && "win")}>
                             <Players list={s.playersA} />
                           </span>
-                          <span className="set-mid">{s.winner ? (s.winner === "A" ? "승 : 패" : "패 : 승") : "vs"}</span>
+                          <span className="set-mid">
+                            {s.winner
+                              ? s.winner === "A"
+                                ? "승 : 패"
+                                : "패 : 승"
+                              : s.isAce && !s.playersA.length && !s.playersB.length
+                                ? counted
+                                  ? "진행 안 함"
+                                  : `${winTarget(m.stage) - 1}:${winTarget(m.stage) - 1}일 때`
+                                : "vs"}
+                          </span>
                           <span className={cn("set-side r", s.winner === "B" && "win")}>
                             <Players list={s.playersB} />
                           </span>

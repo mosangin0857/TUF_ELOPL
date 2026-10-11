@@ -12,6 +12,9 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-11 · 프로리그 팀 로고 (PL 담당)**
+- `public/pl/team-logos/<파일>.webp`(256px) + `lib/pl/logos.ts`의 `teamLogo(팀 이름)`. `components/ui/race.tsx`의 `Crest`와 대문 팀 소개 카드(`app/page.tsx`)가 로고가 있으면 이미지, 없으면 기존 색 동그라미. DB 변경 없음.
+
 **2026-10-10 · 클랜원 PIN 초기화 (PL 담당 · 공통 메뉴, `TUFPL_MSI`에만)**
 - 클랜원 명단 '관리'에 PIN 초기화(열쇠 아이콘, 연필 왼쪽, 활동 클랜원만). `app/members/actions.ts`의 `resetMemberPinAction` — PIN 해시 · 잠금 비우고 `session_version` + 1로 기존 로그인 끊음. DB 변경 없음.
 - 최고 관리자는 모두, 관리자는 **최고 관리자를 뺀** 클랜원(다른 관리자 포함) 초기화 가능 (첫 로그인 PIN이 비밀번호가 되는 구조라 관리자가 최고 관리자 계정을 가로채지 못하게). `fetchRoster`가 관리자 화면에 `hasPin`(pin_set_at 유무)만 내려줌, 해시는 안 보냄.

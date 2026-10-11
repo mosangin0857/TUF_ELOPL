@@ -7,11 +7,11 @@
 
 | 팀 | 파일 |
 | --- | --- |
-| 티트와라트 | `titwarat.png` |
-| 신과함께 | `singwahamkke.png` |
-| 만능브라더스 | `manneung.png` |
-| 룡어게인 | `ryongagain.png` |
-| BRG | `brg.png` |
-| RIP | `rip.png` |
+| 티트와라트 | `titwarat.webp` |
+| 신과함께 | `singwahamkke.webp` |
+| 만능브라더스 | `manneung.webp` |
+| 룡어게인 | `ryongagain.webp` |
+| BRG | `brg.webp` |
+| RIP | `rip.webp` |
 
-아직 사이트 화면과는 연결 안 됨 (엠블럼은 색 동그라미). 원본은 1024px PNG라 연결할 때 256px WEBP로 줄여서 쓰는 걸 권장.
+사이트 연결: `lib/pl/logos.ts`의 팀 이름 → 파일 목록. 새 팀은 256px WEBP(투명 여백 자르고 정사각형)로 넣고 그 목록에 한 줄 추가. 원본 1024px PNG는 `D:\mosi\TuF\TFPL4_logos`.

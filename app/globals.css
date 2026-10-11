@@ -3609,13 +3609,13 @@
   .todo-card.next {
     box-shadow: inset 3px 0 0 var(--accent);
   }
-  .tc-top {
+  .todo-card .tc-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
   }
-  .tc-top b {
+  .todo-card .tc-top b {
     font-weight: 800;
     font-size: 17px;
     letter-spacing: 0.04em;
@@ -5192,5 +5192,22 @@
     width: 44px;
     height: 44px;
     font-size: 18px;
+  }
+}
+
+/* 팀 로고 (lib/pl/logos.ts) — 로고가 있으면 색 동그라미 대신 이미지 */
+@layer components {
+  .crest.has-logo,
+  .team-logo.has-logo {
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .crest.has-logo img,
+  .team-logo.has-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
 }

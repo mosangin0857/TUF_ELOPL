@@ -10,6 +10,7 @@ import { EloTopCard } from "@/components/home/elo-top-card"
 import { fetchHomeNotices } from "@/lib/data/board"
 import { fetchHomeBjs } from "@/lib/data/bjs"
 import { fetchHomePl } from "@/lib/data/pl"
+import { teamLogo } from "@/lib/pl/logos"
 import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
 import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -244,9 +245,16 @@ export default async function ClanHousePage() {
         {teams.map((t) => (
           <Link key={t.team} className="team-card bounce" href="/pl/teams">
             <span className="tc-top">
-              <span className="team-logo" style={{ ["--c" as string]: t.color }}>
-                {t.team[0]}
-              </span>
+              {teamLogo(t.team) ? (
+                <span className="team-logo has-logo">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={teamLogo(t.team)!} alt="" loading="lazy" decoding="async" />
+                </span>
+              ) : (
+                <span className="team-logo" style={{ ["--c" as string]: t.color }}>
+                  {t.team[0]}
+                </span>
+              )}
               <span className="tc-line">
                 <b>{t.team}</b>
                 <span>{t.slogan}</span>

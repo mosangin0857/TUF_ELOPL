@@ -59,6 +59,12 @@
 
 ## 기록
 
+### 2026-10-11 — 팀 로고 사이트 연결 → main 반영
+**한 일**
+- 로고 6장을 256px WEBP(투명 여백 자르고 정사각형, 22~29KB)로 바꿔 `public/pl/team-logos/*.webp`, 1MB PNG는 public에서 뺌 (원본은 `D:\mosi\TuF\TFPL4_logos`, 신과함께 원본도 거기 백업)
+- `lib/pl/logos.ts` 팀 이름 → 파일 목록. `Crest`(일정 · 결과 · 순위 · 팀 대 팀 · 팀 카드 · PL 관리 · 엔트리)와 대문 팀 소개 카드가 로고를 보여줌, 목록에 없는 팀은 그대로 색 동그라미
+- 대문 팀 소개 카드 이름이 오른쪽으로 밀리던 것 수정 (PL 관리 '처리할 경기' 카드용 `.tc-top` 스타일이 대문 카드의 같은 클래스에도 걸려 있었음 → `.todo-card .tc-top`으로 한정)
+
 ### 2026-10-11 — 팀 로고 6장 추가 → main 반영
 **한 일**
 - `public/pl/team-logos/`에 TFPL_S4 6팀 로고 (titwarat · singwahamkke · manneung · ryongagain · brg · rip .png, 1024px 원본). 파일 · 팀 대응표는 폴더 README

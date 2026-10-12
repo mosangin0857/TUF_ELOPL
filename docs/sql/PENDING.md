@@ -6,9 +6,7 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-| 순서 | 파일 | 내용 | 실행 안 하면 |
-| --- | --- | --- | --- |
-| 1 | [`011_pl_penalties.sql`](011_pl_penalties.sql) | 새 테이블 `pl_penalties`(패널티 · 경고 기록) + `pl_team_members.is_extra`(추가 드래프트) | 패널티가 0으로 보이고 PL 관리에서 패널티 · 추가 드래프트 저장 시 "SQL 실행 필요" 안내. 최소/최대 경기 자동 계산은 동작(추가 드래프트 구분만 없음) |
+(없음 — 2026-10-12에 011 실행 완료)
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 
@@ -70,3 +68,4 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 | `008_pl_set_tier.sql` | 2026-09-29 |
 | `009_pl_set_tier_sum.sql` | 2026-10-05 |
 | `010_pl_match_tbd_teams.sql` | 2026-10-08 |
+| `011_pl_penalties.sql` | 2026-10-12 |

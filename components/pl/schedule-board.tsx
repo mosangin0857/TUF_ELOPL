@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ChevronDown, ClipboardList, PenLine } from "lucide-react"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
@@ -65,18 +66,23 @@ export function ScheduleBoard({
     !!user && ((captains[m.teamA.id] ?? []).includes(user.id) || (captains[m.teamB.id] ?? []).includes(user.id))
 
   return (
-    <section className="panel">
+    <section className="panel" data-capture>
       <div className="panel-head">
         <div>
           <div className="eyebrow">{seasonName}</div>
-          <h2>경기 일정</h2>
+          <h2>
+            경기 일정 <span className="h2-sub">· {TABS.find((t) => t.key === tab)?.label}</span>
+          </h2>
         </div>
-        <div className="seg" role="tablist" aria-label="라운드">
-          {TABS.map((t) => (
-            <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={cn(tab === t.key && "on")} onClick={() => setTab(t.key)}>
-              {t.label}
-            </button>
-          ))}
+        <div className="cap-tools">
+          <div className="seg" role="tablist" aria-label="라운드" data-capture-hide>
+            {TABS.map((t) => (
+              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={cn(tab === t.key && "on")} onClick={() => setTab(t.key)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <CaptureButton name={`${seasonName}_일정_${TABS.find((t) => t.key === tab)?.label ?? ""}`} />
         </div>
       </div>
 
@@ -91,7 +97,7 @@ export function ScheduleBoard({
           const expanded = open === m.id
           const canEntry = isCaptainOf(m) && entryOpen(m.status, m.entryRevealAt)
           return (
-            <div key={m.id} className={cn("match-item", expanded && "open")}>
+            <div key={m.id} className={cn("match-item", expanded && "open")} data-capture>
               <button type="button" className="match-row" onClick={() => setOpen(expanded ? null : m.id)} aria-expanded={expanded}>
                 <div className="match-date">
                   {when ? (
@@ -146,13 +152,14 @@ export function ScheduleBoard({
                     )}
                     {m.note && <span className="text-ink-2">{m.note}</span>}
                     <span className="md-actions">
+                      <CaptureButton name={`${seasonName}_${m.code}`} />
                       {canEntry && (
-                        <Link className="mini-btn" href={`/pl/entry/${m.id}`}>
+                        <Link className="mini-btn" href={`/pl/entry/${m.id}`} data-capture-hide>
                           <ClipboardList size={13} aria-hidden /> 엔트리 제출
                         </Link>
                       )}
                       {user?.isAdmin && (
-                        <Link className="mini-btn" href={`/pl/manage?tab=matches&match=${m.id}`}>
+                        <Link className="mini-btn" href={`/pl/manage?tab=matches&match=${m.id}`} data-capture-hide>
                           <PenLine size={13} aria-hidden /> 결과 입력
                         </Link>
                       )}

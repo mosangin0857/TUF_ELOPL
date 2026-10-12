@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { ChevronDown } from "lucide-react"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest } from "@/components/ui/race"
 import { matchWhen } from "@/lib/pl/format"
@@ -272,14 +273,16 @@ export function H2HBoard({ seasonName, teams, matches }: { seasonName: string; t
   const team = teams.find((t) => t.id === current)
 
   return (
-    <section className="panel">
+    <section className="panel" data-capture>
       <div className="panel-head">
         <div>
           <div className="eyebrow">{seasonName} · 정규 라운드</div>
           <h2>팀 대 팀 상대 전적</h2>
         </div>
+        <div className="cap-tools">
+        <CaptureButton name={`${seasonName}_팀대팀${view === "team" && team ? `_${team.name}` : "_전체"}`} />
         {teams.length > 1 && (
-          <div className="seg" role="group" aria-label="보기">
+          <div className="seg" role="group" aria-label="보기" data-capture-hide>
             <button type="button" className={cn(view === "team" && "on")} aria-pressed={view === "team"} onClick={() => setView("team")}>
               한 팀 보기
             </button>
@@ -288,6 +291,7 @@ export function H2HBoard({ seasonName, teams, matches }: { seasonName: string; t
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {teams.length < 2 ? (

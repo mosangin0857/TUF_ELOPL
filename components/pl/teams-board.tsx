@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
@@ -75,7 +76,7 @@ export function TeamsBoard({
           const diff = st ? st.setsWon - st.setsLost : 0
 
           return (
-            <article key={t.id} id={`team-${t.id}`} className="panel tm-card" style={{ "--team": t.color } as React.CSSProperties}>
+            <article key={t.id} id={`team-${t.id}`} className="panel tm-card" style={{ "--team": t.color } as React.CSSProperties} data-capture>
               <header className="tm-head">
                 <span className="tm-crest">
                   <Crest team={t.name} color={t.color} />
@@ -85,6 +86,7 @@ export function TeamsBoard({
                   <span className="note">{t.slogan ?? " "}</span>
                 </div>
                 <div className="tm-rank">
+                  <CaptureButton name={`${seasonName}_${t.name}_선수단`} className="tm-cap" />
                   {anyPlayed && st ? (
                     <>
                       <b className="num">{rankIdx + 1}</b>

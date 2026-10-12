@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react"
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { PlayerRecord } from "@/components/pl/player-record"
@@ -152,7 +153,7 @@ function PlayerTable({ players, teams, matches }: { players: PlPlayerStat[]; tea
 
   return (
     <>
-      <div className="toolbar">
+      <div className="toolbar" data-capture-hide>
         <input className="field grow-field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="닉네임 검색" aria-label="닉네임 검색" />
         <select className="field" value={team} onChange={(e) => setTeam(e.target.value)} aria-label="소속팀">
           <option value="">전체 팀</option>
@@ -281,19 +282,22 @@ export function StandingsBoard({
 }) {
   const [view, setView] = useState<View>(initialView)
   return (
-    <section className="panel">
+    <section className="panel" data-capture>
       <div className="panel-head">
         <div>
           <div className="eyebrow">{seasonName}</div>
           <h2>{view === "team" ? "팀 순위" : "개인 순위"}</h2>
         </div>
-        <div className="seg" role="tablist" aria-label="순위 보기">
+        <div className="cap-tools">
+        <CaptureButton name={`${seasonName}_${view === "team" ? "팀순위" : "개인순위"}`} />
+        <div className="seg" role="tablist" aria-label="순위 보기" data-capture-hide>
           <button type="button" role="tab" aria-selected={view === "team"} className={cn(view === "team" && "on")} onClick={() => setView("team")}>
             팀 순위 <span className="cnt">{standings.length}</span>
           </button>
           <button type="button" role="tab" aria-selected={view === "player"} className={cn(view === "player" && "on")} onClick={() => setView("player")}>
             개인 순위 <span className="cnt">{players.length}</span>
           </button>
+        </div>
         </div>
       </div>
       {view === "team" ? <TeamTable standings={standings} winPoints={winPoints} /> : <PlayerTable players={players} teams={teams} matches={matches} />}

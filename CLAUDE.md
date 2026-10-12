@@ -12,6 +12,9 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-12 · 캡처 버튼 공통 컴포넌트 (PL 담당, `TUFPL_MSI`에만)**
+- `components/ui/capture-button.tsx`: 가장 가까운 `[data-capture]` 영역을 PNG로 → 미리보기 · 이미지 복사 · 저장. 캡처에서 뺄 요소는 `data-capture-hide`. 의존성 `modern-screenshot`(MIT, 동적 import). ELO 쪽 화면에도 같은 방식으로 붙일 수 있음.
+
 **2026-10-11 · 프로리그 엔트리 가리개 · 지정 세트 자동 확정 (PL 담당)**
 - **가리개**: 팀장 · 부팀장이 제출한 쪽 명단은 엔트리 공개 전까지 **관리자에게도** 가린다. `sealSubmittedEntries`(lib/data/pl.ts)가 PL 관리로 보낼 때 그 쪽 선수를 비우고 제출 수만 `PlMatch.sealed`에 남김.
   '제출'은 `pl_entry_logs`의 'N세트 저장' 기록(`isEntrySubmitLog`, 빈 엔트리 · 지정 선택 · 자동 확정 제외). 아직 제출 안 한 팀은 관리자가 직접 선수를 넣을 수 있음.

@@ -5242,3 +5242,90 @@
     color: var(--ink-3);
   }
 }
+
+/* 캡처 버튼 · 미리보기 (components/ui/capture-button.tsx) */
+@layer components {
+  .cap-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .cap-wrap {
+    display: inline-flex;
+  }
+  .cap-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-2);
+    flex: none;
+  }
+  .cap-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .cap-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .spin-soft {
+    animation: cap-pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes cap-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .cap-preview {
+    max-height: 64vh;
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .cap-preview img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  }
+  .cap-modal .modal-head {
+    margin-bottom: 12px;
+  }
+  .cap-modal .modal-foot {
+    margin-top: 14px;
+  }
+  .cap-modal .modal-actions .btn-ghost,
+  .cap-modal .modal-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cap-msg {
+    font-size: 13px;
+    color: var(--accent-text);
+  }
+  .h2-sub {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .res-head-r {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .tm-rank .tm-cap {
+    margin-right: 10px;
+    align-self: center;
+  }
+}

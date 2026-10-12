@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
@@ -142,7 +143,7 @@ export function ResultsBoard({
         </div>
       </section>
 
-      <section ref={detailRef} className="panel res-detail" aria-live="polite">
+      <section ref={detailRef} className="panel res-detail" aria-live="polite" data-capture>
         {sel ? <MatchResult m={sel} bjs={bjByMatch[sel.id] ?? []} tierOf={tierOf} /> : <Empty>왼쪽에서 경기를 고르세요.</Empty>}
       </section>
     </div>
@@ -156,8 +157,11 @@ function MatchResult({ m, bjs, tierOf }: { m: PlMatch; bjs: string[]; tierOf: Re
     <>
       <div className="res-head">
         <h2 className="num">{m.code}</h2>
-        <span className="note">
-          {longWhen(m.scheduledAt)} · {bjs.length ? `BJ ${bjs.join(", ")}` : "BJ 미정"}
+        <span className="res-head-r">
+          <span className="note">
+            {longWhen(m.scheduledAt)} · {bjs.length ? `BJ ${bjs.join(", ")}` : "BJ 미정"}
+          </span>
+          <CaptureButton name={`${m.code}_결과`} />
         </span>
       </div>
 

@@ -7,7 +7,7 @@ import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { isCounted, PICK_LABEL, setKindLabel, STATUS_LABEL, type PlRace, type PlStage } from "@/lib/pl/rules"
+import { isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, type PlRace, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -204,7 +204,7 @@ function MatchResult({ m, bjs, tierOf }: { m: PlMatch; bjs: string[]; tierOf: Re
 
 function SetRow({ s, counted, hidden, tierOf }: { s: PlSet; counted: boolean; hidden: boolean; tierOf: Record<string, number> }) {
   const hasPlayers = s.playersA.length > 0 || s.playersB.length > 0
-  const kind = s.isAce ? "ACE" : s.pickBy && !s.pickedAt ? `${PICK_LABEL[s.pickBy]} · 선택 전` : `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
+  const kind = s.isAce ? "ACE" : s.pickBy && !s.pickedAt ? `${PICK_LABEL[s.pickBy]} · 선택 전 (${SAENGCON_LABEL}이면 ${SAENGCON_MAP})` : `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
   return (
     <div className={cn("res-set", !s.winner && hasPlayers && "idle", s.isAce && "ace")}>
       <Side list={s.playersA} result={s.winner ? (s.winner === "A" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} />

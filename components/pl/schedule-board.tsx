@@ -8,7 +8,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { entryOpen, isCounted, PICK_LABEL, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
+import { entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -178,7 +178,12 @@ export function ScheduleBoard({
                           <span className="set-fmt">
                             {s.pickBy && !s.pickedAt ? (
                               <>
-                                {PICK_LABEL[s.pickBy]} <small>· 선택 전</small>
+                                {PICK_LABEL[s.pickBy]}
+                                {/* 고르기 전에도 개인전 맵은 미리 보여 준다 (엔트리 미리 짤 수 있게). 생컨은 폴리포이드 고정 */}
+                                <small title={`지정 티어 개인전이면 ${s.soloMap ?? s.mapName ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 ${SAENGCON_MAP} (홈 팀이 고르기 전)`}>
+                                  {" "}
+                                  · {s.soloMap ?? s.mapName ?? "선택 전"}
+                                </small>
                               </>
                             ) : (
                               <>

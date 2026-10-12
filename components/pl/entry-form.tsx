@@ -363,7 +363,7 @@ export function EntryForm({
               일정으로
             </Link>
             {dupes.length > 0 && (
-              <span className="eb-msg form-error" role="alert">
+              <span className="eb-msg form-error eb-alert" role="alert">
                 {playoff ? "플레이오프는 ACE 말고 중복 출전 불가" : "개인전 중복 출전 불가"}: {dupes.join(", ")}
               </span>
             )}

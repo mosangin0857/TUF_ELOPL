@@ -3502,6 +3502,14 @@
     font-weight: 600;
     color: #1f8a5b;
   }
+  .eb-msg.form-error {
+    color: var(--up);
+  }
+  /* 경고는 제출 바 맨 위 한 줄로 */
+  .eb-msg.eb-alert {
+    order: -1;
+    flex-basis: 100%;
+  }
 
   /* PL 관리 › 경기 등록: 세트 구성 */
   .set-config {

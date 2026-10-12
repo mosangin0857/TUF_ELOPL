@@ -176,7 +176,16 @@ export function ScheduleBoard({
                         <div key={s.id} className={cn("set-row", s.isAce && "ace")}>
                           <span className="set-no">{s.isAce ? "ACE" : `SET ${s.setNo}`}</span>
                           <span className="set-fmt">
-                            {s.pickBy && !s.pickedAt ? (
+                            {s.isAce ? (
+                              <>
+                                {s.tier ? `${s.tier}티어` : "개인전"}
+                                <small>
+                                  {" "}
+                                  · {s.tier ? "추첨" : "티어 당일 추첨"}
+                                  {s.mapName ? ` · ${s.mapName}` : ""}
+                                </small>
+                              </>
+                            ) : s.pickBy && !s.pickedAt ? (
                               <>
                                 {PICK_LABEL[s.pickBy]}
                                 {/* 고르기 전에도 개인전 맵은 미리 보여 준다 (엔트리 미리 짤 수 있게). 생컨은 폴리포이드 고정 */}

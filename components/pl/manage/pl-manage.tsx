@@ -1,17 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import type { PlMatch, PlSeason, PlTeam } from "@/lib/types"
+import type { PlMatch, PlPenalty, PlPlayerLoad, PlSeason, PlTeam } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { MapsPanel } from "./maps-panel"
 import { MatchesPanel } from "./matches-panel"
+import { PenaltiesPanel } from "./penalties-panel"
 import { SeasonPanel } from "./season-panel"
 import { TeamsPanel } from "./teams-panel"
 
-export type ManageTab = "matches" | "teams" | "maps" | "seasons"
+export type ManageTab = "matches" | "teams" | "penalties" | "maps" | "seasons"
 const TABS: { key: ManageTab; label: string }[] = [
   { key: "matches", label: "경기" },
   { key: "teams", label: "팀 · 선수단" },
+  { key: "penalties", label: "패널티" },
   { key: "maps", label: "맵풀" },
   { key: "seasons", label: "시즌" },
 ]
@@ -27,6 +29,8 @@ export function PlManage({
   bjByMatch,
   bjReady,
   clanBjs,
+  penalties,
+  load,
   now,
   initialTab,
   initialMatchId,
@@ -40,6 +44,8 @@ export function PlManage({
   bjByMatch: Record<string, string[]>
   bjReady: boolean
   clanBjs: string[]
+  penalties: { ready: boolean; list: PlPenalty[] }
+  load: { done: boolean; loads: PlPlayerLoad[] }
   now: number
   initialTab: ManageTab
   initialMatchId?: string
@@ -69,6 +75,9 @@ export function PlManage({
 
       {tab === "seasons" && <SeasonPanel seasons={seasons} />}
       {season && tab === "teams" && <TeamsPanel seasonId={season.id} teams={teams} members={members} />}
+      {season && tab === "penalties" && (
+        <PenaltiesPanel seasonId={season.id} teams={teams} matches={matches} penalties={penalties.list} ready={penalties.ready} loads={load.loads} done={load.done} />
+      )}
       {season && tab === "maps" && <MapsPanel seasonId={season.id} maps={maps} />}
       {season && tab === "matches" && (
         <MatchesPanel

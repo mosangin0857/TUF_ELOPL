@@ -9,7 +9,6 @@ export const PLACEHOLDERS: Record<string, { title: string; body: string; items?:
   "elo/weekly": { title: "위클리 베스트", body: "주간 ELO 상승 TOP 5." },
 
   "pl/predictions": { title: "승부예측", body: "기존 tufpl 승부예측 기능이 들어갈 자리입니다." },
-  "pl/rules": { title: "규정", body: "리그 운영 규정, 맵풀, 엔트리 규칙." },
 
   solo: { title: "개인리그", body: "개인리그 시즌 개요. 조별리그 → 토너먼트 방식을 가정했습니다." },
   "solo/groups": { title: "조편성 · 대진표", body: "조별리그 표와 토너먼트 브라켓." },

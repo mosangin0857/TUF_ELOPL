@@ -252,7 +252,8 @@ export function parseSchedule(
             kinds.push("?")
             continue
           }
-          if (parsed.kind === "away" && !isPlayoff(stage)) errors.push(`${s}세트: 어웨이지정은 플레이오프에만 쓸 수 있어요`)
+          if (parsed.kind === "away") errors.push(`${s}세트: 어웨이지정은 없어요 (플레이오프는 지정 세트 없음)`)
+          if (parsed.kind === "home" && isPlayoff(stage)) errors.push(`${s}세트: 플레이오프 · 결승은 홈지정이 없어요 (개인전 4 · 팀플 2 · ACE)`)
           if (!map) errors.push(`${s}세트 맵이 비어 있어요`)
           else if (mapSet.size && !mapSet.has(norm(map))) messages.push(`${s}세트 맵 '${map}'이 맵풀에 없어요`)
           kinds.push(KIND_SHORT[parsed.kind])

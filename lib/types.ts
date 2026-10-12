@@ -1,4 +1,4 @@
-import type { PlMatchStatus, PlPickBy, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
+import type { PenaltyKind, PlMatchStatus, PlPickBy, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
 
 /** ELO 영역 — 기존 TuFelo DB 스키마 기준 */
 
@@ -189,6 +189,39 @@ export interface PlTeamMember {
   joinedOn: string
   /** 팀을 떠났으면 날짜 (지난 기록은 그대로) */
   leftOn: string | null
+  /** 추가 드래프트로 들어온 선수 (최소 2 · 최대 8경기) — 011 실행 전이면 false */
+  isExtra: boolean
+}
+
+/** 패널티 · 경고 기록 (docs/sql/011_pl_penalties.sql) */
+export interface PlPenalty {
+  id: string
+  teamId: string
+  memberId: string | null
+  memberName: string | null
+  matchId: string | null
+  matchCode: string | null
+  kind: PenaltyKind
+  points: number
+  note: string | null
+  createdBy: string
+  createdAt: string
+}
+
+/** 선수 출전 수 점검 (최소 · 최대 경기, 정규 라운드 ACE 제외) */
+export interface PlPlayerLoad {
+  memberId: string
+  name: string
+  teamId: string
+  isExtra: boolean
+  games: number
+  min: number
+  max: number
+  /** 정규 라운드가 끝났을 때만: 모자란 경기 · 넘친 경기 */
+  short: number
+  over: number
+  /** 위반 1경기당 5점 (정규 라운드가 끝났을 때만) */
+  points: number
 }
 
 export interface PlTeam {

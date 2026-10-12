@@ -95,6 +95,7 @@ export const AREAS: Area[] = [
       { slug: "teams", label: "팀 · 선수단" },
       { slug: "vs", label: "팀 대 팀" },
       { slug: "results", label: "경기 결과" },
+      { slug: "penalties", label: "패널티" },
       { slug: "predictions", label: "승부예측" },
       { slug: "rules", label: "규정" },
       { slug: "manage", label: "PL 관리", adminOnly: true },

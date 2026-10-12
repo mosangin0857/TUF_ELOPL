@@ -7,6 +7,7 @@ import {
   createTeamAction,
   deleteTeamAction,
   removeTeamMemberAction,
+  setExtraDraftAction,
   setTeamMemberRoleAction,
   updateTeamAction,
 } from "@/app/pl/actions"
@@ -37,6 +38,7 @@ function TeamCard({ team, busy, run }: { team: PlTeam; busy: boolean; run: Retur
               <th>선수 ({active.length}명)</th>
               <th>티어</th>
               <th>역할</th>
+              <th title="추가 드래프트 선수는 최소 2 · 최대 8경기 (기본 4~13)">추가 드래프트</th>
               <th className="n">관리</th>
             </tr>
           </thead>
@@ -66,6 +68,18 @@ function TeamCard({ team, busy, run }: { team: PlTeam; busy: boolean; run: Retur
                     ))}
                   </div>
                 </td>
+                <td>
+                  <button
+                    type="button"
+                    className={cn("mini-btn", m.isExtra && "on")}
+                    aria-pressed={m.isExtra}
+                    disabled={busy}
+                    title={m.isExtra ? "추가 드래프트 (2~8경기) — 누르면 해제" : "기본 (4~13경기) — 누르면 추가 드래프트로"}
+                    onClick={() => run(() => setExtraDraftAction(m.id, !m.isExtra))}
+                  >
+                    {m.isExtra ? "추가 · 2~8" : "기본 · 4~13"}
+                  </button>
+                </td>
                 <td className="n" style={{ fontFamily: "inherit", fontSize: 13 }}>
                   {confirm === m.id ? (
                     <span className="inline-flex items-center gap-2">
@@ -94,12 +108,12 @@ function TeamCard({ team, busy, run }: { team: PlTeam; busy: boolean; run: Retur
                   </span>
                 </td>
                 <td className="tier">{m.tier}티어</td>
-                <td colSpan={2}>팀을 떠남 · {m.leftOn} (기록 보존)</td>
+                <td colSpan={3}>팀을 떠남 · {m.leftOn} (기록 보존)</td>
               </tr>
             ))}
             {team.members.length === 0 && (
               <tr>
-                <td colSpan={4} className="note" style={{ padding: 16 }}>
+                <td colSpan={5} className="note" style={{ padding: 16 }}>
                   아직 선수가 없어요. 아래에서 추가하세요.
                 </td>
               </tr>

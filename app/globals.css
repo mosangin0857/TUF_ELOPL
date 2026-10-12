@@ -4986,7 +4986,7 @@
   }
   .tm-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     margin: 0;
     border-bottom: 1px solid var(--line);
   }
@@ -5367,5 +5367,210 @@
   .slot.shared-race .note {
     flex: 1;
     text-align: right;
+  }
+}
+
+/* 결과 입력: ACE 결정전 추첨 티어 */
+@layer components {
+  .ace-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .ace-tier .field {
+    width: auto;
+    min-width: 150px;
+  }
+}
+
+/* 프로리그 › 패널티 · PL 관리 › 패널티 (룰북 1-7 · 2-8 · 5장) */
+@layer components {
+  .team-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .team-cell .crest {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+  .pn-rule {
+    padding: 0 18px 12px;
+  }
+  .pn-sum .pn-total {
+    font-weight: 800;
+    font-size: 16px;
+  }
+  .pn-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+  .pn-team {
+    scroll-margin-top: 16px;
+  }
+  .pn-head-r {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pn-load {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pn-bar {
+    width: 64px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    overflow: hidden;
+    display: inline-block;
+  }
+  .pn-bar i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+  .pn-bar i.low {
+    background: var(--ink-3);
+  }
+  .pn-bar i.over {
+    background: var(--up);
+  }
+  .pn-flag {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--up);
+  }
+  .pn-extra,
+  .pn-warn {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 0 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+  }
+  .pn-extra {
+    background: color-mix(in oklab, var(--down) 14%, var(--surface));
+    color: var(--down);
+  }
+  .pn-warn {
+    background: color-mix(in oklab, var(--up) 14%, var(--surface));
+    color: var(--up);
+  }
+  .pn-log {
+    list-style: none;
+    margin: 0;
+    padding: 12px 18px 16px;
+    display: grid;
+    gap: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .pn-log li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .pn-log li .note {
+    margin-left: auto;
+  }
+  .pn-none {
+    padding: 12px 18px 16px;
+    margin: 0;
+    border-top: 1px solid var(--line);
+  }
+  .pn-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 12px 14px;
+    padding: 0 18px 16px;
+    align-items: end;
+  }
+  .pn-form .pn-note {
+    grid-column: span 2;
+  }
+  .pn-form .pn-kind {
+    grid-column: span 2;
+  }
+  .pn-form .seg button {
+    white-space: nowrap;
+  }
+  .pn-points {
+    max-width: 120px;
+  }
+  .pn-submit {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .pn-note-cell {
+    white-space: normal;
+    min-width: 160px;
+  }
+  .tm-load small {
+    font-size: 11px;
+  }
+}
+@media (max-width: 560px) {
+  .pn-form .pn-note,
+  .pn-form .pn-kind {
+    grid-column: auto;
+  }
+}
+
+
+/* 프로리그 › 규정 */
+@layer components {
+  .rule-toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 18px 16px;
+  }
+  .rule-toc a {
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .rule-toc a:hover {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .rule-sec {
+    padding: 16px 18px 18px;
+    scroll-margin-top: 16px;
+  }
+  .rule-sec h2 {
+    margin: 0 0 10px;
+    font-size: 17px;
+  }
+  .rule-sec ul {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 7px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .rule-sec ul ul {
+    margin-top: 6px;
+    gap: 4px;
+    font-size: 13.5px;
+  }
+  .rule-site {
+    border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+    background: color-mix(in oklab, var(--accent) 5%, var(--surface));
   }
 }

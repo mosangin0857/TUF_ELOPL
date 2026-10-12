@@ -1,7 +1,7 @@
 import "server-only"
-import { AUTO_PICK_SUM, FORMAT_SIZE, pickDeadline, SAENGCON_FORMAT, SAENGCON_LABEL, SAENGCON_MAP, isCounted, isEntrySubmitLog, isMissingColumn, matchCode, pickSide, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
+import { AUTO_PICK_SUM, FORMAT_SIZE, GAME_LIMITS, LOAD_PENALTY_PER_GAME, type PenaltyKind, pickDeadline, SAENGCON_FORMAT, SAENGCON_LABEL, SAENGCON_MAP, isCounted, isEntrySubmitLog, isMissingColumn, matchCode, pickSide, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
-import type { PlMatch, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
+import type { PlMatch, PlPenalty, PlPlayerLoad, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { seoulDate, seoulTime } from "@/lib/utils"
 
 /**
@@ -40,6 +40,7 @@ type TeamRow = {
     role: PlTeamRole
     joined_on: string
     left_on: string | null
+    is_extra?: boolean
     members: { name: string; race: Race; tier: Tier } | null
   }[]
 }
@@ -47,12 +48,16 @@ type TeamRow = {
 const ROLE_ORDER: Record<PlTeamRole, number> = { captain: 0, vice: 1, player: 2 }
 
 export async function fetchTeams(seasonId: string): Promise<PlTeam[]> {
-  const { data, error } = await createServiceClient()
-    .from("pl_teams")
-    .select("id, name, color, slogan, sort_order, pl_team_members(id, member_id, role, joined_on, left_on, members(name, race, tier))")
-    .eq("season_id", seasonId)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true })
+  const select = (withExtra: boolean) =>
+    createServiceClient()
+      .from("pl_teams")
+      .select(`id, name, color, slogan, sort_order, pl_team_members(id, member_id, role, joined_on, left_on, ${withExtra ? "is_extra, " : ""}members(name, race, tier))`)
+      .eq("season_id", seasonId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+  let { data, error } = await select(true)
+  // 011_pl_penalties.sql 실행 전이면 추가 드래프트 표시 없이
+  if (isMissingColumn(error, "is_extra")) ({ data, error } = await select(false))
   if (error) throw new Error(`pl_teams 조회 실패: ${error.message}`)
 
   return ((data ?? []) as unknown as TeamRow[]).map((t) => ({
@@ -72,6 +77,7 @@ export async function fetchTeams(seasonId: string): Promise<PlTeam[]> {
           role: m.role,
           joinedOn: m.joined_on,
           leftOn: m.left_on,
+          isExtra: m.is_extra ?? false,
         }),
       )
       .sort((a, b) => Number(a.leftOn !== null) - Number(b.leftOn !== null) || ROLE_ORDER[a.role] - ROLE_ORDER[b.role] || a.name.localeCompare(b.name, "ko")),
@@ -446,7 +452,7 @@ export async function fetchHomePl(limit = 8): Promise<{ upcoming: UpcomingMatch[
   if (!season) return empty
   const teams = await fetchTeams(season.id)
   const matches = await fetchMatches(season.id, teams)
-  const standings = computeStandings(teams, matches, season.winPoints)
+  const standings = computeStandings(teams, matches, season.winPoints, await fetchPenaltyTotals(season.id, teams, matches))
   const hasGames = standings.some((s) => s.played > 0)
 
   const now = Date.now() - 3 * 60 * 60 * 1000 // 진행 중일 수 있는 3시간 전 경기까지
@@ -540,4 +546,75 @@ export async function fetchClanBjNames(): Promise<string[]> {
   const { data, error } = await createServiceClient().from("clan_bjs").select("name").order("sort_order", { ascending: true })
   if (error) return []
   return (data ?? []).map((r) => r.name as string)
+}
+
+/* ---------------- 패널티 · 최소/최대 경기 (docs/sql/011_pl_penalties.sql) ---------------- */
+
+/** 시즌 패널티 · 경고 기록 (테이블이 없으면 ready: false) */
+export async function fetchPenalties(seasonId: string, matches: PlMatch[] = []): Promise<{ ready: boolean; list: PlPenalty[] }> {
+  const { data, error } = await createServiceClient()
+    .from("pl_penalties")
+    .select("id, team_id, member_id, match_id, kind, points, note, created_by, created_at, members(name)")
+    .eq("season_id", seasonId)
+    .order("created_at", { ascending: false })
+  if (error) return { ready: false, list: [] }
+  const codeOf = new Map(matches.map((m) => [m.id, m.code]))
+  return {
+    ready: true,
+    list: (data ?? []).map((r) => ({
+      id: r.id as string,
+      teamId: r.team_id as string,
+      memberId: (r.member_id as string | null) ?? null,
+      memberName: ((r.members as unknown as { name: string } | null)?.name as string | undefined) ?? null,
+      matchId: (r.match_id as string | null) ?? null,
+      matchCode: r.match_id ? (codeOf.get(r.match_id as string) ?? null) : null,
+      kind: r.kind as PenaltyKind,
+      points: r.points as number,
+      note: (r.note as string | null) ?? null,
+      createdBy: r.created_by as string,
+      createdAt: r.created_at as string,
+    })),
+  }
+}
+
+/** 정규 라운드 경기가 모두 끝났는지 (종료 · 몰수 · 취소). 경기가 하나도 없으면 false */
+export function regularSeasonDone(matches: PlMatch[]): boolean {
+  const reg = matches.filter((m) => REGULAR_STAGES.includes(m.stage))
+  return reg.length > 0 && reg.every((m) => isCounted(m.status) || m.status === "canceled")
+}
+
+/**
+ * 선수 출전 수 점검 (2-8): 현재 선수단, 정규 라운드 ACE 제외 세트(출전인정) 기준.
+ * 기본 4~13, 추가 드래프트 2~8. 정규 라운드가 끝나야 위반을 계산(위반 1경기당 5점).
+ */
+export function computePlayerLoads(teams: PlTeam[], matches: PlMatch[]): { done: boolean; loads: PlPlayerLoad[] } {
+  const done = regularSeasonDone(matches)
+  const games = new Map<string, number>()
+  for (const s of computePlayerStats(teams, matches)) games.set(s.memberId, s.recognized)
+  const loads: PlPlayerLoad[] = []
+  for (const t of teams) {
+    for (const m of t.members) {
+      if (m.leftOn) continue
+      const lim = m.isExtra ? GAME_LIMITS.extra : GAME_LIMITS.normal
+      const n = games.get(m.memberId) ?? 0
+      const short = done ? Math.max(0, lim.min - n) : 0
+      const over = done ? Math.max(0, n - lim.max) : 0
+      loads.push({ memberId: m.memberId, name: m.name, teamId: t.id, isExtra: m.isExtra, games: n, min: lim.min, max: lim.max, short, over, points: (short + over) * LOAD_PENALTY_PER_GAME })
+    }
+  }
+  return { done, loads }
+}
+
+/** 팀별 패널티 합계 = 기록(경고 포함 점수) + 최소/최대 경기 위반 (순위 3번째 기준) */
+export function penaltyTotals(penalties: PlPenalty[], loads: PlPlayerLoad[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const p of penalties) out[p.teamId] = (out[p.teamId] ?? 0) + p.points
+  for (const l of loads) if (l.points) out[l.teamId] = (out[l.teamId] ?? 0) + l.points
+  return out
+}
+
+/** 순위 화면용: 경기 · 팀으로 시즌 패널티 합계까지 한 번에 */
+export async function fetchPenaltyTotals(seasonId: string, teams: PlTeam[], matches: PlMatch[]): Promise<Record<string, number>> {
+  const { list } = await fetchPenalties(seasonId, matches)
+  return penaltyTotals(list, computePlayerLoads(teams, matches).loads)
 }

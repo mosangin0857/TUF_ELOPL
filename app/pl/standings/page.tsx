@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { StandingsBoard } from "@/components/pl/standings-board"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
-import { computePlayerStats, computeStandings, fetchCurrentSeason, fetchMatches, fetchTeams } from "@/lib/data/pl"
+import { computePlayerStats, computeStandings, fetchCurrentSeason, fetchMatches, fetchPenaltyTotals, fetchTeams } from "@/lib/data/pl"
 import type { PlMatch, PlSeason, PlTeam } from "@/lib/types"
 
 export const metadata: Metadata = { title: "프로리그 순위" }
@@ -14,11 +14,13 @@ export default async function PlStandingsPage() {
   let season: PlSeason | null
   let teams: PlTeam[] = []
   let matches: PlMatch[] = []
+  let penalties: Record<string, number> = {}
   try {
     season = await fetchCurrentSeason()
     if (season) {
       teams = await fetchTeams(season.id)
       matches = await fetchMatches(season.id, teams)
+      penalties = await fetchPenaltyTotals(season.id, teams, matches)
     }
   } catch (error) {
     return <DbError error={error} />
@@ -36,7 +38,7 @@ export default async function PlStandingsPage() {
     <StandingsBoard
       seasonName={season.name}
       winPoints={season.winPoints}
-      standings={computeStandings(teams, matches, season.winPoints)}
+      standings={computeStandings(teams, matches, season.winPoints, penalties)}
       players={computePlayerStats(teams, matches)}
       teams={teams.map((t) => ({ name: t.name, color: t.color }))}
       matches={matches.filter((m) => m.status === "done")}

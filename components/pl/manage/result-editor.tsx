@@ -126,6 +126,7 @@ export function ResultEditor({
             winner: s.winner,
             playersA: filled(s.playersA),
             playersB: filled(s.playersB),
+            ...(s.isAce ? { aceTier: s.tier } : {}),
           })),
           bjs,
         }),
@@ -306,9 +307,27 @@ export function ResultEditor({
                   </button>
                 )}
                 <b>{s.isAce ? "ACE 결정전" : `SET ${no}`}</b>
+                {s.isAce && (
+                  <label className="ace-tier">
+                    <span>추첨 티어</span>
+                    <select
+                      className="field"
+                      value={s.tier ?? ""}
+                      onChange={(e) => patch(i, { tier: e.target.value ? (Number(e.target.value) as Tier) : null })}
+                      aria-label="ACE 결정전 추첨 티어"
+                    >
+                      <option value="">— 추첨 전 —</option>
+                      {([1, 2, 3, 4] as const).map((t) => (
+                        <option key={t} value={t}>
+                          {t}티어 (이하 출전 가능)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 {s.from !== no && <span className="pill moved-pill">원래 {s.from}세트</span>}
                 {s.pickBy && <span className="pill">{PICK_LABEL[s.pickBy]}</span>}
-                {s.tier && s.format === "1v1" && <span className="pill tier-pill">{s.tier}티어</span>}
+                {!s.isAce && s.tier && s.format === "1v1" && <span className="pill tier-pill">{s.tier}티어</span>}
                 {s.tierSum && s.format === SAENGCON_FORMAT && (
                   <span className="pill tier-pill">
                     {SAENGCON_LABEL} · 티어합 {s.tierSum}↑

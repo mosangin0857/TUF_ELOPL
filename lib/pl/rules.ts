@@ -1,7 +1,8 @@
 /**
  * 프로리그(TFPL) 규칙 — 서버 · 화면 공통 (docs/sql/005_pl_league.sql)
- *   정규 1R · 2R · 3R: 7세트 4선승 (1~6세트 모두 진행, 7세트 ACE는 3:3일 때만)
- *   플레이오프 · 결승: 9세트 5선승 (1~8세트 모두 진행, 9세트 ACE는 4:4일 때만)
+ *   정규 1R · 2R · 3R: 7세트 4선승 (개인전 4 · 팀플 1 · 홈지정 1 · ACE, 1~6세트 모두 진행, 7세트 ACE는 3:3일 때만)
+ *   플레이오프 · 결승: 7세트 4선승 (개인전 4 · 팀플 2 · ACE, 지정 세트 없음) — 룰북 2-2 · 2-3 (2026-10-12 운영진 확정, 이전 9세트 5선승 폐지)
+ *   ACE 결정전 티어는 경기 당일 핀볼 추첨 → 관리자가 결과 입력에서 넣는다 (그 티어와 아래 티어 출전 가능, 룰북 2-6)
  *   경기 코드: 1R-1M … 2R-19M … / PO-1M … / PO-FINAL (매치 번호는 정규 라운드끼리 이어짐)
  */
 
@@ -41,14 +42,14 @@ export function isPlayoff(stage: PlStage) {
   return stage === "PO" || stage === "FINAL"
 }
 
-/** 세트 수 (마지막 세트가 ACE) */
-export function setCount(stage: PlStage) {
-  return isPlayoff(stage) ? 9 : 7
+/** 세트 수 (마지막 세트가 ACE) — 정규 · 플레이오프 모두 7 */
+export function setCount(_stage: PlStage) {
+  return 7
 }
 
-/** 이기는 데 필요한 세트 수 */
-export function winTarget(stage: PlStage) {
-  return isPlayoff(stage) ? 5 : 4
+/** 이기는 데 필요한 세트 수 — 정규 · 플레이오프 모두 4 */
+export function winTarget(_stage: PlStage) {
+  return 4
 }
 
 /** 경기 코드: R1 + 18 → "1R-18M", PO + 1 → "PO-1M", FINAL → "PO-FINAL" */
@@ -109,7 +110,7 @@ export const AUTO_PICK_SUM = 5
 /**
  * 세트 종류 — 경기 등록 화면 · 엑셀 양식 공통 (docs/sql/PENDING.md)
  *   1티어~4티어 = 그 티어 선수만 나가는 개인전 / 개인전 = 티어 제한 없는 개인전 / 팀플2~4 = 2:2~4:4
- *   홈지정 · 어웨이지정(플레이오프만) = 그 팀이 지정 티어 개인전 또는 생컨을 고르는 세트 (PickChoice)
+ *   홈지정(정규 라운드만) = 홈 팀이 지정 티어 개인전 또는 생컨을 고르는 세트 (PickChoice). 어웨이지정은 더 이상 쓰지 않음 (플레이오프 지정 세트 없음)
  */
 export type SetKind = "t1" | "t2" | "t3" | "t4" | "solo" | "2v2" | "3v3" | "4v4" | "home" | "away"
 export const SET_KIND_LABEL: Record<SetKind, string> = {
@@ -208,3 +209,19 @@ export function entryOpen(status: PlMatchStatus, entryRevealAt: string | null, n
   const deadline = entryDeadline(entryRevealAt)
   return deadline === null || now < new Date(deadline).getTime()
 }
+
+/* ---------------- 패널티 · 최소/최대 경기 (룰북 1-7 · 2-8 · 5장, docs/sql/011_pl_penalties.sql) ---------------- */
+
+export type PenaltyKind = "forfeit" | "withdraw" | "noshow" | "warning" | "other"
+export const PENALTY_KINDS: PenaltyKind[] = ["forfeit", "withdraw", "noshow", "warning", "other"]
+export const PENALTY_LABEL: Record<PenaltyKind, string> = { forfeit: "몰수패", withdraw: "기권", noshow: "부전패", warning: "경고", other: "기타" }
+/** 종류별 기본 점수: 몰수 · 기권 · 부전패 1점, 경고 0점(2회면 은퇴), 기타는 관리자가 */
+export const PENALTY_DEFAULT_POINTS: Record<PenaltyKind, number> = { forfeit: 1, withdraw: 1, noshow: 1, warning: 0, other: 1 }
+/** 경고 몇 회면 TFPL 은퇴 (1-7) */
+export const WARNING_LIMIT = 2
+
+/** 정규 시즌 출전 경기 수 제한 (ACE 제외, 2-8) */
+export const GAME_LIMITS = { normal: { min: 4, max: 13 }, extra: { min: 2, max: 8 } } as const
+/** 최소 · 최대 경기 위반 1경기당 패널티 (운영진 확정 2026-10-12) */
+export const LOAD_PENALTY_PER_GAME = 5
+

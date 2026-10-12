@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { TeamsBoard } from "@/components/pl/teams-board"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
-import { computePlayerStats, computeStandings, fetchCurrentSeason, fetchMatches, fetchTeams } from "@/lib/data/pl"
-import type { PlMatch, PlSeason, PlTeam } from "@/lib/types"
+import { computePlayerLoads, computePlayerStats, computeStandings, fetchCurrentSeason, fetchMatches, fetchPenalties, fetchTeams, penaltyTotals } from "@/lib/data/pl"
+import type { PlMatch, PlPenalty, PlSeason, PlTeam } from "@/lib/types"
 
 export const metadata: Metadata = { title: "팀 · 선수단" }
 
@@ -14,11 +14,13 @@ export default async function PlTeamsPage() {
   let season: PlSeason | null
   let teams: PlTeam[] = []
   let matches: PlMatch[] = []
+  let penalties: PlPenalty[] = []
   try {
     season = await fetchCurrentSeason()
     if (season) {
       teams = await fetchTeams(season.id)
       matches = await fetchMatches(season.id, teams)
+      penalties = (await fetchPenalties(season.id, matches)).list
     }
   } catch (error) {
     return <DbError error={error} />
@@ -32,13 +34,18 @@ export default async function PlTeamsPage() {
     )
   }
 
+  const { loads } = computePlayerLoads(teams, matches)
+  const warnings: Record<string, number> = {}
+  for (const p of penalties) if (p.kind === "warning" && p.memberId) warnings[p.memberId] = (warnings[p.memberId] ?? 0) + 1
   return (
     <TeamsBoard
       seasonName={season.name}
       teams={teams}
       matches={matches}
-      standings={computeStandings(teams, matches, season.winPoints)}
+      standings={computeStandings(teams, matches, season.winPoints, penaltyTotals(penalties, loads))}
       players={computePlayerStats(teams, matches)}
+      loads={loads}
+      warnings={warnings}
     />
   )
 }

@@ -92,6 +92,18 @@ export function ManageSide({
       }
     }
   }
+  // 17시(엔트리 마감)가 지났는데 다 못 낸 팀 — 4-1: 1세트 몰수패, 5분마다 한 세트씩, 30분 초과 6:0 (몰수 처리 · 패널티는 관리자가)
+  for (const m of matches) {
+    if (m.status !== "scheduled" && m.status !== "live") continue
+    if (m.teamA.tbd || m.teamB.tbd) continue
+    const dl = entryDeadline(m.entryRevealAt)
+    if (!dl || new Date(dl).getTime() > now) continue
+    if (m.scheduledAt && new Date(m.scheduledAt).getTime() + 6 * 3600_000 < now) continue
+    for (const side of ["A", "B"] as const) {
+      const c = entryCount(m, side)
+      if (c.filled < c.total) alerts.unshift({ tone: "red", code: `${m.code} ${side === "A" ? m.teamA.name : m.teamB.name}`, text: `엔트리 마감 지남 · ${c.filled}/${c.total}세트만 제출 (4-1 몰수 · 패널티 확인)` })
+    }
+  }
   for (const m of matches) {
     if ((m.status === "scheduled" || m.status === "postponed") && !m.entryRevealAt) alerts.push({ tone: "warn", code: m.code, text: "엔트리 공개 시각이 비어 있어요 (마감 계산 불가)." })
   }

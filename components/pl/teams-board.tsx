@@ -5,7 +5,7 @@ import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
 import { isCounted, ROLE_LABEL, type PlTeamRole } from "@/lib/pl/rules"
-import type { PlMatch, PlPlayerStat, PlTeam, PlTeamMember, PlTeamStanding, Race } from "@/lib/types"
+import type { PlMatch, PlPlayerLoad, PlPlayerStat, PlTeam, PlTeamMember, PlTeamStanding, Race } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const ROLE_ORDER: Record<PlTeamRole, number> = { captain: 0, vice: 1, player: 2 }
@@ -21,12 +21,18 @@ export function TeamsBoard({
   matches,
   standings,
   players,
+  loads = [],
+  warnings = {},
 }: {
   seasonName: string
   teams: PlTeam[]
   matches: PlMatch[]
   standings: PlTeamStanding[]
   players: PlPlayerStat[]
+  /** 선수 출전 수 점검 (최소 · 최대 경기) */
+  loads?: PlPlayerLoad[]
+  /** member id → 경고 수 */
+  warnings?: Record<string, number>
 }) {
   if (!teams.length) {
     return (
@@ -114,6 +120,10 @@ export function TeamsBoard({
                   <dd className={cn("num", diff > 0 && "plus", diff < 0 && "minus")}>{diff > 0 ? `+${diff}` : diff}</dd>
                 </div>
                 <div>
+                  <dt>패널티</dt>
+                  <dd className={cn("num", (st?.penalty ?? 0) > 0 && "minus")}>{st?.penalty ?? 0}</dd>
+                </div>
+                <div>
                   <dt>최근</dt>
                   <dd className="tm-form">
                     {st?.form.length ? (
@@ -170,6 +180,7 @@ export function TeamsBoard({
                       <tr>
                         <th>선수 ({active.length}명)</th>
                         <th>티어</th>
+                        <th title="정규 라운드 출전 (ACE 제외) / 최소~최대">출전</th>
                         <th className="n">시즌 전적</th>
                       </tr>
                     </thead>
@@ -183,9 +194,27 @@ export function TeamsBoard({
                                 <RaceBadge race={m.race} />
                                 {m.name}
                                 {m.role !== "player" && <span className={cn("tm-role", m.role)}>{ROLE_LABEL[m.role]}</span>}
+                                {m.isExtra && <span className="pn-extra" title="추가 드래프트 (최소 2 · 최대 8경기)">추가</span>}
+                                {warnings[m.memberId] ? <span className="pn-warn">경고 {warnings[m.memberId]}</span> : null}
                               </span>
                             </td>
                             <td className="tier">{m.tier}티어</td>
+                            <td className="num tm-load">
+                              {(() => {
+                                const l = loads.find((x) => x.memberId === m.memberId)
+                                if (!l) return <span className="text-ink-3">—</span>
+                                const bad = l.short > 0 || l.over > 0 || l.games > l.max
+                                return (
+                                  <span className={cn(bad && "up")} title={`최소 ${l.min} · 최대 ${l.max}경기`}>
+                                    {l.games}
+                                    <small className="text-ink-3">
+                                      {" "}
+                                      / {l.min}~{l.max}
+                                    </small>
+                                  </span>
+                                )
+                              })()}
+                            </td>
                             <td className="n num">{s && s.games ? `${s.wins}승 ${s.losses}패` : <span className="text-ink-3">—</span>}</td>
                           </tr>
                         )

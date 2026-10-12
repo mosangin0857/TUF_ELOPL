@@ -11,6 +11,10 @@ import {
   pickOpen,
   tierEligible,
   isMissingColumn,
+  PENALTY_DEFAULT_POINTS,
+  PENALTY_KINDS,
+  PENALTY_LABEL,
+  type PenaltyKind,
   isMissingTierColumn,
   isMissingTierSumColumn,
   FORMAT_LABEL,
@@ -233,7 +237,10 @@ export async function addTeamMemberAction(teamId: string, rawName: string, role:
   }
 
   await freeRole(teamId, role)
-  const { error } = await supabase.from("pl_team_members").insert({ team_id: teamId, member_id: member.id, role, joined_on: seoulDate() })
+  const extra = await seasonStarted(team.season_id as string)
+  let { error } = await supabase.from("pl_team_members").insert({ team_id: teamId, member_id: member.id, role, joined_on: seoulDate(), is_extra: extra })
+  // 011_pl_penalties.sql 실행 전 — 추가 드래프트 표시 없이
+  if (error && isMissingColumn(error, "is_extra")) ({ error } = await supabase.from("pl_team_members").insert({ team_id: teamId, member_id: member.id, role, joined_on: seoulDate() }))
   if (error) return fail("선수를 추가하지 못했어요", error)
 
   await insertAdminLog(actor.username, "PL 선수 추가", member.name as string, `${team.name as string} · ${ROLE_LABEL[role]}`)
@@ -338,6 +345,8 @@ export async function bulkAddRosterAction(seasonId: string, inputs: RosterInput[
     ((curRows ?? []) as unknown as { id: string; team_id: string; member_id: string; role: PlTeamRole; pl_teams: { name: string } }[]).map((r) => [r.member_id, r]),
   )
 
+  // 시즌 첫 경기 뒤에 넣는 선수는 추가 드래프트 (최소 2 · 최대 8경기)
+  const extra = await seasonStarted(seasonId)
   const teamsCreated: string[] = []
   const skipped: { name: string; reason: string }[] = []
   const badTeams = new Map<string, string>()
@@ -406,7 +415,7 @@ export async function bulkAddRosterAction(seasonId: string, inputs: RosterInput[
     await freeRole(tid, row.role, cur?.id)
     const { error } = cur
       ? await supabase.from("pl_team_members").update({ role: row.role }).eq("id", cur.id)
-      : await supabase.from("pl_team_members").insert({ team_id: tid, member_id: member.id, role: row.role, joined_on: seoulDate() })
+      : await supabase.from("pl_team_members").insert({ team_id: tid, member_id: member.id, role: row.role, joined_on: seoulDate(), ...(extra ? { is_extra: true } : {}) })
     if (error) {
       skipped.push({ name: label, reason: error.message })
       continue
@@ -426,6 +435,94 @@ export async function bulkAddRosterAction(seasonId: string, inputs: RosterInput[
   )
   revalidatePl()
   return { ok: true, teamsCreated, added, updated, skipped }
+}
+
+/** 시즌 첫 정규 경기가 이미 시작됐는지 — 그 뒤에 선수단에 넣으면 추가 드래프트로 본다 (최소 2 · 최대 8경기) */
+async function seasonStarted(seasonId: string): Promise<boolean> {
+  const { data } = await createServiceClient()
+    .from("pl_matches")
+    .select("scheduled_at")
+    .eq("season_id", seasonId)
+    .not("scheduled_at", "is", null)
+    .order("scheduled_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  return !!data?.scheduled_at && new Date(data.scheduled_at as string).getTime() <= Date.now()
+}
+
+/** 추가 드래프트 표시 켜기 · 끄기 (최소/최대 경기 기준이 2~8로 바뀜) */
+export async function setExtraDraftAction(teamMemberId: string, isExtra: boolean): Promise<ActionResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  const supabase = createServiceClient()
+  const { data: row, error } = await supabase
+    .from("pl_team_members")
+    .update({ is_extra: isExtra })
+    .eq("id", teamMemberId)
+    .select("members(name), pl_teams(name)")
+    .maybeSingle()
+  if (error && isMissingColumn(error, "is_extra")) return { ok: false, error: PENALTY_SQL_NOTICE }
+  if (error) return fail("바꾸지 못했어요", error)
+  const r = row as unknown as { members: { name: string } | null; pl_teams: { name: string } | null } | null
+  await insertAdminLog(actor.username, isExtra ? "PL 추가 드래프트 지정" : "PL 추가 드래프트 해제", r?.members?.name ?? teamMemberId, r?.pl_teams?.name)
+  revalidatePl()
+  return { ok: true }
+}
+
+/* ---------------- 패널티 · 경고 (docs/sql/011_pl_penalties.sql) ---------------- */
+
+const PENALTY_SQL_NOTICE = "패널티 · 추가 드래프트는 docs/sql/011_pl_penalties.sql을 Supabase에서 실행한 뒤 쓸 수 있어요."
+
+export type PenaltyInput = { teamId: string; memberId: string | null; matchId: string | null; kind: PenaltyKind; points: number | null; note: string }
+
+export async function addPenaltyAction(seasonId: string, input: PenaltyInput): Promise<ActionResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  if (!PENALTY_KINDS.includes(input.kind)) return { ok: false, error: "종류를 골라 주세요." }
+  const points = input.points ?? PENALTY_DEFAULT_POINTS[input.kind]
+  if (!Number.isInteger(points) || points < 0 || points > 50) return { ok: false, error: "점수는 0~50 사이 정수로 넣어 주세요." }
+  if (input.kind === "warning" && !input.memberId) return { ok: false, error: "경고는 선수를 골라 주세요." }
+
+  const supabase = createServiceClient()
+  const { data: team } = await supabase.from("pl_teams").select("id, name").eq("id", input.teamId).eq("season_id", seasonId).maybeSingle()
+  if (!team) return { ok: false, error: "팀을 찾지 못했어요." }
+  if (input.memberId) {
+    const { data: tm } = await supabase.from("pl_team_members").select("id").eq("team_id", input.teamId).eq("member_id", input.memberId).limit(1)
+    if (!tm?.length) return { ok: false, error: "그 팀 선수가 아니에요." }
+  }
+  if (input.matchId) {
+    const { data: m } = await supabase.from("pl_matches").select("id, team_a_id, team_b_id").eq("id", input.matchId).maybeSingle()
+    if (!m || (m.team_a_id !== input.teamId && m.team_b_id !== input.teamId)) return { ok: false, error: "그 팀 경기가 아니에요." }
+  }
+
+  const { error } = await supabase.from("pl_penalties").insert({
+    season_id: seasonId,
+    team_id: input.teamId,
+    member_id: input.memberId,
+    match_id: input.matchId,
+    kind: input.kind,
+    points,
+    note: input.note.trim().slice(0, 200) || null,
+    created_by: actor.username,
+  })
+  if (error && (isMissingColumn(error, "pl_penalties") || /pl_penalties/.test(error.message))) return { ok: false, error: PENALTY_SQL_NOTICE }
+  if (error) return fail("패널티를 저장하지 못했어요", error)
+
+  await insertAdminLog(actor.username, `PL ${PENALTY_LABEL[input.kind]}`, team.name as string, `${points}점${input.note.trim() ? ` · ${input.note.trim().slice(0, 60)}` : ""}`)
+  revalidatePl()
+  return { ok: true }
+}
+
+export async function deletePenaltyAction(id: string): Promise<ActionResult> {
+  const actor = await manager()
+  if (!actor) return { ok: false, error: NO_PERMISSION }
+  const { data, error } = await createServiceClient().from("pl_penalties").delete().eq("id", id).select("kind, points, pl_teams(name)")
+  if (error) return fail("지우지 못했어요", error)
+  if (!data?.length) return { ok: false, error: "해당 기록을 찾지 못했어요." }
+  const r = data[0] as unknown as { kind: PenaltyKind; points: number; pl_teams: { name: string } | null }
+  await insertAdminLog(actor.username, `PL ${PENALTY_LABEL[r.kind]} 삭제`, r.pl_teams?.name ?? id, `${r.points}점`)
+  revalidatePl()
+  return { ok: true }
 }
 
 /* ---------------- 맵풀 ---------------- */
@@ -502,8 +599,8 @@ function validMatch(input: MatchInput): string | null {
   for (const c of input.sets) {
     if (c.setNo < 1 || c.setNo > n) return `${c.setNo}세트는 이 라운드에 없어요.`
     if (!FORMATS.includes(c.format)) return `${c.setNo}세트: 형식 값이 올바르지 않아요.`
-    if (c.pickBy && c.pickBy !== "home" && c.pickBy !== "away") return `${c.setNo}세트: 지정 값이 올바르지 않아요.`
-    if (c.pickBy === "away" && REGULAR_STAGES.includes(input.stage)) return `${c.setNo}세트: 어웨이 지정은 플레이오프 · 결승에만 쓸 수 있어요.`
+    if (c.pickBy && c.pickBy !== "home") return `${c.setNo}세트: 지정 세트는 홈 지정만 있어요.`
+    if (c.pickBy && !REGULAR_STAGES.includes(input.stage)) return `${c.setNo}세트: 플레이오프 · 결승은 지정 세트가 없어요 (개인전 4 · 팀플 2 · ACE).`
     if (c.pickBy && c.setNo === n) return "ACE 결정전은 지정 세트로 둘 수 없어요."
     if (c.tier !== null && ![1, 2, 3, 4].includes(c.tier)) return `${c.setNo}세트: 티어 값이 올바르지 않아요.`
     if (c.tier !== null && (c.pickBy || c.format !== "1v1" || c.setNo === n)) return `${c.setNo}세트: 티어는 개인전 세트에만 정할 수 있어요 (팀플 · 지정 세트 · ACE는 제한 없음).`
@@ -542,8 +639,8 @@ async function syncSets(matchId: string, stage: PlStage) {
  */
 async function applySetConfig(matchId: string, sets: SetConfigInput[]): Promise<{ error: { message: string; code?: string } | null; tierSkipped: boolean }> {
   const supabase = createServiceClient()
-  const { data } = await supabase.from("pl_sets").select("id, set_no, picked_at").eq("match_id", matchId)
-  const bySetNo = new Map((data ?? []).map((r) => [r.set_no as number, r as { id: string; picked_at: string | null }]))
+  const { data } = await supabase.from("pl_sets").select("id, set_no, is_ace, picked_at").eq("match_id", matchId)
+  const bySetNo = new Map((data ?? []).map((r) => [r.set_no as number, r as { id: string; is_ace: boolean; picked_at: string | null }]))
   let tierReady = true
   let sumReady = true
   let tierSkipped = false
@@ -556,6 +653,8 @@ async function applySetConfig(matchId: string, sets: SetConfigInput[]): Promise<
     // 이미 지정 팀이 골랐으면 고른 형식 · 맵 · 티어 · 티어합을 그대로 둔다
     else if (row.picked_at) update = { pick_by: c.pickBy, solo_map: map }
     else update = { pick_by: c.pickBy, solo_map: map, format: "1v1", map_name: map, tier: null, tier_sum: null }
+    // ACE 결정전 티어는 결과 입력에서 관리자가 넣는 추첨 결과 → 경기 수정으로 지우지 않는다
+    if (row.is_ace && !c.pickBy) delete update.tier
     if (!tierReady) delete update.tier
     if (!sumReady) delete update.tier_sum
     let { error } = await supabase.from("pl_sets").update(update).eq("id", row.id)
@@ -710,6 +809,8 @@ export type SetInput = {
   winner: PlSide | null
   playersA: SetPlayerInput[]
   playersB: SetPlayerInput[]
+  /** ACE 결정전만: 경기 당일 핀볼로 뽑은 티어 (null = 아직) */
+  aceTier?: Tier | null
 }
 
 type MatchForWrite = {
@@ -873,7 +974,11 @@ export async function saveMatchResultAction(
         pick_by: from.pick_by,
         solo_map: from.solo_map,
         picked_at: from.picked_at,
-        ...(from.tier !== undefined ? { tier: s.format === "1v1" ? from.tier : null } : {}),
+        ...(from.is_ace
+          ? { tier: s.aceTier && [1, 2, 3, 4].includes(s.aceTier) ? s.aceTier : null }
+          : from.tier !== undefined
+            ? { tier: s.format === "1v1" ? from.tier : null }
+            : {}),
         ...(from.tier_sum !== undefined ? { tier_sum: s.format === SAENGCON_FORMAT ? from.tier_sum : null } : {}),
       })
       .eq("id", setId)

@@ -2,12 +2,24 @@ import type { Metadata } from "next"
 import { PlManage, type ManageTab } from "@/components/pl/manage/pl-manage"
 import { AdminRequired } from "@/components/ui/admin-required"
 import { DbError } from "@/components/ui/db-error"
-import { fetchActiveMembers, fetchClanBjNames, fetchCurrentSeason, fetchMaps, fetchMatchBjs, fetchMatches, fetchSeasons, fetchTeams, sealSubmittedEntries } from "@/lib/data/pl"
+import {
+  computePlayerLoads,
+  fetchActiveMembers,
+  fetchClanBjNames,
+  fetchCurrentSeason,
+  fetchMaps,
+  fetchMatchBjs,
+  fetchMatches,
+  fetchPenalties,
+  fetchSeasons,
+  fetchTeams,
+  sealSubmittedEntries,
+} from "@/lib/data/pl"
 import { getMemberManager } from "@/lib/permissions"
 
 export const metadata: Metadata = { title: "PL 관리" }
 
-const TABS: ManageTab[] = ["matches", "teams", "maps", "seasons"]
+const TABS: ManageTab[] = ["matches", "teams", "penalties", "maps", "seasons"]
 
 /** 프로리그 › PL 관리 — 관리자(admin · super)만. 탭은 관리자에게만 보이고, 주소로 들어와도 여기서 막는다 */
 export default async function PlManagePage({ searchParams }: { searchParams: Promise<{ tab?: string; match?: string }> }) {
@@ -22,7 +34,12 @@ export default async function PlManagePage({ searchParams }: { searchParams: Pro
     const [maps, allMatches] = season ? await Promise.all([fetchMaps(season.id), fetchMatches(season.id, teams, { revealAll: true })]) : [[], []]
     // 팀장이 제출한 명단은 엔트리 공개 전까지 관리자에게도 가린다 (선수는 아예 안 보냄)
     const matches = await sealSubmittedEntries(allMatches)
-    const [bj, clanBjs] = await Promise.all([fetchMatchBjs(matches.map((m) => m.id)), fetchClanBjNames()])
+    const [bj, clanBjs, penalties] = await Promise.all([
+      fetchMatchBjs(matches.map((m) => m.id)),
+      fetchClanBjNames(),
+      season ? fetchPenalties(season.id, allMatches) : Promise.resolve({ ready: false, list: [] }),
+    ])
+    const load = computePlayerLoads(teams, allMatches)
 
     return (
       <PlManage
@@ -35,6 +52,8 @@ export default async function PlManagePage({ searchParams }: { searchParams: Pro
         bjByMatch={bj.byMatch}
         bjReady={bj.ready}
         clanBjs={clanBjs}
+        penalties={penalties}
+        load={load}
         now={Date.now()}
         initialTab={tab}
         initialMatchId={sp.match}

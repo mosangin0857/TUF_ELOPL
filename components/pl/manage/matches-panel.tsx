@@ -67,13 +67,13 @@ function nextNo(matches: PlMatch[], stage: PlStage): string {
   return String(Math.max(0, ...pool.map((m) => m.matchNo ?? 0)) + 1)
 }
 
-/** 라운드가 바뀌면 세트 줄 수 맞추기 (정규 7 · 플레이오프 9, 마지막 ACE는 지정 불가, 정규 라운드는 어웨이 지정 불가) */
+/** 라운드가 바뀌면 세트 줄 수 맞추기 (정규 · 플레이오프 모두 7, 마지막 ACE는 지정 불가, 플레이오프는 지정 세트 없음) */
 function fitSets(list: SetDraft[], stage: PlStage): SetDraft[] {
   const n = setCount(stage)
   return Array.from({ length: n }, (_, i) => {
     const prev: SetDraft = list[i] ?? { setNo: i + 1, kind: "solo", mapName: "" }
     let kind: SetKind = i === n - 1 ? "solo" : prev.kind // ACE는 티어 없는 개인전
-    if (kind === "away" && !isPlayoff(stage)) kind = "solo"
+    if (kind === "away" || (kind === "home" && isPlayoff(stage))) kind = "solo"
     return { ...prev, setNo: i + 1, kind }
   })
 }
@@ -534,7 +534,9 @@ export function MatchesPanel({
               <div className="sc-head">
                 <b>세트 구성</b>
                 <span className="note">
-                  종류 · 맵은 엔트리 공개 때 함께 보여요. N티어 = 그 티어와 아래 티어 선수가 나가는 개인전. {isPlayoff(draft.stage) ? "홈지정 · 어웨이지정" : "홈지정"} 세트는 그 팀 팀장이 지정 티어 개인전(1~4티어 중 선택 · 적은 맵) 또는 생컨(2:2 · 폴리포이드 · 티어합 지정)을 골라요.
+                  종류 · 맵은 엔트리 공개 때 함께 보여요. N티어 = 그 티어와 아래 티어 선수가 나가는 개인전. {isPlayoff(draft.stage)
+                    ? "플레이오프 · 결승은 개인전 4 · 팀플 2 · ACE (지정 세트 없음)."
+                    : "홈지정 세트는 홈 팀장이 지정 티어 개인전(1~4티어 중 선택 · 적은 맵) 또는 생컨(2:2 · 폴리포이드 · 티어합 지정)을 골라요."}
                 </span>
               </div>
               {draft.sets.map((s, i) => {
@@ -543,11 +545,11 @@ export function MatchesPanel({
                   <div key={s.setNo} className={cn("sc-row", ace && "ace", (s.kind === "home" || s.kind === "away") && "pick")}>
                     <b className="sc-no">{ace ? "ACE" : `SET ${s.setNo}`}</b>
                     {ace ? (
-                      <span className="sc-kind-fixed">에결 (개인전 · 티어 없음)</span>
+                      <span className="sc-kind-fixed">에결 (개인전 · 티어는 경기 당일 추첨)</span>
                     ) : (
                       <select className="field" value={s.kind} aria-label={`${s.setNo}세트 종류`} onChange={(e) => patchSet(s.setNo, { kind: e.target.value as SetKind })}>
                         {(Object.keys(SET_KIND_LABEL) as SetKind[])
-                          .filter((k) => k !== "away" || isPlayoff(draft.stage))
+                          .filter((k) => k !== "away" && (k !== "home" || !isPlayoff(draft.stage)))
                           .map((k) => (
                             <option key={k} value={k}>
                               {SET_KIND_LABEL[k]}

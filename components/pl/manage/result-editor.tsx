@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { EyeOff, GripVertical, X } from "lucide-react"
 import { saveMatchResultAction } from "@/app/pl/actions"
-import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
+import { filled, raceModeOf, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { shortWhen } from "@/lib/pl/format"
 import {
   FORMAT_LABEL,
@@ -13,6 +13,7 @@ import {
   SAENGCON_FORMAT,
   SAENGCON_LABEL,
   STATUS_LABEL,
+  tierEligible,
   tierSumOk,
   winTarget,
   type PlMatchStatus,
@@ -335,10 +336,10 @@ export function ResultEditor({
                     const wrong = [
                       ...filled(s.playersA).map((p) => rosterA.find((m) => m.memberId === p.memberId)),
                       ...filled(s.playersB).map((p) => rosterB.find((m) => m.memberId === p.memberId)),
-                    ].filter((m) => m && m.tier !== s.tier)
+                    ].filter((m) => m && !tierEligible(m.tier, s.tier))
                     return wrong.length ? (
                       <span className="tier-warn" title="시즌 중 티어가 바뀐 경우일 수 있어요. 저장은 돼요.">
-                        티어 다름: {wrong.map((m) => `${m!.name}(${m!.tier}티어)`).join(", ")}
+                        상위 티어 출전: {wrong.map((m) => `${m!.name}(${m!.tier}티어)`).join(", ")}
                       </span>
                     ) : null
                   })()}
@@ -372,7 +373,7 @@ export function ResultEditor({
                 {sealedA && !s.isAce ? (
                   <SealCover team={match.teamA.name} />
                 ) : (
-                  <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(i, { playersA: v })} label={`${no}세트 홈`} />
+                  <SideSlots size={size} roster={rosterA} value={s.playersA} onChange={(v) => patch(i, { playersA: v })} label={`${no}세트 홈`} raceMode={s.isAce ? "roster" : raceModeOf(s)} />
                 )}
                 <div className="seg se-winner" role="group" aria-label={`${no}세트 승자`}>
                   <button type="button" className={cn(s.winner === "A" && "on")} disabled={anySealed} onClick={() => patch(i, { winner: "A" })}>
@@ -388,7 +389,7 @@ export function ResultEditor({
                 {sealedB && !s.isAce ? (
                   <SealCover team={match.teamB.name} />
                 ) : (
-                  <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(i, { playersB: v })} label={`${no}세트 원정`} />
+                  <SideSlots size={size} roster={rosterB} value={s.playersB} onChange={(v) => patch(i, { playersB: v })} label={`${no}세트 원정`} raceMode={s.isAce ? "roster" : raceModeOf(s)} />
                 )}
               </div>
             </div>

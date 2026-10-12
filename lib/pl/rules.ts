@@ -97,8 +97,14 @@ export type PickChoice = { kind: "tier"; tier: 1 | 2 | 3 | 4 } | { kind: "saengc
 export const SAENGCON_LABEL = "생컨"
 export const SAENGCON_FORMAT: PlSetFormat = "2v2"
 export const SAENGCON_MAP = "폴리포이드"
-/** 생컨 티어합으로 고를 수 있는 값 (1+1=2 ~ 4+4=8). 출전 두 선수 티어 합이 이 값 이상이어야 한다 */
-export const TIER_SUMS = [2, 3, 4, 5, 6, 7, 8] as const
+/**
+ * 티어합 (룰북 2-4): 출전 선수 티어 합이 정한 값 '이상'이어야 한다. 고를 수 있는 범위는 생컨 · 2:2 3~7, 3:3 6~9.
+ * TIER_SUMS = 생컨에서 고를 수 있는 값
+ */
+export const TIER_SUM_RANGE = { saengcon: [3, 7], "2v2": [3, 7], "3v3": [6, 9] } as const
+export const TIER_SUMS = [3, 4, 5, 6, 7] as const
+/** 홈 지정을 홈 지정 마감까지 고르지 않으면: 생컨 · 티어합 5 (룰북 2-5) */
+export const AUTO_PICK_SUM = 5
 
 /**
  * 세트 종류 — 경기 등록 화면 · 엑셀 양식 공통 (docs/sql/PENDING.md)
@@ -164,9 +170,6 @@ export function isMissingTierColumn(error: { message?: string; code?: string } |
   return !!error && /tier/.test(error.message ?? "") && (error.code === "42703" || error.code === "PGRST204" || /does not exist|could not find/i.test(error.message ?? ""))
 }
 
-/** 지정 세트를 엔트리 마감까지 고르지 않으면 자동으로 정하는 값: 1티어 개인전 (맵은 경기 등록 때 적은 solo_map) */
-export const AUTO_PICK_TIER = 1 as const
-
 /** pl_entry_logs의 action이 팀장 · 부팀장의 엔트리 저장인지 (빈 엔트리 · 지정 세트 선택 · 자동 확정 제외) */
 export function isEntrySubmitLog(action: string): boolean {
   return action.endsWith("저장") && !action.startsWith("빈 엔트리")
@@ -174,6 +177,25 @@ export function isEntrySubmitLog(action: string): boolean {
 
 /** 엔트리 마감 = 공개 2시간 전 */
 export const ENTRY_DEADLINE_HOURS = 2
+/** 홈 지정 마감 = 엔트리 마감 2시간 전 (공개 19시면 15시). 그 전까지는 홈 팀이 다시 고를 수 있다 */
+export const PICK_DEADLINE_HOURS = 2
+
+export function pickDeadline(entryRevealAt: string | null): string | null {
+  const d = entryDeadline(entryRevealAt)
+  return d ? new Date(new Date(d).getTime() - PICK_DEADLINE_HOURS * 60 * 60 * 1000).toISOString() : null
+}
+
+/** 지정 팀이 아직 홈 지정을 고르거나 바꿀 수 있는지 */
+export function pickOpen(status: PlMatchStatus, entryRevealAt: string | null, now = Date.now()): boolean {
+  if (status !== "scheduled" && status !== "postponed") return false
+  const d = pickDeadline(entryRevealAt)
+  return d === null || now < new Date(d).getTime()
+}
+
+/** N티어 세트에는 그 티어와 아래 티어(숫자가 큰 쪽)가 나갈 수 있다 — 1티어 세트는 1~4티어, 4티어 세트는 4티어만 */
+export function tierEligible(memberTier: number, setTier: number | null | undefined): boolean {
+  return !setTier || memberTier >= setTier
+}
 
 export function entryDeadline(entryRevealAt: string | null): string | null {
   if (!entryRevealAt) return null

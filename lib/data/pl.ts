@@ -1,5 +1,5 @@
 import "server-only"
-import { AUTO_PICK_TIER, entryDeadline, FORMAT_SIZE, isCounted, isEntrySubmitLog, isMissingColumn, matchCode, pickSide, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
+import { AUTO_PICK_SUM, FORMAT_SIZE, pickDeadline, SAENGCON_FORMAT, SAENGCON_LABEL, SAENGCON_MAP, isCounted, isEntrySubmitLog, isMissingColumn, matchCode, pickSide, TBD_TEAM_COLOR, matchScore, REGULAR_STAGES, type PlMatchStatus, type PlPickBy, type PlRace, type PlSetFormat, type PlSide, type PlStage, type PlTeamRole } from "@/lib/pl/rules"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { PlMatch, PlPlayerStat, PlSeason, PlSet, PlSetPlayer, PlTeam, PlTeamMember, PlTeamStanding, Race, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
 import { seoulDate, seoulTime } from "@/lib/utils"
@@ -120,18 +120,19 @@ type MatchRow = {
 }
 
 /**
- * 지정 세트 자동 확정: 엔트리 마감이 지났는데 지정 팀이 고르지 않은 세트는 1티어 개인전(경기 등록 때 적은 맵)으로 정한다.
+ * 지정 세트 자동 확정: 홈 지정 마감(엔트리 마감 2시간 전)이 지났는데 지정 팀이 고르지 않은 세트는 생컨 · 티어합 5로 정한다 (룰북 2-5).
+ * 두 팀 모두 그 뒤 엔트리 마감까지 그 세트 선수를 낼 수 있다.
  * 따로 예약 작업 없이 경기를 읽을 때 처리하고(한 번 정해지면 picked_at이 있어 다시 안 함), 제출 기록에 '자동'으로 남긴다.
  */
 async function settleExpiredPicks(rows: MatchRow[], now = Date.now()) {
   const supabase = createServiceClient()
   for (const m of rows) {
     if (m.status !== "scheduled" && m.status !== "postponed") continue
-    const deadline = entryDeadline(m.entry_reveal_at)
+    const deadline = pickDeadline(m.entry_reveal_at)
     if (!deadline || new Date(deadline).getTime() > now) continue
     for (const s of m.pl_sets) {
       if (!s.pick_by || s.picked_at || s.is_ace) continue
-      const update = { format: "1v1" as PlSetFormat, map_name: s.solo_map ?? s.map_name, tier: AUTO_PICK_TIER, tier_sum: null, picked_at: deadline }
+      const update = { format: SAENGCON_FORMAT, map_name: SAENGCON_MAP, tier: null, tier_sum: AUTO_PICK_SUM, picked_at: deadline }
       const { data } = await supabase.from("pl_sets").update(update).eq("id", s.id).is("picked_at", null).select("id")
       if (!data?.length) continue
       Object.assign(s, update)
@@ -140,7 +141,7 @@ async function settleExpiredPicks(rows: MatchRow[], now = Date.now()) {
         side: pickSide(s.pick_by),
         member_id: null,
         actor_name: "자동",
-        action: `${s.set_no}세트 마감까지 선택 없음 → ${AUTO_PICK_TIER}티어 개인전${update.map_name ? ` · ${update.map_name}` : ""} 자동 확정`,
+        action: `${s.set_no}세트 홈 지정 마감까지 선택 없음 → ${SAENGCON_LABEL} · ${SAENGCON_MAP} · 티어합 ${AUTO_PICK_SUM} 자동 확정`,
       })
     }
   }

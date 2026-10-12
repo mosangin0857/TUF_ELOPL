@@ -4,20 +4,23 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { pickSetFormatAction, submitEntryAction } from "@/app/pl/actions"
 import { usePlAction } from "@/components/pl/manage/use-pl-action"
-import { filled, SideSlots, type SlotValue } from "@/components/pl/side-slots"
+import { PickBox } from "@/components/pl/pick-box"
+import { filled, raceModeOf, SideSlots, type SlotValue } from "@/components/pl/side-slots"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
 import {
-  AUTO_PICK_TIER,
+  AUTO_PICK_SUM,
   FORMAT_SIZE,
+  isPlayoff,
   PICK_LABEL,
+  pickDeadline,
+  pickOpen,
   SAENGCON_LABEL,
   SAENGCON_MAP,
   setKindLabel,
   SIDE_LABEL,
-  TIER_SUMS,
+  tierEligible,
   tierSumOk,
-  type PickChoice,
   type PlSide,
 } from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlTeamMember } from "@/lib/types"
@@ -51,79 +54,6 @@ function Deadline({ deadline, open }: { deadline: string | null; open: boolean }
       엔트리 마감 <b className="num">{shortWhen(deadline)}</b>
       {open && left !== null && left > 0 ? ` · ${remain(left)} 남음` : " · 마감됨"}
     </span>
-  )
-}
-
-/** 생컨 티어합 예시: 합이 딱 그 값인 조합 (1+4, 2+3 …) */
-function sumExamples(sum: number) {
-  const out: string[] = []
-  for (let a = 1; a <= 4; a++) for (let b = a; b <= 4; b++) if (a + b === sum) out.push(`${a}+${b}`)
-  return out.join(", ")
-}
-
-/** 지정 세트: 우리 팀이 고를 차례 — 지정 티어 개인전 또는 생컨 (2026 시즌 공지) */
-function PickBox({ set, pickLabel, busy, onPick }: { set: PlSet; pickLabel: string; busy: boolean; onPick: (c: PickChoice) => void }) {
-  const [kind, setKind] = useState<PickChoice["kind"]>("tier")
-  const [tier, setTier] = useState<1 | 2 | 3 | 4>(1)
-  const [sum, setSum] = useState(5)
-  const [confirm, setConfirm] = useState(false)
-  const choice: PickChoice = kind === "tier" ? { kind, tier } : { kind, tierSum: sum }
-  const text = kind === "tier" ? `${tier}티어 개인전${set.soloMap ? ` · ${set.soloMap}` : ""}` : `${SAENGCON_LABEL} 2:2 · ${SAENGCON_MAP} · 티어합 ${sum} 이상`
-  const pick = <T,>(fn: (v: T) => void) => (v: T) => {
-    fn(v)
-    setConfirm(false)
-  }
-  return (
-    <div className="pick-box">
-      <p className="note">
-        <b>{pickLabel}</b> 세트예요. 지정 티어 개인전이나 {SAENGCON_LABEL} 중에서 고르면 상대 팀에도 바로 보이고, 한 번 고르면 바꿀 수 없어요.
-        {` 엔트리 마감까지 고르지 않으면 ${AUTO_PICK_TIER}티어 개인전${set.soloMap ? `(${set.soloMap})` : ""}으로 자동으로 정해져요.`}
-      </p>
-      <div className="seg" role="group" aria-label={`${set.setNo}세트 종류`}>
-        <button type="button" className={cn(kind === "tier" && "on")} aria-pressed={kind === "tier"} onClick={() => pick(setKind)("tier")}>
-          지정 티어 개인전{set.soloMap ? ` · ${set.soloMap}` : ""}
-        </button>
-        <button type="button" className={cn(kind === "saengcon" && "on")} aria-pressed={kind === "saengcon"} onClick={() => pick(setKind)("saengcon")}>
-          {SAENGCON_LABEL} 2:2 · {SAENGCON_MAP}
-        </button>
-      </div>
-      {kind === "tier" ? (
-        <div className="seg" role="group" aria-label={`${set.setNo}세트 티어`}>
-          {([1, 2, 3, 4] as const).map((t) => (
-            <button key={t} type="button" className={cn(tier === t && "on")} aria-pressed={tier === t} onClick={() => pick(setTier)(t)}>
-              {t}티어
-            </button>
-          ))}
-        </div>
-      ) : (
-        <label className="pick-sum">
-          <span>티어합</span>
-          <select className="field" value={sum} onChange={(e) => pick(setSum)(Number(e.target.value))} aria-label={`${set.setNo}세트 생컨 티어합`}>
-            {TIER_SUMS.map((n) => (
-              <option key={n} value={n}>
-                {n} 이상
-              </option>
-            ))}
-          </select>
-          <small className="note">두 선수 티어 합이 {sum} 이상 (가장 센 조합: {sumExamples(sum)})</small>
-        </label>
-      )}
-      {confirm ? (
-        <span className="inline-flex flex-wrap items-center gap-2">
-          {text}(으)로 확정할까요?
-          <button type="button" className="mini-btn on" disabled={busy} onClick={() => onPick(choice)}>
-            확정
-          </button>
-          <button type="button" className="mini-btn" onClick={() => setConfirm(false)}>
-            취소
-          </button>
-        </span>
-      ) : (
-        <button type="button" className="mini-btn on" disabled={busy} onClick={() => setConfirm(true)}>
-          이걸로 정하기
-        </button>
-      )}
-    </div>
   )
 }
 
@@ -176,13 +106,26 @@ export function EntryForm({
   )
 
   const waiting = (s: PlSet) => !!s.pickBy && !s.pickedAt // 형식이 아직 안 정해진 지정 세트
-  /** 티어 세트는 그 티어 선수만 고를 수 있다 (서버에서도 검사) */
-  const rosterFor = (s: PlSet) => (s.tier ? roster.filter((m) => m.tier === s.tier) : roster)
+  /** 티어 세트는 그 티어와 아래 티어 선수만 고를 수 있다 (서버에서도 검사) */
+  const rosterFor = (s: PlSet) => (s.tier ? roster.filter((m) => tierEligible(m.tier, s.tier)) : roster)
+  const pickWin = pickOpen(match.status, match.entryRevealAt)
+  const pickDue = pickDeadline(match.entryRevealAt)
   const slotsOf = (s: PlSet) => (waiting(s) ? [] : filled(draft[s.setNo] ?? []).slice(0, FORMAT_SIZE[s.format]))
   const doneCount = entrySets.filter((s) => !waiting(s) && slotsOf(s).length === FORMAT_SIZE[s.format]).length
 
   const counts: Record<string, number> = {}
   for (const s of entrySets) for (const p of slotsOf(s)) counts[p.memberId] = (counts[p.memberId] ?? 0) + 1
+
+  // 중복 출전 (룰북 2-7): 개인전 + 개인전 불가, 플레이오프는 ACE 말고 모든 중복 불가 (서버에서도 검사)
+  const playoff = isPlayoff(match.stage)
+  const dupes = (() => {
+    const by = new Map<string, number[]>()
+    for (const s of entrySets) {
+      if (!playoff && s.format !== "1v1") continue
+      for (const p of slotsOf(s)) by.set(p.memberId, [...(by.get(p.memberId) ?? []), s.setNo])
+    }
+    return [...by].filter(([, nos]) => nos.length > 1).map(([id, nos]) => `${roster.find((r) => r.memberId === id)?.name ?? "선수"} (${nos.join(" · ")}세트)`)
+  })()
 
   const change = (setNo: number, v: SlotValue[]) => {
     setSaved(null)
@@ -288,25 +231,46 @@ export function EntryForm({
                     {!waiting(s) && s.mapName && <span className="map">{s.mapName}</span>}
                   </div>
                   <div className="es-body">
+                    {s.pickBy && mine && pickWin && open && (
+                      <PickBox
+                        set={s}
+                        title={
+                          s.pickedAt ? undefined : (
+                            <>
+                              <b>{PICK_LABEL[s.pickBy]}</b> 세트예요. 고르면 상대 팀에도 바로 보여요. 홈 지정 마감({pickDue ? shortWhen(pickDue) : "엔트리 마감 2시간 전"})까지는 바꿀 수 있고,
+                              그때까지 고르지 않으면 {SAENGCON_LABEL} · 티어합 {AUTO_PICK_SUM}으로 자동으로 정해져요.
+                            </>
+                          )
+                        }
+                        deadline={pickDue}
+                        busy={busy}
+                        onPick={(c) => run(() => pickSetFormatAction(match.id, s.setNo, c), () => setSaved(`${s.setNo}세트를 정했어요.`))}
+                      />
+                    )}
                     {waiting(s) ? (
-                      mine && open ? (
-                        <PickBox
-                          set={s}
-                          pickLabel={PICK_LABEL[s.pickBy!]}
-                          busy={busy}
-                          onPick={(c) => run(() => pickSetFormatAction(match.id, s.setNo, c), () => setSaved(`${s.setNo}세트를 정했어요.`))}
-                        />
-                      ) : (
+                      !(mine && pickWin && open) && (
                         <p className="note">
-                          {mine ? "마감이 지나 고를 수 없어요." : `${opp.name}(${PICK_LABEL[s.pickBy!]})가 고르는 중이에요. 정해지면 선수를 낼 수 있어요.`}
+                          {mine ? "홈 지정 마감이 지나 고를 수 없어요." : `${opp.name}(${PICK_LABEL[s.pickBy!]})가 고르는 중이에요. 정해지면 선수를 낼 수 있어요.`}
                           {` 지정 티어 개인전이면 ${s.soloMap ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 2:2 · ${SAENGCON_MAP}.`}
-                          {` 마감까지 안 고르면 ${AUTO_PICK_TIER}티어 개인전으로 자동 확정.`}
+                          {` 홈 지정 마감${pickDue ? `(${shortWhen(pickDue)})` : ""}까지 안 고르면 ${SAENGCON_LABEL} · 티어합 ${AUTO_PICK_SUM}으로 자동 확정.`}
                         </p>
                       )
                     ) : (
                       <>
-                        <SideSlots size={size} roster={rosterFor(s)} value={draft[s.setNo] ?? []} onChange={(v) => change(s.setNo, v)} disabled={!open} label={`${s.setNo}세트`} />
-                        {s.tier && rosterFor(s).length === 0 && <p className="note">선수단에 {s.tier}티어 선수가 없어요. 관리자에게 알려 주세요.</p>}
+                        {s.pickBy && !mine && pickWin && (
+                          <p className="note">상대 팀이 홈 지정 마감{pickDue ? `(${shortWhen(pickDue)})` : ""}까지 형식을 바꿀 수 있어요. 바뀌면 이 세트 선수는 비워져요.</p>
+                        )}
+                        <SideSlots
+                          size={size}
+                          roster={rosterFor(s)}
+                          value={draft[s.setNo] ?? []}
+                          onChange={(v) => change(s.setNo, v)}
+                          disabled={!open}
+                          label={`${s.setNo}세트`}
+                          raceMode={raceModeOf(s)}
+                        />
+                        {s.tier && rosterFor(s).length === 0 && <p className="note">선수단에 {s.tier}티어 이하 선수가 없어요. 관리자에게 알려 주세요.</p>}
+                        {s.tier && <p className="note">{s.tier}티어 세트 — {s.tier}티어와 그 아래 티어 선수가 나갈 수 있어요.</p>}
                         {s.tierSum && <TierSumHint tierSum={s.tierSum} tiers={slotsOf(s).map((p) => roster.find((r) => r.memberId === p.memberId)?.tier ?? 4)} size={size} />}
                       </>
                     )}
@@ -398,7 +362,12 @@ export function EntryForm({
             <Link className="btn-ghost" href="/pl">
               일정으로
             </Link>
-            <button type="button" className="btn" disabled={busy} onClick={submit}>
+            {dupes.length > 0 && (
+              <span className="eb-msg form-error" role="alert">
+                {playoff ? "플레이오프는 ACE 말고 중복 출전 불가" : "개인전 중복 출전 불가"}: {dupes.join(", ")}
+              </span>
+            )}
+            <button type="button" className="btn" disabled={busy || dupes.length > 0} onClick={submit}>
               {busy ? "저장 중…" : "엔트리 제출"}
             </button>
           </div>

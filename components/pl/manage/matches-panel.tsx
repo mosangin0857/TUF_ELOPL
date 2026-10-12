@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
-import { createMatchAction, deleteMatchAction, resetPickAction, updateMatchAction, type MatchInput } from "@/app/pl/actions"
+import { adminPickSetAction, createMatchAction, deleteMatchAction, resetPickAction, updateMatchAction, type MatchInput } from "@/app/pl/actions"
+import { PickBox } from "@/components/pl/pick-box"
 import { Empty } from "@/components/ui/empty"
 import { Crest } from "@/components/ui/race"
 import { fromLocalInput, shortWhen, toLocalInput } from "@/lib/pl/format"
@@ -23,7 +24,7 @@ import {
   type PlStage,
   type SetKind,
 } from "@/lib/pl/rules"
-import type { PlMatch, PlTeam } from "@/lib/types"
+import type { PlMatch, PlSet, PlTeam } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { BulkImport } from "./bulk-import"
 import { entryCount, isLate, ManageSide } from "./manage-side"
@@ -38,6 +39,8 @@ type SetDraft = {
   mapName: string
   /** 이미 지정 팀이 고른 세트 (수정 화면에서만) */
   picked?: { setId: string; label: string }
+  /** 수정 화면: 저장된 세트 (관리자 대신 지정용) */
+  src?: PlSet
 }
 type Draft = {
   id: string | null
@@ -81,6 +84,7 @@ function draftSets(m: PlMatch): SetDraft[] {
     kind: s.isAce ? "solo" : toSetKind(s.pickBy ? "1v1" : s.format, s.pickBy ? null : s.tier, s.pickBy),
     mapName: (s.pickBy ? s.soloMap : s.mapName) ?? "",
     picked: s.pickBy && s.pickedAt ? { setId: s.id, label: `${setKindLabel(s.format, s.tier, s.tierSum)}${s.mapName ? ` · ${s.mapName}` : ""}` } : undefined,
+    src: s,
   }))
 }
 
@@ -530,7 +534,7 @@ export function MatchesPanel({
               <div className="sc-head">
                 <b>세트 구성</b>
                 <span className="note">
-                  종류 · 맵은 엔트리 공개 때 함께 보여요. N티어 = 그 티어 선수만 나가는 개인전. {isPlayoff(draft.stage) ? "홈지정 · 어웨이지정" : "홈지정"} 세트는 그 팀 팀장이 지정 티어 개인전(1~4티어 중 선택 · 적은 맵) 또는 생컨(2:2 · 폴리포이드 · 티어합 지정)을 골라요.
+                  종류 · 맵은 엔트리 공개 때 함께 보여요. N티어 = 그 티어와 아래 티어 선수가 나가는 개인전. {isPlayoff(draft.stage) ? "홈지정 · 어웨이지정" : "홈지정"} 세트는 그 팀 팀장이 지정 티어 개인전(1~4티어 중 선택 · 적은 맵) 또는 생컨(2:2 · 폴리포이드 · 티어합 지정)을 골라요.
                 </span>
               </div>
               {draft.sets.map((s, i) => {
@@ -559,6 +563,18 @@ export function MatchesPanel({
                       placeholder={s.kind === "home" || s.kind === "away" ? "개인전을 고르면 쓰는 맵" : "맵"}
                       aria-label={`${s.setNo}세트 맵`}
                     />
+                    {s.src?.pickBy && (s.kind === "home" || s.kind === "away") && (
+                      <details className="sc-admin-pick">
+                        <summary>{s.picked ? "관리자가 바꾸기" : "관리자가 대신 정하기"}</summary>
+                        <PickBox
+                          set={s.src}
+                          compact
+                          title="홈 지정 마감 뒤 양 팀 합의로 바꿀 때 등. 형식이 바뀌면 이 세트 양 팀 선수는 비워져요."
+                          busy={form.busy}
+                          onPick={(c) => form.run(() => adminPickSetAction(s.src!.id, c))}
+                        />
+                      </details>
+                    )}
                     {s.picked && (
                       <span className="sc-picked">
                         {s.kind === "away" ? "원정" : "홈"} 선택: <b>{s.picked.label}</b>

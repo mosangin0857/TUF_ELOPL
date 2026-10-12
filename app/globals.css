@@ -5329,3 +5329,35 @@
     align-self: center;
   }
 }
+
+/* 홈 지정 다시 고르기 · 관리자 대신 지정 · 생컨 종족 */
+@layer components {
+  .pick-current {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .pick-box.compact {
+    gap: 8px;
+    padding: 10px 0 2px;
+  }
+  .sc-admin-pick {
+    grid-column: 1 / -1;
+    font-size: 13px;
+  }
+  .sc-admin-pick > summary {
+    cursor: pointer;
+    color: var(--accent-text);
+    font-weight: 600;
+    width: max-content;
+  }
+  .slot.shared-race {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slot.shared-race .note {
+    flex: 1;
+    text-align: right;
+  }
+}

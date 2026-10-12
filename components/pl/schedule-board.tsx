@@ -180,8 +180,7 @@ export function ScheduleBoard({
                               <>
                                 {s.tier ? `${s.tier}티어` : "개인전"}
                                 <small>
-                                  {" "}
-                                  · {s.tier ? "추첨" : "티어 당일 추첨"}
+                                  {s.tier ? " · 추첨" : ""}
                                   {s.mapName ? ` · ${s.mapName}` : ""}
                                 </small>
                               </>

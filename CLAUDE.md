@@ -12,7 +12,7 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-12 · 캡처 버튼 공통 컴포넌트 (PL 담당, `TUFPL_MSI`에만)**
+**2026-10-12 · 캡처 버튼 공통 컴포넌트 (PL 담당)**
 - `components/ui/capture-button.tsx`: 가장 가까운 `[data-capture]` 영역을 PNG로 → 미리보기 · 이미지 복사 · 저장. 캡처에서 뺄 요소는 `data-capture-hide`. 의존성 `modern-screenshot`(MIT, 동적 import). ELO 쪽 화면에도 같은 방식으로 붙일 수 있음.
 
 **2026-10-11 · 프로리그 엔트리 가리개 · 지정 세트 자동 확정 (PL 담당)**

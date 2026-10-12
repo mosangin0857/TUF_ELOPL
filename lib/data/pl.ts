@@ -292,15 +292,17 @@ export function sortMatches(list: PlMatch[]) {
 }
 
 /**
- * 팀 순위 — 정규 라운드(1R~3R) 종료 · 몰수 경기만.
- * 승점(승 × winPoints) → 세트 득실 → 승자승(동률 팀끼리 경기의 승점 → 그 경기들의 세트 득실) → 다득 세트 → 이름
+ * 팀 순위 — 정규 라운드(1R~3R) 종료 · 몰수 경기만. 룰북 6-1 (운영진 확정 2026-10-12):
+ * 승점(승 × winPoints) → 승리수 → 패널티(적을수록 위) → 세트 득실 → 승자승(동률 팀끼리 경기의 승점 → 그 경기들의 세트 득실) → 다득 세트 → 이름
+ * 승자승까지 같으면 룰북은 슈퍼에이스결정전 (사이트는 다득 세트 · 이름 순으로 임시 표시).
+ * penalties: 팀 id → 패널티 점수 (몰수 · 기권 · 부전패 · 최소/최대 경기 위반 등)
  */
-export function computeStandings(teams: PlTeam[], matches: PlMatch[], winPoints: number): PlTeamStanding[] {
+export function computeStandings(teams: PlTeam[], matches: PlMatch[], winPoints: number, penalties: Record<string, number> = {}): PlTeamStanding[] {
   const counted = matches.filter((m) => REGULAR_STAGES.includes(m.stage) && isCounted(m.status) && m.winner)
   const rows = new Map<string, PlTeamStanding>(
     teams.map((t) => [
       t.id,
-      { teamId: t.id, team: t.name, color: t.color, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, points: 0, form: [] },
+      { teamId: t.id, team: t.name, color: t.color, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, points: 0, penalty: penalties[t.id] ?? 0, form: [] },
     ]),
   )
 
@@ -324,13 +326,14 @@ export function computeStandings(teams: PlTeam[], matches: PlMatch[], winPoints:
   for (const r of rows.values()) r.form = r.form.slice(-5)
 
   const diff = (r: PlTeamStanding) => r.setsWon - r.setsLost
-  const base = [...rows.values()].sort((x, y) => y.points - x.points || diff(y) - diff(x))
+  const cmp = (x: PlTeamStanding, y: PlTeamStanding) => y.points - x.points || y.wins - x.wins || x.penalty - y.penalty || diff(y) - diff(x)
+  const base = [...rows.values()].sort(cmp)
 
-  // 승점 · 세트 득실이 같은 팀끼리 승자승
+  // 승점 · 승리수 · 패널티 · 세트 득실이 모두 같은 팀끼리 승자승
   const result: PlTeamStanding[] = []
   for (let i = 0; i < base.length; ) {
     let j = i + 1
-    while (j < base.length && base[j].points === base[i].points && diff(base[j]) === diff(base[i])) j++
+    while (j < base.length && cmp(base[i], base[j]) === 0) j++
     const group = base.slice(i, j)
     if (group.length > 1) {
       const ids = new Set(group.map((g) => g.teamId))

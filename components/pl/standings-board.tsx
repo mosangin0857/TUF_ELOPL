@@ -63,10 +63,11 @@ function TeamTable({ standings, winPoints }: { standings: PlTeamStanding[]; winP
               <th>순위</th>
               <th>팀</th>
               <th className="hide-sm">경기</th>
+              <th>승점</th>
               <th>승</th>
               <th>패</th>
+              <th title="몰수 · 기권 · 부전패 · 최소/최대 경기 위반">패널티</th>
               <th>세트 득실</th>
-              <th>승점</th>
               <th className="hide-sm">최근 5경기</th>
             </tr>
           </thead>
@@ -87,10 +88,11 @@ function TeamTable({ standings, winPoints }: { standings: PlTeamStanding[]; winP
                     </span>
                   </td>
                   <td className="hide-sm">{s.played}</td>
+                  <td className="pts">{s.points}</td>
                   <td>{s.wins}</td>
                   <td>{s.losses}</td>
+                  <td className={s.penalty > 0 ? "up" : undefined}>{s.penalty}</td>
                   <td className={diff > 0 ? "down" : diff < 0 ? "up" : undefined}>{diff > 0 ? `+${diff}` : diff}</td>
-                  <td className="pts">{s.points}</td>
                   <td className="hide-sm">
                     <span className="form">
                       {s.form.map((c, j) => (
@@ -108,7 +110,7 @@ function TeamTable({ standings, winPoints }: { standings: PlTeamStanding[]; winP
       </div>
       <div className="po-note">
         <i />
-        1~4위 플레이오프 진출 · 점선 아래는 진출권 밖 · 최근 5경기는 오른쪽이 가장 최근 · 승 {winPoints}점, 동률이면 세트 득실 → 승자승
+        1~4위 플레이오프 진출 · 점선 아래는 진출권 밖 · 최근 5경기는 오른쪽이 가장 최근 · 승 {winPoints}점 · 순위: 승점 → 승리수 → 패널티(적을수록 위) → 세트 득실 → 승자승
       </div>
     </>
   )

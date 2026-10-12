@@ -259,6 +259,8 @@ export interface PlTeamStanding extends TeamStanding {
   teamId: string
   played: number
   points: number
+  /** 패널티 점수 (순위 3번째 기준, 적을수록 위) */
+  penalty: number
 }
 
 /** 프로리그 › 순위 › 개인 순위 (개인전 · 팀플 합산) */

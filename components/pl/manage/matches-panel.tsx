@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
 import { adminPickSetAction, createMatchAction, deleteMatchAction, resetPickAction, updateMatchAction, type MatchInput } from "@/app/pl/actions"
+import { usePlEloSend } from "@/components/elo/pl-elo-send"
 import { PickBox } from "@/components/pl/pick-box"
 import { Empty } from "@/components/ui/empty"
 import { Crest } from "@/components/ui/race"
@@ -157,6 +158,8 @@ export function MatchesPanel({
 
   const resultRef = useRef<HTMLDialogElement>(null)
   const [resultId, setResultId] = useState<string | null>(null)
+  // 'DB전송': 세트 결과 → ELO 보드 전적 (ELO 담당 — components/elo/pl-elo-send.tsx)
+  const eloSend = usePlEloSend()
   const resultMatch = matches.find((m) => m.id === resultId) ?? null
 
   const openResult = (id: string) => {
@@ -342,7 +345,7 @@ export function MatchesPanel({
           <Empty hint="경기를 등록할 때 세트별 형식 · 맵 · 홈/어웨이 지정을 함께 정해요.">등록된 경기가 없어요.</Empty>
         ) : (
           <div className="table-wrap">
-            <table className="t">
+            <table className="t pl-match-table">
               <thead>
                 <tr>
                   <th>경기</th>
@@ -406,7 +409,7 @@ export function MatchesPanel({
                           </button>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-2">
+                        <span className="pl-act">
                           <button
                             type="button"
                             className="mini-btn on"
@@ -415,6 +418,15 @@ export function MatchesPanel({
                             title={m.teamA.tbd || m.teamB.tbd ? "팀이 정해지면 입력할 수 있어요 (수정에서 팀 선택)" : undefined}
                           >
                             결과 입력
+                          </button>
+                          <button
+                            type="button"
+                            className="mini-btn"
+                            onClick={() => eloSend.open(m.id)}
+                            disabled={m.teamA.tbd || m.teamB.tbd}
+                            title="입력된 세트 결과를 ELO 보드 전적으로 보내요"
+                          >
+                            DB전송
                           </button>
                           <button type="button" className="mini-btn" onClick={() => openForm(m)}>
                             수정
@@ -641,6 +653,8 @@ export function MatchesPanel({
           />
         )}
       </dialog>
+
+      {eloSend.dialog}
     </>
   )
 }

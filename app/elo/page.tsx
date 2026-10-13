@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Search } from "lucide-react"
+import { RegisterMatchButton } from "@/components/elo/register-match"
 import { DbError } from "@/components/ui/db-error"
 import { Pagination } from "@/components/ui/pagination"
 import { RaceBadge } from "@/components/ui/race"
@@ -91,6 +92,7 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
                 초기화
               </Link>
             )}
+            <RegisterMatchButton />
           </div>
           <datalist id="member-names">
             {members.map((m) => (

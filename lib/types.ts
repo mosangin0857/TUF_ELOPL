@@ -10,6 +10,8 @@ export interface Member {
   name: string
   race: Race
   tier: Tier
+  /** members.is_active (조회한 곳에서만 채움, false = 탈퇴) */
+  active?: boolean
 }
 
 /** members.role — member: 일반 클랜원 / admin: 관리자 / super: 최고 관리자(관리자 임명 · 해제) */

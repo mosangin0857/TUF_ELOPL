@@ -1,26 +1,33 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Search } from "lucide-react"
+import { FunnelX, Search } from "lucide-react"
+import { MatchFilterPanel, PlayerInput, SearchForm } from "@/components/elo/dashboard-search"
+import { MatchAdminCell, MatchAdminHead, MatchAdminProvider } from "@/components/elo/match-admin"
 import { RegisterMatchButton } from "@/components/elo/register-match"
+import { ShareLinkButton } from "@/components/elo/share-link"
+import { CaptureButton } from "@/components/ui/capture-button"
 import { DbError } from "@/components/ui/db-error"
 import { Pagination } from "@/components/ui/pagination"
 import { RaceBadge } from "@/components/ui/race"
 import {
   fetchDashboardStats,
+  fetchFilterOptions,
   fetchMatches,
   fetchMembers,
   fetchRecord,
   type DashboardStats,
+  type FilterOptions,
 } from "@/lib/data/elo-dashboard"
+import { activeFilterCount, filterQuery, parseMatchFilters } from "@/lib/elo/filters"
 import type { MatchRow, Member } from "@/lib/types"
-import { cn, koMonthDay, seoulTime, signed } from "@/lib/utils"
+import { cn, koMonthDay, seoulDate, seoulTime, signed } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "ELO 대시보드" }
 
 const PAGE_SIZE = 20
 
-type SearchParams = Promise<{ p1?: string; p2?: string; page?: string }>
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 function findMember(members: Member[], query: string): Member | null {
   const key = query.trim().toLowerCase()
@@ -28,11 +35,22 @@ function findMember(members: Member[], query: string): Member | null {
   return members.find((m) => m.name.toLowerCase() === key) ?? null
 }
 
+/** 주소 만들기 (빈 값 제외) */
+function href(query: Record<string, string>) {
+  const sp = new URLSearchParams(query)
+  return sp.size ? `/elo?${sp}` : "/elo"
+}
+
 export default async function EloDashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams
-  const q1 = sp.p1?.trim() ?? ""
-  const q2 = sp.p2?.trim() ?? ""
-  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1)
+  const one = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k])?.trim() ?? ""
+  const q1 = one("p1")
+  const q2 = one("p2")
+  const page = Math.max(1, Number.parseInt(one("page") || "1", 10) || 1)
+  const filters = parseMatchFilters(sp)
+  const filterCount = activeFilterCount(filters)
+  const playerQuery = { ...(q1 ? { p1: q1 } : {}), ...(q2 ? { p2: q2 } : {}) }
+  const keepQuery = { ...playerQuery, ...filterQuery(filters) }
 
   let members: Member[]
   try {
@@ -48,11 +66,13 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
   let stats: DashboardStats
   let list: { rows: MatchRow[]; total: number }
   let record: { wins: number; losses: number } | null
+  let options: FilterOptions
   try {
-    ;[stats, list, record] = await Promise.all([
+    ;[stats, list, record, options] = await Promise.all([
       fetchDashboardStats(),
-      fetchMatches({ members, p1Id: m1?.id, p2Id: m2?.id, page, pageSize: PAGE_SIZE }),
-      m1 ? fetchRecord(m1.id, m2?.id) : Promise.resolve(null),
+      fetchMatches({ members, p1Id: m1?.id, p2Id: m2?.id, filters, page, pageSize: PAGE_SIZE }),
+      m1 ? fetchRecord({ members, p1Id: m1.id, p2Id: m2?.id, filters }) : Promise.resolve(null),
+      fetchFilterOptions(),
     ])
   } catch (error) {
     return <DbError error={error} />
@@ -60,9 +80,7 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
 
   const totalPages = Math.max(1, Math.ceil(list.total / PAGE_SIZE))
   if (page > totalPages) {
-    const sp = new URLSearchParams({ ...(q1 ? { p1: q1 } : {}), ...(q2 ? { p2: q2 } : {}) })
-    if (totalPages > 1) sp.set("page", String(totalPages))
-    redirect(sp.size ? `/elo?${sp}` : "/elo")
+    redirect(href({ ...keepQuery, ...(totalPages > 1 ? { page: String(totalPages) } : {}) }))
   }
   const title = m1 && m2 ? `${m1.name} vs ${m2.name} 맞대결` : m1 ? `${m1.name} 최근 전적` : "최근 전적"
 
@@ -78,28 +96,27 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
           </div>
           <span className="note">선수 1만 입력하면 그 선수의 전체 전적</span>
         </div>
-        <form className="vsbox" action="/elo" method="get" role="search">
-          <input className="field" name="p1" list="member-names" defaultValue={q1} placeholder="선수 1" aria-label="선수 1" autoComplete="off" />
-          <span className="vs-big">VS</span>
-          <input className="field" name="p2" list="member-names" defaultValue={q2} placeholder="선수 2 (선택)" aria-label="선수 2" autoComplete="off" />
-          <div className="flex gap-2">
-            <button className="btn" type="submit">
-              <Search size={15} strokeWidth={2.2} aria-hidden />
-              전적 검색
-            </button>
-            {(q1 || q2) && (
-              <Link className="btn-ghost" href="/elo">
-                초기화
-              </Link>
-            )}
-            <RegisterMatchButton />
+        {/* 주소가 바뀌면(검색 · 초기화) 입력칸을 그 주소 값으로 다시 그림 */}
+        <SearchForm key={href(keepQuery)} action="/elo" className="search-form">
+          <div className="vsbox">
+            <PlayerInput id="search-p1" name="p1" placeholder="선수 1" defaultValue={q1} players={members} />
+            <span className="vs-big">VS</span>
+            <PlayerInput id="search-p2" name="p2" placeholder="선수 2 (선택)" defaultValue={q2} players={members} />
+            <div className="vs-actions">
+              <button className="btn" type="submit">
+                <Search size={15} strokeWidth={2.2} aria-hidden />
+                전적 검색
+              </button>
+              {(q1 || q2 || filterCount > 0) && (
+                <Link className="btn-ghost" href="/elo" scroll={false}>
+                  초기화
+                </Link>
+              )}
+              <RegisterMatchButton />
+            </div>
           </div>
-          <datalist id="member-names">
-            {members.map((m) => (
-              <option key={m.id} value={m.name} />
-            ))}
-          </datalist>
-        </form>
+          <MatchFilterPanel filters={filters} options={options} activeCount={filterCount} />
+        </SearchForm>
 
         {missing.length > 0 && (
           <p className="notice-inline">
@@ -109,24 +126,40 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
         )}
         {!q1 && q2 && <p className="notice-inline">선수 1을 먼저 입력해 주세요.</p>}
 
-        {m1 && record && <RecordSummary m1={m1} m2={m2} record={record} />}
+        {m1 && record && <RecordSummary m1={m1} m2={m2} record={record} filtered={filterCount > 0} />}
       </section>
 
-      <section className="panel">
+      <section className="panel" data-capture>
         <div className="panel-head">
           <div>
             <div className="eyebrow">RECENT</div>
             <h2>{title}</h2>
           </div>
-          <span className="note">총 {list.total.toLocaleString()}경기</span>
+          <div className="rc-side">
+            <div className="cap-tools">
+              <CaptureButton name={`ELO_${title}${filterCount > 0 ? "_필터" : ""}_${seoulDate()}`} />
+              <ShareLinkButton />
+              {filterCount > 0 ? (
+                <Link className="cap-btn" href={href(playerQuery)} scroll={false} aria-label="필터 초기화" title="필터 초기화" data-capture-hide>
+                  <FunnelX size={15} aria-hidden />
+                </Link>
+              ) : (
+                <span className="cap-btn is-off" aria-disabled="true" title="걸린 필터가 없어요" data-capture-hide>
+                  <FunnelX size={15} aria-hidden />
+                </span>
+              )}
+            </div>
+            <span className="note">
+              {filterCount > 0 && <b className="text-ink-2">필터 {filterCount}개 · </b>}총 {list.total.toLocaleString()}경기
+            </span>
+          </div>
         </div>
-        <MatchTable rows={list.rows} focusId={m1?.id} />
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          basePath="/elo"
-          query={{ ...(q1 ? { p1: q1 } : {}), ...(q2 ? { p2: q2 } : {}) }}
-        />
+        <MatchAdminProvider>
+          <MatchTable rows={list.rows} focusId={m1?.id} offset={(page - 1) * PAGE_SIZE} />
+        </MatchAdminProvider>
+        <div data-capture-hide>
+          <Pagination page={page} totalPages={totalPages} basePath="/elo" query={keepQuery} />
+        </div>
       </section>
     </>
   )
@@ -170,10 +203,13 @@ function RecordSummary({
   m1,
   m2,
   record,
+  filtered,
 }: {
   m1: Member
   m2: Member | null
   record: { wins: number; losses: number }
+  /** 필터가 걸려 있으면 그 조건 안의 전적 */
+  filtered: boolean
 }) {
   const games = record.wins + record.losses
   const rate = games ? Math.round((record.wins / games) * 1000) / 10 : 0
@@ -194,9 +230,13 @@ function RecordSummary({
           {m2.name}
         </span>
       ) : (
-        <span className="rate">통산 {games.toLocaleString()}경기</span>
+        <span className="rate">
+          {filtered ? "필터 조건" : "통산"} {games.toLocaleString()}경기
+        </span>
       )}
-      <span className="rate">승률 {rate}%</span>
+      <span className="rate">
+        {m2 && filtered ? "필터 조건 · " : ""}승률 {rate}%
+      </span>
       {games > 0 && (
         <span className="bar" aria-hidden>
           <i style={{ width: `${rate}%` }} />
@@ -211,30 +251,38 @@ function Delta({ value }: { value: number | null }) {
   return <span className={cn("delta", value > 0 ? "up" : "down")}>{signed(value)}</span>
 }
 
-function MatchTable({ rows, focusId }: { rows: MatchRow[]; focusId?: string }) {
+/** 최근 전적 표. 번호 = 최신 경기부터 1 (페이지를 넘겨도 이어짐), 선수 1은 오른쪽 정렬해 vs가 두 선수 가운데 오게 */
+function MatchTable({ rows, focusId, offset }: { rows: MatchRow[]; focusId?: string; offset: number }) {
   if (!rows.length) return <p className="notice-inline">경기 기록이 없습니다.</p>
   return (
     <div className="table-wrap">
-      <table className="t">
+      <table className="t match-table">
         <thead>
           <tr>
+            <th className="rn" aria-label="번호">
+              #
+            </th>
             <th>일시</th>
             {focusId && <th>결과</th>}
-            <th>선수 1</th>
-            <th />
+            <th className="p1">선수 1</th>
+            <th className="vs" />
             <th>선수 2</th>
             <th>맵</th>
             <th>유형</th>
-            <th className="n">ELO 변동</th>
+            <th className="n" title="선수 1 기준">
+              ELO 변동
+            </th>
+            <MatchAdminHead />
           </tr>
         </thead>
         <tbody>
-          {rows.map((m) => {
+          {rows.map((m, i) => {
             const p1Win = m.winnerId === m.player1Id
             const focusWin = focusId ? m.winnerId === focusId : false
             const [, mm, dd] = m.playedDate.split("-")
             return (
               <tr key={m.id}>
+                <td className="rn num">{(offset + i + 1).toLocaleString()}</td>
                 <td className="num">
                   {mm}.{dd}
                   {m.playedAt && <span className="text-ink-3"> {seoulTime(m.playedAt)}</span>}
@@ -244,7 +292,7 @@ function MatchTable({ rows, focusId }: { rows: MatchRow[]; focusId?: string }) {
                     <span className={cn("pill", focusWin ? "win-pill" : "lose-pill")}>{focusWin ? "승" : "패"}</span>
                   </td>
                 )}
-                <td>
+                <td className="p1">
                   <Link className={cn("p-cell", p1Win ? "win" : "lose")} href={`/elo?p1=${encodeURIComponent(m.player1?.name ?? "")}`}>
                     <RaceBadge race={m.player1?.race} />
                     {m.player1?.name ?? "알 수 없음"}
@@ -260,8 +308,9 @@ function MatchTable({ rows, focusId }: { rows: MatchRow[]; focusId?: string }) {
                 <td>{m.map}</td>
                 <td>{m.matchType && <span className="pill">{m.matchType}</span>}</td>
                 <td className="n">
-                  <Delta value={m.player1EloDelta} /> <span className="text-ink-3">/</span> <Delta value={m.player2EloDelta} />
+                  <Delta value={m.player1EloDelta} />
                 </td>
+                <MatchAdminCell matchId={m.id} label={`${m.player1?.name ?? "?"} vs ${m.player2?.name ?? "?"}`} />
               </tr>
             )
           })}

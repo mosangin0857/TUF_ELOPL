@@ -25,6 +25,27 @@ export interface RegisterOptions {
   matchTypes: string[]
 }
 
+/* ---------- ELO 보드 › 최근 전적 수정 · 삭제 ---------- */
+
+/** current = 진행 중 시즌(ELO · 승패에 반영됨) · ended = 끝난 시즌 · none = 시즌 밖 — 끝난 시즌 · 시즌 밖은 기록만 고치고 지운다 */
+export type MatchScope = "current" | "ended" | "none"
+
+export interface MatchEditInfo {
+  id: string
+  player1: { id: string; name: string; race: Race | null }
+  player2: { id: string; name: string; race: Race | null }
+  winnerId: string
+  mapName: string
+  matchType: string
+  playedDate: string
+  player1Delta: number | null
+  player2Delta: number | null
+  scope: MatchScope
+  seasonName: string | null
+  /** 프로리그 DB전송으로 들어온 전적이면 '1R-1M · 4세트' (PL 관리에서 다시 보내면 PL 결과대로 돌아감) */
+  fromPl: string | null
+}
+
 export interface RegisteredMatch {
   winner: string
   loser: string

@@ -17,7 +17,7 @@ const RECENT_MATCH_COUNT = 5
 type Db = ReturnType<typeof createReadClient>
 
 /** 1,000행 제한을 넘는 조회를 나눠서 모두 가져온다 */
-async function fetchAll<T>(build: (db: Db) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }> }): Promise<T[]> {
+export async function fetchAll<T>(build: (db: Db) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }> }): Promise<T[]> {
   const db = createReadClient()
   const rows: T[] = []
   for (let from = 0; ; from += PAGE) {

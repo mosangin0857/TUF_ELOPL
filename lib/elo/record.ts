@@ -1,7 +1,7 @@
 import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { computeEloMatch, isTeamPlayMap } from "@/lib/elo"
-import type { EloRecordKind } from "@/lib/elo/types"
+import type { EloRecordKind, MatchScope } from "@/lib/elo/types"
 
 /**
  * ELO 전적 기록 · 되돌리기 — 전적 등록(app/elo/actions.ts) · 시트 연동(app/api/sheets-sync) · 프로리그 DB전송(lib/elo/pl-send.ts) 공통.
@@ -157,13 +157,9 @@ export async function undoEloMatch(db: Db, matchId: string): Promise<Result<null
   if (!row) return { ok: true, data: null }
 
   const seasonId = row.season_id as string | null
-  let current = false
-  if (seasonId) {
-    const { data: s } = await db.from("seasons").select("end_date").eq("id", seasonId).maybeSingle()
-    current = !s || s.end_date === null
-  }
+  const { scope } = await matchScope(db, seasonId)
 
-  if (!current) {
+  if (scope !== "current") {
     const { error: delErr } = await db.from("matches").delete().eq("id", matchId)
     return delErr ? { ok: false, error: `전적을 지우지 못했어요: ${delErr.message}` } : { ok: true, data: null }
   }
@@ -201,6 +197,165 @@ export async function undoEloMatch(db: Db, matchId: string): Promise<Result<null
 
   await refreshStreaks(db, [p1, p2], seasonId!)
   return { ok: true, data: null }
+}
+
+/** 전적이 어느 시즌 기록인지 (진행 중 시즌 · 끝난 시즌 · 시즌 밖) */
+export async function matchScope(db: Db, seasonId: string | null): Promise<{ scope: MatchScope; seasonName: string | null }> {
+  if (!seasonId) return { scope: "none", seasonName: null }
+  const { data: s } = await db.from("seasons").select("name, end_date").eq("id", seasonId).maybeSingle()
+  return { scope: !s || s.end_date === null ? "current" : "ended", seasonName: (s?.name as string | undefined) ?? null }
+}
+
+export interface EloMatchEdit {
+  winnerIsPlayer1: boolean
+  mapName: string
+  matchType: string
+  playedDate: string
+}
+
+/**
+ * 전적 수정 (기존 TuFelo updateMatchAction과 같음) — 선수는 그대로, 승자 · 맵 · 경기 유형 · 날짜만.
+ *   진행 중 시즌 경기: 예전 ELO 변동 · 승패를 되돌린 뒤 새 값으로 다시 계산해 반영 (실패하면 되돌리기 전으로 복구)
+ *   끝난 시즌 · 시즌 밖 경기: 기록만 고친다 (선수 ELO · 승패는 그대로)
+ * 시즌 경기 ↔ 시즌 밖 경기가 바뀌는 날짜 변경은 막는다 (삭제 후 다시 등록).
+ */
+export async function updateEloMatch(
+  db: Db,
+  matchId: string,
+  edit: EloMatchEdit,
+): Promise<Result<{ scope: MatchScope; player1: { name: string; delta: number | null }; player2: { name: string; delta: number | null } }>> {
+  const { data: row, error } = await db
+    .from("matches")
+    .select("id, player1_id, player2_id, winner_id, map_name, match_type, played_date, season_id, player1_elo_before, player2_elo_before, player1_elo_delta, player2_elo_delta")
+    .eq("id", matchId)
+    .maybeSingle()
+  if (error) return { ok: false, error: `전적을 불러오지 못했어요: ${error.message}` }
+  if (!row) return { ok: false, error: "전적을 찾지 못했어요. 이미 지워졌을 수 있어요." }
+
+  const p1 = row.player1_id as string
+  const p2 = row.player2_id as string
+  const { data: names } = await db.from("members").select("id, name, elo").in("id", [p1, p2])
+  const nameOf = (id: string) => (names?.find((m) => m.id === id)?.name as string | undefined) ?? "?"
+  const eloOf = (id: string) => (names?.find((m) => m.id === id)?.elo as number | undefined) ?? 0
+
+  const seasonId = row.season_id as string | null
+  const { scope } = await matchScope(db, seasonId)
+  const active = await fetchActiveSeason(db)
+  const dateChanged = edit.playedDate !== row.played_date
+  if (dateChanged && scope === "current" && active && edit.playedDate < active.startDate) {
+    return { ok: false, error: `시즌 시작일(${active.startDate})보다 이전 날짜로는 바꿀 수 없어요. 삭제한 뒤 다시 등록해 주세요.` }
+  }
+  if (dateChanged && scope !== "current" && active && edit.playedDate >= active.startDate) {
+    return { ok: false, error: "시즌 경기가 아닌 전적을 진행 중인 시즌 날짜로 옮길 수 없어요. 삭제한 뒤 다시 등록해 주세요." }
+  }
+
+  const newWinner = edit.winnerIsPlayer1 ? p1 : p2
+  const fields = { winner_id: newWinner, map_name: edit.mapName, match_type: edit.matchType, played_date: edit.playedDate }
+
+  // 끝난 시즌 · 시즌 밖: 기록만
+  if (scope !== "current") {
+    const { error: updErr } = await db.from("matches").update(fields).eq("id", matchId)
+    if (updErr) return { ok: false, error: `전적을 고치지 못했어요: ${updErr.message}` }
+    return {
+      ok: true,
+      data: { scope, player1: { name: nameOf(p1), delta: row.player1_elo_delta as number | null }, player2: { name: nameOf(p2), delta: row.player2_elo_delta as number | null } },
+    }
+  }
+
+  // 진행 중 시즌: 되돌리기 → 다시 계산 → 반영
+  const oldWinner = row.winner_id as string
+  const oldLoser = oldWinner === p1 ? p2 : p1
+  const oldWinnerElo = eloOf(oldWinner)
+  const oldLoserElo = eloOf(oldLoser)
+  const restore = async () => {
+    await db.rpc("apply_season_match_member_updates", {
+      p_winner_id: oldWinner,
+      p_loser_id: oldLoser,
+      p_winner_elo: oldWinnerElo,
+      p_loser_elo: oldLoserElo,
+      p_winner_streak: 0,
+      p_loser_streak: 0,
+    })
+    await refreshStreaks(db, [p1, p2], seasonId!)
+  }
+
+  const { error: undoErr } = await db.rpc("apply_season_match_undo_stats", {
+    p_player1_id: p1,
+    p_player2_id: p2,
+    p_winner_id: oldWinner,
+    p_delta1: Number(row.player1_elo_delta ?? 0),
+    p_delta2: Number(row.player2_elo_delta ?? 0),
+  })
+  if (undoErr) return { ok: false, error: `예전 ELO · 승패를 되돌리지 못했어요: ${undoErr.message}` }
+
+  const { data: base } = await db.from("members").select("id, elo").in("id", [p1, p2])
+  const base1 = base?.find((m) => m.id === p1)?.elo as number | undefined
+  const base2 = base?.find((m) => m.id === p2)?.elo as number | undefined
+  if (base1 === undefined || base2 === undefined) {
+    await restore()
+    return { ok: false, error: "선수 정보를 불러오지 못해 원래대로 되돌렸어요." }
+  }
+
+  const teamPlay = isTeamPlayMap(edit.mapName)
+  const p1Won = newWinner === p1
+  let d1: number | null = null
+  let d2: number | null = null
+  let newWinnerElo = 0
+  let newLoserElo = 0
+  if (!teamPlay) {
+    const r = computeEloMatch(p1Won ? base1 : base2, p1Won ? base2 : base1)
+    newWinnerElo = r.newWinnerElo
+    newLoserElo = r.newLoserElo
+    d1 = p1Won ? r.winnerDelta : r.loserDelta
+    d2 = p1Won ? r.loserDelta : r.winnerDelta
+  }
+
+  const { error: updErr } = await db
+    .from("matches")
+    .update({
+      ...fields,
+      player1_elo_before: teamPlay ? null : base1,
+      player2_elo_before: teamPlay ? null : base2,
+      player1_elo_delta: d1,
+      player2_elo_delta: d2,
+    })
+    .eq("id", matchId)
+  if (updErr) {
+    await restore()
+    return { ok: false, error: `전적을 고치지 못해 원래대로 되돌렸어요: ${updErr.message}` }
+  }
+
+  const newLoser = p1Won ? p2 : p1
+  const { error: applyErr } = teamPlay
+    ? await db.rpc("apply_season_match_member_stats_only", { p_winner_id: newWinner, p_loser_id: newLoser, p_winner_streak: 0, p_loser_streak: 0 })
+    : await db.rpc("apply_season_match_member_updates", {
+        p_winner_id: newWinner,
+        p_loser_id: newLoser,
+        p_winner_elo: newWinnerElo,
+        p_loser_elo: newLoserElo,
+        p_winner_streak: 0,
+        p_loser_streak: 0,
+      })
+  if (applyErr) {
+    await db
+      .from("matches")
+      .update({
+        winner_id: oldWinner,
+        map_name: row.map_name,
+        match_type: row.match_type,
+        played_date: row.played_date,
+        player1_elo_before: row.player1_elo_before,
+        player2_elo_before: row.player2_elo_before,
+        player1_elo_delta: row.player1_elo_delta,
+        player2_elo_delta: row.player2_elo_delta,
+      })
+      .eq("id", matchId)
+    await restore()
+    return { ok: false, error: `새 ELO를 반영하지 못해 원래대로 되돌렸어요: ${applyErr.message}` }
+  }
+
+  await refreshStreaks(db, [p1, p2], seasonId!)
+  return { ok: true, data: { scope, player1: { name: nameOf(p1), delta: d1 }, player2: { name: nameOf(p2), delta: d2 } } }
 }
 
 async function refreshStreaks(db: Db, memberIds: string[], seasonId: string) {

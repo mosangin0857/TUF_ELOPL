@@ -12,6 +12,28 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-14 · 모바일 규칙 고정 + ELO 대시보드 검색 필터 · 선수 검색 목록 (ELO 담당)**
+- **아래 "모바일 규칙"을 새로 추가 — 앞으로 모든 화면 · 기능에 적용.** 관리자 로그인 상태로 390px 점검하다 찾은 2건도 고침:
+  ELO 최근 전적 관리 열의 `sr-only`가 표 밖으로 튀어나가던 것(→ `aria-label`), **PL 관리 `.pl-split` 1100px 이하 `1fr` → `minmax(0, 1fr)`**(PL 관리가 모바일에서 707px로 넓어지던 것).
+- 선수 전적 검색: 선수 칸의 `<datalist>`(브라우저 기본 목록)를 `PlayerInput`(입력칸 아래 같은 폭, 8줄쯤 + 스크롤, 앞글자 같은 선수 먼저 · 탈퇴는 뒤로)으로 교체.
+- **필터** (기존 TuFelo와 같은 의미): 기간 · 맵(일부 일치) · 시즌(시즌 + TFPL 시즌1 · 2 = 경기 유형 TFPL_S1 · S2) · 경기 유형 · 티어(**선수 1의 현재 티어**). 여러 개 고르면 '그중 하나'.
+  주소에 남는다(`?from=&to=&map=&season=&type=&tier=`, 페이지 번호 링크는 쉼표로 묶음) → 공유 · 새로고침 · 페이지 이동해도 유지. 칩 · 맵은 고르면 바로 적용, 날짜는 칸을 벗어나거나 Enter.
+  최근 전적 목록 · 선수 승패 요약 모두 필터 조건 안에서 계산. 필터 선택지(경기 유형 · 맵)는 전적 전체에서 뽑아 1시간 캐시(`fetchFilterOptions`).
+  파일: `lib/elo/filters.ts`(주소 ↔ 필터), `lib/data/elo-dashboard.ts`(`applyFilters`), `components/elo/dashboard-search.tsx`(`SearchForm` · `PlayerInput` · `MatchFilterPanel`).
+- `Member`에 `active?`(members.is_active, 조회한 곳에서만) 추가 · `lib/data/elo-ranking.ts`의 `fetchAll` export.
+- 최근 전적 표: **행 번호**(최신 경기 1부터, 페이지를 넘겨도 이어짐) · 선수 1 오른쪽 정렬로 **vs가 두 선수 가운데** · 오른쪽 위 아이콘 **[캡처](프로리그와 같은 `CaptureButton`) [공유](지금 주소 복사, `components/elo/share-link.tsx`) [필터 초기화]**.
+  캡처 이미지에서는 아이콘 · 관리 칸 · 페이지 번호가 빠진다(`data-capture-hide`). 필터 초기화는 선수는 두고 필터만 지움(필터가 없으면 흐리게).
+- 페이지 번호(`components/ui/pagination.tsx`) 560px 이하: '1 / 19 페이지'가 끊기지 않고 번호는 다음 줄로.
+
+**2026-10-14 · ELO 최근 전적 수정 · 삭제 + ELO 변동 한 칸 (ELO 담당)**
+- ELO 보드 › 대시보드 최근 전적: 행 끝에 **수정 · 삭제 아이콘** (관리자로 로그인했을 때만 보임 — `useAuth`, 서버 액션에서도 `getMemberManager()`로 다시 확인).
+  `components/elo/match-admin.tsx`(`MatchAdminProvider` · `MatchAdminHead` · `MatchAdminCell`, 팝업 하나를 모든 행이 같이 씀), 액션 `loadEloMatchAction` · `updateEloMatchAction` · `deleteEloMatchAction`.
+- 규칙은 기존 TuFelo와 같다 (`lib/elo/record.ts`의 `updateEloMatch` · `undoEloMatch`): 선수는 못 바꾸고 승자 · 맵 · 경기 유형 · 날짜만.
+  진행 중 시즌 경기는 예전 ELO · 승패를 되돌린 뒤 다시 계산, 끝난 시즌 · 시즌 밖 경기는 기록만. 시즌 경기 ↔ 시즌 밖이 바뀌는 날짜 변경은 막음(삭제 후 다시 등록).
+  프로리그 DB전송으로 들어온 전적은 팝업에 경고(`pl_elo_links`) — 여기서 고쳐도 DB전송을 다시 누르면 PL 결과대로 돌아감.
+- 최근 전적 'ELO 변동'은 **선수 1 기준 한 값**만 표시.
+- 입력하면서 고르는 칸 `Suggest` · `FormRow`는 `components/elo/suggest.tsx`로 분리 (전적 등록 · 수정 공통).
+
 **2026-10-13 · ELO 쓰기 — 전적 등록 · 시트 연동 이전 · 프로리그 DB전송 (ELO 담당)**
 - **ELO 기록 엔진 `lib/elo/`**: `index.ts`(시작 ELO · ELO 계산 · 팀플 맵 판단, 화면 공통) · `record.ts`(서버 전용 `recordEloMatch` · `undoEloMatch`) · `types.ts` · `pl-send.ts`.
   규칙은 기존 TuFelo와 같다: 진행 중 시즌 + 시작일 이후 날짜면 시즌 경기 → 개인전은 ELO(K=32) · 승패 · 연승, **맵 이름에 '팀플'이면 승패 · 연승만**, 시즌 밖이면 기록만. 선수 반영은 기존 RPC 그대로(`apply_season_match_*`).
@@ -184,7 +206,7 @@
 | --- | --- | --- |
 | 레이아웃 (사이드바 · 상단 바 · 영역 탭 · 라이트/다크) | 완료 | `components/shell/`, `lib/nav.ts` |
 | 클랜하우스(대문) | 모든 섹션 실제 데이터 (선수 검색 · 공지 · 다가오는 경기 · 라이브 BJ · 팀 순위 · ELO TOP 8 · 지난 주 ELO 흐름 · 팀 소개) | `app/page.tsx`, `components/home/` |
-| ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 최근 전적 · 관리자 전적 등록) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts`, `components/elo/register-match.tsx` |
+| ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 필터(기간 · 맵 · 시즌 · 경기 유형 · 티어) · 최근 전적 · 관리자 전적 등록 · 수정 · 삭제) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts`, `components/elo/register-match.tsx`, `components/elo/match-admin.tsx` |
 | ELO 쓰기 (전적 등록 · 시트 연동 · 프로리그 DB전송) | **운영 중** — 시트 연동 새 사이트로 전환(2026-10-14), DB전송은 1R-1M부터 사용 | `lib/elo/`, `app/elo/actions.ts`, `app/api/sheets-sync/route.ts`, `components/elo/` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
@@ -210,7 +232,8 @@
 - [x] 프로리그 세트 → ELO 전적 연동 (PL 관리 'DB전송') — `docs/sql/012_pl_elo_links.sql` 실행 완료
 - [x] ELO 전적 등록 (대시보드, 관리자) · 시트 연동 `/api/sheets-sync` 이전
 - [x] 시트 연동 전환 (2026-10-14): Vercel `SHEETS_SYNC_SECRET` 등록 · 재배포 → Apps Script `API_URL`을 `https://tufelopl.vercel.app/api/sheets-sync`로 (저장 + 배포 관리에서 새 버전)
-- [ ] ELO 전적 수정 · 삭제 화면 (엔진 `undoEloMatch`는 있음) · ELO 시즌 관리 (기존 사이트 폐쇄 전)
+- [x] ELO 전적 수정 · 삭제 (대시보드 최근 전적 행 끝, 관리자)
+- [ ] ELO 시즌 관리 — 시즌 시작 · 종료(`season_rankings` 저장) (기존 사이트 폐쇄 전)
 - [ ] 코드에서 `TODO(` 로 검색하면 연결 지점이 나온다
 
 ## 스택 · 명령
@@ -227,7 +250,7 @@ app/
   page.tsx                  클랜하우스(대문)
   elo/page.tsx              ELO 대시보드 (실제 DB)
   elo/ranking/page.tsx      ELO 랭킹 (실제 DB)
-  elo/actions.ts            ELO 쓰기 서버 액션: 전적 등록 · 프로리그 DB전송(미리보기 · 전송)
+  elo/actions.ts            ELO 쓰기 서버 액션: 전적 등록 · 수정 · 삭제 · 프로리그 DB전송(미리보기 · 전송)
   api/sheets-sync/route.ts  구글 시트(Apps Script) → ELO 전적 등록 (Bearer SHEETS_SYNC_SECRET)
   members/page.tsx          클랜원 명단 (실제 DB)
   members/actions.ts        클랜원 서버 액션: 추가 · 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제
@@ -250,7 +273,7 @@ components/home/            대문 섹션 (RailSection · useRail 가로 슬라�
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
 components/pl/              일정(schedule-board) · 순위(standings-board) · 엔트리(entry-form) · 세트 선수 선택(side-slots) · manage/(PL 관리 패널들)
-components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 전적 등록 팝업 (register-match.tsx) · PL DB전송 팝업 (pl-elo-send.tsx)
+components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
 lib/nav.ts                  사이드바 메뉴 + 영역별 탭 (탭 추가는 여기서)
@@ -271,7 +294,7 @@ docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
 lib/supabase/service.ts     쓰기 · 관리자 조회용 클라이언트 (service_role 키, 서버 전용)
 lib/admin-log.ts            admin_logs 기록
-lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 되돌리기, 서버 전용) · pl-send.ts(프로리그 → ELO) · types.ts
+lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 수정 · 되돌리기, 서버 전용) · pl-send.ts(프로리그 → ELO) · filters.ts(대시보드 필터 ↔ 주소) · types.ts
 ```
 
 ## DB 규칙
@@ -379,6 +402,19 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 - 로컬에서 `npm run dev`로 확인 → `npm run build` 통과 → 커밋 → `main` 푸시.
 - 커밋 작성자 이메일은 GitHub noreply 주소 사용 (레포 공개라 실제 이메일 노출 방지): `git config user.email "<id>+<login>@users.noreply.github.com"`
 - 커밋 메시지는 한국어, `feat:` / `fix:` / `chore:` 접두사.
+
+## 모바일 규칙 (사이트 전체 · 모든 작업 필수)
+**모든 화면 · 기능은 모바일에서 잘리거나 겹치지 않고 읽기 편해야 완료**다. ELO · 프로리그 · 개인리그 · 공통 메뉴 · 관리자 화면 · 팝업 모두 해당.
+- **확인 폭**: 모바일 **390px**(브라우저 개발자 도구 기기 모드, 예: iPhone 12/13 390×844)과 데스크톱 1440px 이상 둘 다. 관리자 전용 버튼 · 열이 있는 화면은 **관리자로 로그인한 상태에서도** 확인.
+- **페이지 전체 가로 스크롤 금지** (모바일에서 화면이 축소돼 보이면 실패). 개발자 도구 콘솔에서 `document.documentElement.scrollWidth`가 화면 폭(390)과 같아야 한다.
+- 넓은 표는 `.table-wrap` 안에 두고 **표 안에서만** 가로 스크롤. 덜 중요한 열은 `.hide-sm`로 숨기는 것도 고려.
+  - ⚠️ `.table-wrap` 안에 `position: absolute` 요소(예: Tailwind `sr-only`)를 넣지 말 것 — 스크롤 영역에 갇히지 않고 표 끝 위치로 튀어나가 페이지가 넓어진다 (2026-10-14 ELO 최근 전적 관리 열에서 발생 → `aria-label`로 대체).
+- grid · flex로 나눈 칸 안에 표 · 긴 내용이 들어가면 칸을 `minmax(0, 1fr)` / `min-width: 0`으로 — 그냥 `1fr`은 안쪽 표 폭만큼 늘어난다 (2026-10-14 PL 관리 `.pl-split` 모바일에서 발생).
+- 버튼 · 칩 · 태그 묶음은 `flex-wrap: wrap`. 고정 폭(`width: 300px` 등) 대신 `max-width` + `width: 100%`.
+- 팝업은 `.modal`(폭 `min(…, calc(100vw - 32px))`)을 쓰고, 내용이 길면 팝업 안에서 스크롤.
+- 글자는 12px 이상, 누르는 버튼 · 칩은 높이 32px 이상.
+- 브레이크포인트는 기존 것에 맞춘다: `@media (max-width: 1100px)` · `880px`(사이드바 접힘 · 한 칸 배치) · `560px`(라벨을 위로, 칸 폭 100%).
+- 입력하면서 고르는 목록(`components/elo/suggest.tsx`의 `Suggest`)은 입력칸 바로 아래 같은 폭으로 뜬다 — 브라우저 기본 `<datalist>`는 모바일 · 브라우저마다 모양이 달라 쓰지 않는다.
 
 ## 디자인 규칙
 - 색은 `globals.css`의 토큰만 사용 (`--accent` 골드, `--side-bg` 블랙, `--ink*`, `--surface*`). 팀 색 · BJ 아바타 색처럼 데이터에 딸린 색만 예외.

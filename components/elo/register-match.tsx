@@ -1,19 +1,19 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { ArrowUpDown, Plus, X } from "lucide-react"
 import { loadRegisterOptionsAction, registerEloMatchAction } from "@/app/elo/actions"
+import { FormRow, Suggest, textItems } from "@/components/elo/suggest"
 import { useAuth } from "@/components/shell/auth-provider"
 import { RaceBadge } from "@/components/ui/race"
 import { isTeamPlayMap, MAP_NAME_PATTERN } from "@/lib/elo"
 import type { RegisteredMatch, RegisterOptions } from "@/lib/elo/types"
-import { cn, seoulDate, signed } from "@/lib/utils"
+import { seoulDate, signed } from "@/lib/utils"
 
 type Pick = { id: string; text: string }
 const EMPTY: Pick = { id: "", text: "" }
-const MAX_ITEMS = 10
 
 /**
  * ELO 보드 › 대시보드 '전적 등록' (관리자만). 기존 TuFelo 새 전적 등록 팝업과 같은 구성:
@@ -90,12 +90,7 @@ export function RegisterMatchButton() {
     if (!q) return []
     return members
       .filter((m) => m.id !== excludeId && m.name.toLowerCase().startsWith(q) && m.name.toLowerCase() !== q)
-      .slice(0, MAX_ITEMS)
       .map((m) => ({ key: m.id, label: m.name, before: <RaceBadge race={m.race} />, after: `${m.tier}티어` }))
-  }
-  const textItems = (list: string[], text: string) => {
-    const q = text.trim().toLowerCase()
-    return (q ? list.filter((v) => v.toLowerCase().includes(q) && v !== text.trim()) : list).slice(0, MAX_ITEMS).map((v) => ({ key: v, label: v }))
   }
   const pickMember = (set: (p: Pick) => void) => (id: string) => set({ id, text: members.find((m) => m.id === id)?.name ?? "" })
   const typeMember = (set: (p: Pick) => void) => (text: string) => set({ id: "", text })
@@ -125,7 +120,7 @@ export function RegisterMatchButton() {
         {loadError && <p className="form-error">{loadError}</p>}
 
         <div className="form-grid">
-          <Row label="선수 1 (승자)" htmlFor="reg-p1">
+          <FormRow label="선수 1 (승자)" htmlFor="reg-p1">
             <Suggest
               id="reg-p1"
               value={p1.text}
@@ -135,8 +130,8 @@ export function RegisterMatchButton() {
               onPick={pickMember(setP1)}
               chosen={!!resolve(p1)}
             />
-          </Row>
-          <Row label="선수 2" htmlFor="reg-p2">
+          </FormRow>
+          <FormRow label="선수 2" htmlFor="reg-p2">
             <Suggest
               id="reg-p2"
               value={p2.text}
@@ -146,7 +141,7 @@ export function RegisterMatchButton() {
               onPick={pickMember(setP2)}
               chosen={!!resolve(p2)}
             />
-          </Row>
+          </FormRow>
           <div>
             <button
               type="button"
@@ -159,11 +154,11 @@ export function RegisterMatchButton() {
               <ArrowUpDown size={14} aria-hidden /> 선수 바꾸기
             </button>
           </div>
-          <Row label="맵" hint="띄어쓰기 없이 풀네임 한글로만" htmlFor="reg-map">
+          <FormRow label="맵" hint="띄어쓰기 없이 풀네임 한글로만" htmlFor="reg-map">
             <Suggest id="reg-map" value={map} placeholder="예: 서킷브레이커" items={textItems(options?.maps ?? [], map)} onInput={setMap} onPick={setMap} />
             {isTeamPlayMap(map) && <span className="note">팀플 맵이라 ELO는 그대로 두고 승패만 반영돼요.</span>}
-          </Row>
-          <Row label="경기 유형" hint="같은 경기 유형은 이름을 통일해 주세요" htmlFor="reg-type">
+          </FormRow>
+          <FormRow label="경기 유형" hint="같은 경기 유형은 이름을 통일해 주세요" htmlFor="reg-type">
             <Suggest
               id="reg-type"
               value={matchType}
@@ -172,8 +167,8 @@ export function RegisterMatchButton() {
               onInput={setMatchType}
               onPick={setMatchType}
             />
-          </Row>
-          <Row label="날짜" htmlFor="reg-date">
+          </FormRow>
+          <FormRow label="날짜" htmlFor="reg-date">
             <input
               id="reg-date"
               className="field"
@@ -183,7 +178,7 @@ export function RegisterMatchButton() {
               onChange={(e) => setDate(e.target.value && e.target.value <= today ? e.target.value : today)}
             />
             <span className="note">서울 기준 오늘까지만 고를 수 있어요</span>
-          </Row>
+          </FormRow>
         </div>
 
         {error && (
@@ -231,106 +226,5 @@ function SavedLine({ saved: { match: m, count } }: { saved: { match: RegisteredM
     <p className="reg-ok" role="status">
       등록했어요{count > 1 ? ` (${count}건째)` : ""} · <b>{m.winner}</b> 승 vs {m.loser} · {how}
     </p>
-  )
-}
-
-function Row({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor: string; children: ReactNode }) {
-  return (
-    <div className="form-row">
-      <label htmlFor={htmlFor}>
-        {label}
-        {hint && <span className="reg-hint">{hint}</span>}
-      </label>
-      {children}
-    </div>
-  )
-}
-
-/** 입력하면서 고르는 칸 (↑ ↓ 이동 · Enter 선택 · Esc 닫기) */
-function Suggest({
-  id,
-  value,
-  placeholder,
-  items,
-  onInput,
-  onPick,
-  chosen,
-}: {
-  id: string
-  value: string
-  placeholder: string
-  items: { key: string; label: string; before?: ReactNode; after?: string }[]
-  onInput: (value: string) => void
-  onPick: (key: string) => void
-  /** 클랜원 칸: 목록의 클랜원으로 정해졌는지 */
-  chosen?: boolean
-}) {
-  const listId = useId()
-  const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(-1)
-  const shown = open && items.length > 0
-
-  const pick = (key: string) => {
-    onPick(key)
-    setOpen(false)
-    setActive(-1)
-  }
-
-  return (
-    <div
-      className="reg-suggest"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
-      }}
-    >
-      <input
-        id={id}
-        className={cn("field", chosen && "chosen")}
-        value={value}
-        placeholder={placeholder}
-        autoComplete="off"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={shown}
-        aria-controls={listId}
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          onInput(e.target.value)
-          setOpen(true)
-          setActive(-1)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault()
-            setOpen(true)
-            setActive((i) => Math.min(i + 1, items.length - 1))
-          } else if (e.key === "ArrowUp" && shown) {
-            e.preventDefault()
-            setActive((i) => Math.max(i - 1, 0))
-          } else if (e.key === "Enter" && shown && active >= 0 && items[active]) {
-            e.preventDefault()
-            pick(items[active].key)
-          } else if (e.key === "Escape" && shown) {
-            e.preventDefault() // 팝업은 닫지 않고 목록만 닫기
-            setOpen(false)
-          } else if (e.key === "Tab") {
-            setOpen(false)
-          }
-        }}
-      />
-      {shown && (
-        <ul id={listId} className="reg-suggest-list" role="listbox">
-          {items.map((it, i) => (
-            <li key={it.key} role="option" aria-selected={i === active}>
-              <button type="button" tabIndex={-1} className={cn(i === active && "on")} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(it.key)}>
-                {it.before}
-                {it.label}
-                {it.after && <span className="sub">{it.after}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   )
 }

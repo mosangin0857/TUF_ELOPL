@@ -17,11 +17,13 @@
   규칙은 기존 TuFelo와 같다: 진행 중 시즌 + 시작일 이후 날짜면 시즌 경기 → 개인전은 ELO(K=32) · 승패 · 연승, **맵 이름에 '팀플'이면 승패 · 연승만**, 시즌 밖이면 기록만. 선수 반영은 기존 RPC 그대로(`apply_season_match_*`).
   `lib/elo.ts`는 `lib/elo/index.ts`로 옮김 (`@/lib/elo` import는 그대로 동작).
 - **운영 경로는 그대로 시트**: 런처 → 구글 시트 → Apps Script → **`POST /api/sheets-sync`** (`app/api/sheets-sync/route.ts`). 기존 tufelo 주소와 요청 · 응답이 같아서 Apps Script는 **주소만** 새 사이트로 바꾸면 된다. 새 환경변수 `SHEETS_SYNC_SECRET`(기존 tufelo Vercel과 같은 값).
+  **2026-10-14 전환 완료**: Vercel 등록 · 재배포 → 토큰 확인(빈 요청에 400) → Apps Script `API_URL` 변경 + 새 버전 배포. 되돌릴 때는 `API_URL`을 `https://tufelo.vercel.app/api/sheets-sync`로 바꾸고 새 버전 배포(기존 사이트가 닫히기 전까지만 가능).
 - **ELO 보드 › 대시보드 '전적 등록'**(관리자만, 보조용): 기존 새 전적 등록 팝업과 같은 구성 (`components/elo/register-match.tsx`, `registerEloMatchAction`). 검색 form 안이라 팝업은 body로 portal.
 - **PL 관리 › 경기 'DB전송'**(결과 입력 · 수정 사이): 세트 결과 → ELO 전적. 미리보기 → 전송 → 결과 요약 팝업 (`components/elo/pl-elo-send.tsx`의 `usePlEloSend()`, `lib/elo/pl-send.ts`). 규칙은 아래 "프로리그 → ELO 전적 연동".
   **DB 변경 SQL: `docs/sql/012_pl_elo_links.sql`** (2026-10-13 실행 완료) — 새 테이블 `pl_elo_links`(경기 · 세트 · 슬롯 → `matches.id`). 실행 전에는 DB전송이 'SQL 실행 필요' 안내만.
 - PL 관리 › 경기 목록 표는 관리 버튼이 4개라 칸 여백을 줄임(`.pl-match-table`, `.pl-act`) — 좁은 화면에서는 버튼이 오른쪽 정렬 두 줄.
 - PL 쪽 코드 변경은 `components/pl/manage/matches-panel.tsx`에 버튼 + 팝업 한 줄씩만.
+- 운영 확인(2026-10-14): 1R-1M DB전송 9줄 — 개인전 4줄 ELO ±16, `헌터(팀플)` 3줄 · `폴리포이드(팀플)` 2줄 승패만, 시즌4. 안 치른 ACE는 빠짐.
 
 **2026-10-12 · 룰북 반영 2 · 3단계 — 플레이오프 · ACE 티어 · 패널티 · 규정 (PL 담당, main 반영)**
 - **플레이오프 · 결승 7전 4선승** (개인전 4 · 팀플 2 · ACE, 지정 세트 없음) — `setCount`/`winTarget` 모두 7/4. 어웨이 지정 폐지. DB의 플레이오프 3경기도 7세트(7세트 = ACE)로 맞춤(2026-10-12).
@@ -183,7 +185,7 @@
 | 레이아웃 (사이드바 · 상단 바 · 영역 탭 · 라이트/다크) | 완료 | `components/shell/`, `lib/nav.ts` |
 | 클랜하우스(대문) | 모든 섹션 실제 데이터 (선수 검색 · 공지 · 다가오는 경기 · 라이브 BJ · 팀 순위 · ELO TOP 8 · 지난 주 ELO 흐름 · 팀 소개) | `app/page.tsx`, `components/home/` |
 | ELO 보드 › 대시보드 | **실제 DB** (시즌 요약 · 선수/맞대결 검색 · 최근 전적 · 관리자 전적 등록) | `app/elo/page.tsx`, `lib/data/elo-dashboard.ts`, `components/elo/register-match.tsx` |
-| ELO 쓰기 (전적 등록 · 시트 연동 · 프로리그 DB전송) | **구현** — 시트 연동은 Apps Script 주소 변경 + `SHEETS_SYNC_SECRET` 필요, DB전송은 `012_pl_elo_links.sql` 실행 완료 | `lib/elo/`, `app/elo/actions.ts`, `app/api/sheets-sync/route.ts`, `components/elo/` |
+| ELO 쓰기 (전적 등록 · 시트 연동 · 프로리그 DB전송) | **운영 중** — 시트 연동 새 사이트로 전환(2026-10-14), DB전송은 1R-1M부터 사용 | `lib/elo/`, `app/elo/actions.ts`, `app/api/sheets-sync/route.ts`, `components/elo/` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
 | 관리자 설정 › 활동 로그 | **실제 DB** (`admin_logs`) | `app/admin/logs/`, `lib/data/admin-logs.ts` |
@@ -207,7 +209,7 @@
 - [ ] 프로리그 팀 · 선수단 · 경기 결과 · 승부예측 · 규정 탭
 - [x] 프로리그 세트 → ELO 전적 연동 (PL 관리 'DB전송') — `docs/sql/012_pl_elo_links.sql` 실행 완료
 - [x] ELO 전적 등록 (대시보드, 관리자) · 시트 연동 `/api/sheets-sync` 이전
-- [ ] 시트 연동 전환: Vercel에 `SHEETS_SYNC_SECRET` → 재배포 → Apps Script 주소를 `https://tufelopl.vercel.app/api/sheets-sync`로
+- [x] 시트 연동 전환 (2026-10-14): Vercel `SHEETS_SYNC_SECRET` 등록 · 재배포 → Apps Script `API_URL`을 `https://tufelopl.vercel.app/api/sheets-sync`로 (저장 + 배포 관리에서 새 버전)
 - [ ] ELO 전적 수정 · 삭제 화면 (엔진 `undoEloMatch`는 있음) · ELO 시즌 관리 (기존 사이트 폐쇄 전)
 - [ ] 코드에서 `TODO(` 로 검색하면 연결 지점이 나온다
 

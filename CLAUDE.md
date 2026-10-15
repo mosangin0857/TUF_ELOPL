@@ -136,8 +136,8 @@
 - **DB 변경 SQL: `docs/sql/005_pl_league.sql`** — 새 테이블 7개 `pl_seasons` · `pl_teams` · `pl_team_members` · `pl_maps` · `pl_matches` · `pl_sets` · `pl_set_players`. 기존 테이블은 그대로.
   - `pl_team_members` · `pl_set_players`는 `members.id`를 **on delete cascade**로 참조 → 클랜원 **완전 삭제(제명)** 시 그 선수의 프로리그 선수단 · 세트 출전 기록도 같이 지워진다 (세트 승패 · 팀 순위는 그대로).
   - `pl_set_players`는 엔트리 비공개 때문에 anon 조회 정책이 없다 → 서버(service_role)에서만 읽음 (`lib/data/pl.ts`).
-- 규칙(`lib/pl/rules.ts`): 정규 1R~3R 7세트 4선승(1~6세트 모두 진행, ACE는 3:3일 때만) / 플레이오프 · 결승 9세트 5선승. 경기 코드 `1R-1M … 2R-19M`(정규 라운드끼리 번호 이어짐) · `PO-1M` · `PO-FINAL`은 저장하지 않고 단계 + 번호로 만든다.
-- 팀 순위 · 개인 순위는 **저장하지 않고 경기 · 세트 결과로 계산** (`computeStandings` · `computePlayerStats`). 팀 순위: 정규 라운드만, 승점 → 세트 득실 → 승자승. 개인 순위: 승 · 패 · 실경기는 플레이오프 포함(개인전 · 팀플 합산, ACE 포함), **출전인정은 정규 라운드의 ACE 제외 세트만**.
+- 규칙(`lib/pl/rules.ts`): 정규 1R~3R 7세트 4선승(1~6세트 모두 진행, ACE는 3:3일 때만) / 플레이오프 · 결승도 7세트 4선승(개인전 4 · 팀플 2 · ACE, 2026-10-12부터). 경기 코드 `1R-1M … 2R-19M`(정규 라운드끼리 번호 이어짐) · `PO-1M` · `PO-FINAL`은 저장하지 않고 단계 + 번호로 만든다.
+- 팀 순위 · 개인 순위는 **저장하지 않고 경기 · 세트 결과로 계산** (`computeStandings` · `computePlayerStats`). 팀 순위: 정규 라운드만, 승점 → 승리수 → 패널티(적을수록 위) → 세트 득실 → 승자승. 개인 순위: 승 · 패 · 실경기는 플레이오프 포함(개인전 · 팀플 합산, ACE 포함), **출전인정은 정규 라운드의 ACE 제외 세트만**.
 - ELO 연동 → 2026-10-13 확정 · 구현 (PL 관리 › 경기 'DB전송'). 아래 "프로리그 → ELO 전적 연동" 참고.
 - 화면: 프로리그 › **일정**(`app/pl/page.tsx`, 라운드 탭 · 경기 누르면 세트 결과) · **순위**(`app/pl/standings/`, 팀 순위 / 개인 순위 — 검색 · 팀 · 티어 필터, 모든 컬럼 정렬) · **PL 관리**(`app/pl/manage/`, 관리자 이상만 — 탭 숨김 `adminOnly` + 서버 확인) · **엔트리 제출**(`app/pl/entry/[id]/`).
 - **엔트리 권한은 `members.role`에 넣지 않았다** → 그 경기 팀의 현재 팀장 · 부팀장(`pl_team_members.role` = captain · vice, `left_on` 없음)인지로 판단 (`lib/pl/permissions.ts`의 `getCaptainSide`). 공개 시각(`entry_reveal_at`) 전 · 예정/연기 경기만 제출 가능, 공개 전에는 상대 팀 · 방문자에게 안 보임.

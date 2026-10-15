@@ -38,12 +38,5 @@ export default async function PlSchedulePage() {
   const captains = Object.fromEntries(
     teams.map((t) => [t.id, t.members.filter((m) => !m.leftOn && (m.role === "captain" || m.role === "vice")).map((m) => m.memberId)]),
   )
-  // 다가오는 경기 (맨 위 카드): 두 팀이 정해진 예정 · 진행 · 연기 경기 중 경기 시각이 3시간 전 이후인 것, 시간순 3개
-  const now = Date.now()
-  const upcomingIds = matches
-    .filter((m) => ["scheduled", "live", "postponed"].includes(m.status) && !m.teamA.tbd && !m.teamB.tbd && m.scheduledAt && new Date(m.scheduledAt).getTime() > now - 3 * 3600_000)
-    .sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!))
-    .slice(0, 3)
-    .map((m) => m.id)
-  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} bjByMatch={bjByMatch} upcomingIds={upcomingIds} />
+  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} bjByMatch={bjByMatch} />
 }

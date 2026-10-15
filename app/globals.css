@@ -3806,14 +3806,9 @@
   .tc-act {
     gap: 6px;
   }
-  .tc-act .mini-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    text-decoration: none;
-  }
-  .match-item {
-    scroll-margin-top: 72px;
+  /* 일정 경기 펼침 줄(일시 · 방송 옆)의 엔트리 제출 현황 */
+  .md-entry {
+    font-size: 12px;
   }
   .tc-act {
     display: flex;

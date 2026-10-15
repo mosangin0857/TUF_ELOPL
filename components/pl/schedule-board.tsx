@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { ChevronDown, ClipboardList, PenLine } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
@@ -29,16 +29,21 @@ function defaultTab(matches: PlMatch[]): Tab {
   return last ? tabOf(last.stage) : "R1"
 }
 
-function Players({ list }: { list: PlSetPlayer[] }) {
+/** 세트 한쪽 선수. 홈(왼쪽)은 이름 → 종족, 원정(오른쪽)은 종족 → 이름 (종족이 가운데 승패 쪽) */
+function Players({ list, home }: { list: PlSetPlayer[]; home?: boolean }) {
   if (!list.length) return <span className="text-ink-3">—</span>
   return (
     <span className="set-players">
-      {list.map((p) => (
-        <span key={p.memberId} className="p-cell">
-          {p.race && p.race !== "R" ? <RaceBadge race={p.race} /> : p.race === "R" ? <span className="race R">R</span> : null}
-          {p.name}
-        </span>
-      ))}
+      {list.map((p) => {
+        const race = p.race && p.race !== "R" ? <RaceBadge race={p.race} /> : p.race === "R" ? <span className="race R">R</span> : null
+        return (
+          <span key={p.memberId} className="p-cell">
+            {!home && race}
+            {p.name}
+            {home && race}
+          </span>
+        )
+      })}
     </span>
   )
 }
@@ -113,14 +118,15 @@ export function ScheduleBoard({
                   <div className="round">{m.code}</div>
                   <span className={cn("pill", `st-${m.status}`)}>{STATUS_LABEL[m.status]}</span>
                 </div>
-                <div className={cn("team", m.winner === "B" && "lose")}>
+                <div className={cn("team", m.winner === "B" && "lose", m.winner === "A" && "win")} style={{ "--tc": m.teamA.color } as CSSProperties}>
                   <Crest team={m.teamA.name} color={m.teamA.color} />
                   <span>{m.teamA.name}</span>
                 </div>
                 <div className="vs">
                   {counted ? (
                     <b className="num score">
-                      {m.scoreA}:{m.scoreB}
+                      <span className={cn(m.winner === "A" && "w", m.winner === "B" && "l")}>{m.scoreA}</span>:
+                      <span className={cn(m.winner === "B" && "w", m.winner === "A" && "l")}>{m.scoreB}</span>
                     </b>
                   ) : when && m.status !== "canceled" ? (
                     <span className="num">{when.time}</span>
@@ -128,7 +134,7 @@ export function ScheduleBoard({
                     "VS"
                   )}
                 </div>
-                <div className={cn("team r", m.winner === "A" && "lose")}>
+                <div className={cn("team r", m.winner === "A" && "lose", m.winner === "B" && "win")} style={{ "--tc": m.teamB.color } as CSSProperties}>
                   <span>{m.teamB.name}</span>
                   <Crest team={m.teamB.name} color={m.teamB.color} />
                 </div>
@@ -174,42 +180,42 @@ export function ScheduleBoard({
                     {m.sets
                       .map((s) => (
                         <div key={s.id} className={cn("set-row", s.isAce && "ace")}>
-                          <span className="set-no">{s.isAce ? "ACE" : `SET ${s.setNo}`}</span>
-                          <span className="set-fmt">
-                            {s.isAce ? (
-                              <>
-                                {s.tier ? `${s.tier}티어` : "개인전"}
-                                <small>
-                                  {s.tier ? " · 추첨" : ""}
-                                  {s.mapName ? ` · ${s.mapName}` : ""}
-                                </small>
-                              </>
-                            ) : s.pickBy && !s.pickedAt ? (
-                              <>
-                                {PICK_LABEL[s.pickBy]}
-                                {/* 고르기 전에도 개인전 맵은 미리 보여 준다 (엔트리 미리 짤 수 있게). 생컨은 폴리포이드 고정 */}
-                                <small title={`지정 티어 개인전이면 ${s.soloMap ?? s.mapName ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 ${SAENGCON_MAP} (홈 팀이 고르기 전)`}>
-                                  {" "}
-                                  · {s.soloMap ?? s.mapName ?? "선택 전"}
-                                </small>
-                              </>
+                          <span className="set-head">
+                            <span className="set-no">{s.isAce ? "ACE" : `SET ${s.setNo}`}</span>
+                            <span className="set-fmt">
+                              {s.isAce ? (
+                                <>
+                                  {s.tier ? `${s.tier}티어` : "개인전"}
+                                  {s.tier && <small>추첨</small>}
+                                </>
+                              ) : s.pickBy && !s.pickedAt ? (
+                                PICK_LABEL[s.pickBy]
+                              ) : (
+                                <>
+                                  {setKindLabel(s.format, s.tier, s.tierSum)}
+                                  {s.pickBy && <small>({PICK_LABEL[s.pickBy]})</small>}
+                                </>
+                              )}
+                            </span>
+                            {s.pickBy && !s.pickedAt && !s.isAce ? (
+                              /* 고르기 전에도 개인전 맵은 미리 보여 준다 (엔트리 미리 짤 수 있게). 생컨은 폴리포이드 고정 */
+                              <span className="set-map" title={`지정 티어 개인전이면 ${s.soloMap ?? s.mapName ?? "관리자가 정한 맵"}, ${SAENGCON_LABEL}이면 ${SAENGCON_MAP} (홈 팀이 고르기 전)`}>
+                                {s.soloMap ?? s.mapName ?? "선택 전"}
+                              </span>
                             ) : (
-                              <>
-                                {setKindLabel(s.format, s.tier, s.tierSum)}
-                                {s.mapName && <small> · {s.mapName}</small>}
-                                {s.pickBy && <small> ({PICK_LABEL[s.pickBy]})</small>}
-                              </>
+                              <span className="set-map">{s.mapName ?? ""}</span>
                             )}
                           </span>
                           <span className={cn("set-side", s.winner === "A" && "win")}>
-                            <Players list={s.playersA} />
+                            <Players list={s.playersA} home />
                           </span>
                           <span className="set-mid">
-                            {s.winner
-                              ? s.winner === "A"
-                                ? "승 : 패"
-                                : "패 : 승"
-                              : s.isAce && !s.playersA.length && !s.playersB.length
+                            {s.winner ? (
+                              <>
+                                <span className={cn(s.winner === "A" && "w")}>{s.winner === "A" ? "승" : "패"}</span> :{" "}
+                                <span className={cn(s.winner === "B" && "w")}>{s.winner === "B" ? "승" : "패"}</span>
+                              </>
+                            ) : s.isAce && !s.playersA.length && !s.playersB.length
                                 ? counted
                                   ? "진행 안 함"
                                   : `${winTarget(m.stage) - 1}:${winTarget(m.stage) - 1}일 때`

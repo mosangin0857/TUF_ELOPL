@@ -33,6 +33,10 @@
   --up: #d1263b;
   --down: #2463c9;
   --live: #e5252a;
+  /* 세트 결과 '승' (일정 세트 행) */
+  --win: #1d8f4e;
+  /* 팀 색을 글자로 쓸 때 흰색을 섞는 비율 — 다크에서 어두운 팀 색(RIP #121212 등)도 읽히게 */
+  --team-ink-mix: 0%;
 
   --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--surface));
   --accent-text: color-mix(in oklab, var(--accent) 80%, #000);
@@ -57,6 +61,8 @@
     --ink-3: #8d877b;
     --up: #ff5a6a;
     --down: #5b95ff;
+    --win: #3fcf7f;
+    --team-ink-mix: 45%;
     --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
     --race-t: #6ea0ff;
     --race-p: #e2b545;
@@ -74,6 +80,8 @@
   --ink-3: #8d877b;
   --up: #ff5a6a;
   --down: #5b95ff;
+  --win: #3fcf7f;
+  --team-ink-mix: 45%;
   --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
   --race-t: #6ea0ff;
   --race-p: #e2b545;
@@ -2869,6 +2877,10 @@
   .match-row .team.lose {
     opacity: 0.55;
   }
+  .match-row .team.win > span:not(.crest) {
+    color: color-mix(in oklab, var(--tc), #fff var(--team-ink-mix));
+    font-weight: 700;
+  }
   .match-row .vs {
     text-align: center;
     font-family: var(--font-cond);
@@ -2879,6 +2891,12 @@
   .match-row .vs .score {
     font-size: 17px;
     color: var(--ink);
+  }
+  .match-row .vs .score .w {
+    color: var(--down);
+  }
+  .match-row .vs .score .l {
+    color: var(--up);
   }
   .match-caret {
     color: var(--ink-3);
@@ -2932,7 +2950,7 @@
   }
   .set-row {
     display: grid;
-    grid-template-columns: 54px 150px 1fr 60px 1fr;
+    grid-template-columns: 54px 118px 96px 1fr 64px 1fr;
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
@@ -2949,17 +2967,38 @@
     letter-spacing: 0.06em;
     color: var(--ink-2);
   }
+  /* 데스크톱은 SET · 형식 · 맵이 각자 열, 모바일(880px 이하)은 한 줄로 묶음 */
+  .set-head {
+    display: contents;
+  }
+  .set-fmt {
+    min-width: 0;
+  }
   .set-fmt small {
+    display: block;
+    font-size: 11.5px;
     color: var(--ink-3);
+  }
+  .set-map {
+    min-width: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .set-side {
     min-width: 0;
   }
-  .set-side.r {
+  /* 홈(왼쪽) 선수는 승패 칸 쪽으로 붙이고 종족은 이름 오른쪽, 원정은 승패 칸에서 시작 · 종족은 이름 왼쪽 */
+  .set-side:not(.r) {
     text-align: right;
   }
-  .set-side.r .set-players {
+  .set-side:not(.r) .set-players {
     justify-content: flex-end;
+  }
+  .set-side.r {
+    text-align: left;
   }
   .set-side.win {
     font-weight: 700;
@@ -2974,6 +3013,10 @@
     font-size: 12px;
     color: var(--ink-3);
     white-space: nowrap;
+  }
+  .set-mid .w {
+    color: var(--win);
+    font-weight: 700;
   }
   .race.R {
     color: var(--ink-2);
@@ -3190,18 +3233,34 @@
     padding: 4px 14px 14px;
   }
   .set-row {
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 1fr 52px 1fr;
+    gap: 6px 8px;
   }
-  .set-row .set-mid {
-    display: none;
-  }
-  .set-row .set-side,
-  .set-row .set-side.r {
+  .set-row .set-head {
     grid-column: 1 / -1;
-    text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
   }
-  .set-side.r .set-players {
-    justify-content: flex-start;
+  .set-row .set-head .set-fmt small {
+    display: inline;
+    margin-left: 4px;
+  }
+  .set-row .set-map {
+    margin-left: auto;
+    text-align: right;
+  }
+  /* 팀플은 선수를 한 줄에 한 명씩 (양쪽 모두 승패 칸 쪽에 붙임) */
+  .set-row .set-players {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .set-row .set-side:not(.r) .set-players {
+    align-items: flex-end;
+  }
+  .set-row .set-side.r .set-players {
+    align-items: flex-start;
   }
   .se-body {
     grid-template-columns: 1fr;
@@ -6098,5 +6157,25 @@
   }
   .xs-extras li .pill {
     margin-left: 6px;
+  }
+}
+
+/* 일정 경기 행: 휴대폰에서 팀 이름이 덜 잘리게 (날짜 칸 · 간격 · 팀 로고 줄임) */
+@media (max-width: 560px) {
+  .match-row {
+    grid-template-columns: 44px 1fr 40px 1fr 12px;
+    gap: 6px;
+    padding: 12px 10px;
+  }
+  .match-row .team {
+    gap: 6px;
+    font-size: 14px;
+  }
+  .match-row .team .crest {
+    width: 26px;
+    height: 26px;
+  }
+  .match-date b {
+    font-size: 17px;
   }
 }

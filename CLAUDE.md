@@ -12,8 +12,8 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-15 · 세트 MVP · 일정 세트 결과 표시 (PL 담당)**
-- **DB 변경 SQL: `docs/sql/013_pl_set_mvp.sql` (실행 대기)** — `pl_sets.mvp_member_id`. 실행 전에도 동작(읽기는 컬럼 없이, 저장 시 안내).
+**2026-10-15 · 세트 MVP · 일정 세트 결과 표시 (PL 담당, main 반영)**
+- **DB 변경 SQL: `docs/sql/013_pl_set_mvp.sql`** (2026-10-15 실행 완료) — `pl_sets.mvp_member_id`. 실행 전에도 동작(읽기는 컬럼 없이, 저장 시 안내).
 - PL 관리 › 결과 입력: 세트마다 MVP 칸(그 세트에 넣은 홈 · 원정 선수 중에서 고름, 서버도 검사). `PlSet.mvpId`, `PlPlayerStat.mvp`.
 - 개인 순위에 MVP 열(정렬 가능), 일정 · 경기 결과 화면에서 MVP 이름은 금색으로 빛이 지나가는 효과 + 'MVP' 표시(휴대폰 일정은 ★). `prefers-reduced-motion`이면 멈춤.
 - 일정 세트 행: 진 쪽 이름 회색 · 종족 배지 흐리게. 공통 클래스 `.mvp-name` · `.mvp-tag`, 토큰 `--mvp-glint`.

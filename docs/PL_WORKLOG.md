@@ -59,6 +59,13 @@
 
 ## 기록
 
+### 2026-10-15 — SQL 013 실행 · 세트 MVP main 반영
+**한 일**
+- 사용자가 Supabase에서 `013_pl_set_mvp.sql` 실행 → `pl_sets.mvp_member_id` 확인, 문서 실행 완료 표시, main 반영
+
+**다음 할 일**
+- 1R-1M 결과 입력에서 세트 MVP 넣어 일정 · 개인 순위 확인
+
 ### 2026-10-15 — 세트 MVP (TUFPL_MSI, SQL 013 실행 대기)
 **한 일**
 - SQL 013: `pl_sets.mvp_member_id`

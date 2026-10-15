@@ -146,6 +146,14 @@ export function EntryForm({
     setSaved(`지난 경기(${lastEntry.code}) 엔트리를 불러왔어요. 확인하고 제출하세요.`)
   }
 
+  // 저장하는 동안 창을 닫거나 새로고침하면 브라우저가 한 번 더 묻는다
+  useEffect(() => {
+    if (!busy) return
+    const stay = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener("beforeunload", stay)
+    return () => window.removeEventListener("beforeunload", stay)
+  }, [busy])
+
   const submit = () =>
     run(
       () => submitEntryAction(match.id, entrySets.map((s) => ({ setNo: s.setNo, players: slotsOf(s) }))),
@@ -354,14 +362,27 @@ export function EntryForm({
                 <i style={{ width: `${(doneCount / entrySets.length) * 100}%` }} />
               </span>
             </div>
-            {saved && !error && (
+            {busy ? (
               <span className="eb-msg" role="status">
-                {saved}
+                저장 중이에요. 끝날 때까지 이 화면에 있어 주세요.
               </span>
+            ) : (
+              saved &&
+              !error && (
+                <span className="eb-msg" role="status">
+                  {saved}
+                </span>
+              )
             )}
-            <Link className="btn-ghost" href="/pl">
-              일정으로
-            </Link>
+            {busy ? (
+              <span className="btn-ghost" aria-disabled>
+                일정으로
+              </span>
+            ) : (
+              <Link className="btn-ghost" href="/pl">
+                일정으로
+              </Link>
+            )}
             {dupes.length > 0 && (
               <span className="eb-msg form-error eb-alert" role="alert">
                 {playoff ? "플레이오프는 ACE 말고 중복 출전 불가" : "개인전 중복 출전 불가"}: {dupes.join(", ")}

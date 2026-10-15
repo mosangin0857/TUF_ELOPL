@@ -34,6 +34,8 @@ export function SideSlots({
     onChange(next)
   }
   const used = new Set(slots.map((s) => s.memberId).filter(Boolean))
+  // 선택지는 티어순(1티어 먼저), 같은 티어는 이름순
+  const options = [...roster].sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, "ko"))
   const shared = slots.find((s) => s.memberId)?.race ?? null
   const setShared = (race: PlRace | null) => onChange(slots.map((s) => ({ ...s, race: s.memberId ? race : s.race })))
 
@@ -52,7 +54,7 @@ export function SideSlots({
             }}
           >
             <option value="">— 선수 —</option>
-            {roster.map((m) => (
+            {options.map((m) => (
               <option key={m.memberId} value={m.memberId} disabled={used.has(m.memberId) && m.memberId !== s.memberId}>
                 {m.name} · {m.tier}티어{m.leftOn ? " (떠남)" : ""}
               </option>

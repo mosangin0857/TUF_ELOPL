@@ -1038,12 +1038,14 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
 
   // captain이 있으면 두 팀 모두 정해진 경기 (getCaptainSide)
   const teamId = (captain.side === "A" ? match.team_a_id : match.team_b_id)!
-  const roster = await rosterIds(teamId, true)
   const setBySetNo = new Map(match.pl_sets.map((s) => [s.set_no, s]))
 
-  // 티어 세트: 그 티어와 아래 티어 선수만 (지금 members.tier 기준)
+  // 티어 세트: 그 티어와 아래 티어 선수만 (지금 members.tier 기준). 선수단 · 선수 정보는 같이 읽는다
   const ids = [...new Set(sets.flatMap((s) => s.players.map((p) => p.memberId)))]
-  const { data: tierRows } = ids.length ? await createServiceClient().from("members").select("id, name, tier, race").in("id", ids) : { data: [] }
+  const [roster, { data: tierRows }] = await Promise.all([
+    rosterIds(teamId, true),
+    ids.length ? createServiceClient().from("members").select("id, name, tier, race").in("id", ids) : Promise.resolve({ data: [] as { id: string; name: string; tier: number; race: string }[] }),
+  ])
   const memberTier = new Map((tierRows ?? []).map((m) => [m.id as string, { name: m.name as string, tier: m.tier as number, race: m.race as PlRace }]))
 
   // 중복 출전 (룰북 2-7 · 4-4): 개인전 + 개인전 불가. 플레이오프는 ACE 말고 모든 중복 불가
@@ -1091,14 +1093,26 @@ export async function submitEntryAction(matchId: string, sets: { setNo: number; 
     }
   }
 
-  for (const s of sets) {
-    const err = await replacePlayers(setBySetNo.get(s.setNo)!.id, captain.side, s.players)
-    if (err) return fail(`${s.setNo}세트 엔트리를 저장하지 못했어요`, err)
+  // 모든 세트 우리 쪽 선수를 한 번에 지우고 한 번에 넣는다 (세트마다 따로 하면 DB 왕복이 세트 수 × 2)
+  const supabase = createServiceClient()
+  const setIds = sets.map((s) => setBySetNo.get(s.setNo)!.id)
+  const rows = sets.flatMap((s) =>
+    s.players.map((p, i) => ({ set_id: setBySetNo.get(s.setNo)!.id, side: captain.side, slot: i + 1, member_id: p.memberId, race: p.race })),
+  )
+  if (setIds.length) {
+    const del = await supabase.from("pl_set_players").delete().in("set_id", setIds).eq("side", captain.side)
+    if (del.error) return fail("엔트리를 저장하지 못했어요", del.error)
+  }
+  if (rows.length) {
+    const ins = await supabase.from("pl_set_players").insert(rows)
+    if (ins.error) return fail("엔트리를 저장하지 못했어요 (다시 제출해 주세요)", ins.error)
   }
 
   const filledNos = sets.filter((s) => s.players.length === FORMAT_SIZE[setBySetNo.get(s.setNo)!.format]).map((s) => s.setNo)
-  await entryLog(match.id, captain.side, captain.memberId, captain.username, `${setList(filledNos)} 저장`)
-  await insertAdminLog(captain.username, "PL 엔트리 제출", matchCode(match.stage, match.match_no), `${captain.side}팀 · ${setList(filledNos)}`)
+  await Promise.all([
+    entryLog(match.id, captain.side, captain.memberId, captain.username, `${setList(filledNos)} 저장`),
+    insertAdminLog(captain.username, "PL 엔트리 제출", matchCode(match.stage, match.match_no), `${captain.side}팀 · ${setList(filledNos)}`),
+  ])
   revalidatePl()
   return { ok: true }
 }

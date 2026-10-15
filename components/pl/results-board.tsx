@@ -207,20 +207,34 @@ function SetRow({ s, counted, hidden, tierOf }: { s: PlSet; counted: boolean; hi
   const kind = s.isAce ? (s.tier ? `ACE · 추첨 ${s.tier}티어 (이하 출전 가능)` : "ACE · 개인전") : s.pickBy && !s.pickedAt ? `${PICK_LABEL[s.pickBy]} · 선택 전 (${SAENGCON_LABEL}이면 ${SAENGCON_MAP})` : `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
   return (
     <div className={cn("res-set", !s.winner && hasPlayers && "idle", s.isAce && "ace")}>
-      <Side list={s.playersA} result={s.winner ? (s.winner === "A" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} />
+      <Side list={s.playersA} result={s.winner ? (s.winner === "A" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} mvpId={s.mvpId} />
       <div className="res-set-mid">
         <b>{s.isAce ? "ACE" : `${s.setNo}세트`}</b>
         <span className="res-map">{s.mapName ?? "맵 미정"}</span>
         <span className="note">{kind}</span>
       </div>
-      <Side list={s.playersB} result={s.winner ? (s.winner === "B" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} right />
+      <Side list={s.playersB} result={s.winner ? (s.winner === "B" ? "W" : "L") : counted ? "N" : null} hidden={hidden} tierOf={tierOf} mvpId={s.mvpId} right />
     </div>
   )
 }
 
 const RESULT_TEXT = { W: "승", L: "패", N: "미진행" } as const
 
-function Side({ list, result, hidden, tierOf, right }: { list: PlSetPlayer[]; result: "W" | "L" | "N" | null; hidden: boolean; tierOf: Record<string, number>; right?: boolean }) {
+function Side({
+  list,
+  result,
+  hidden,
+  tierOf,
+  mvpId,
+  right,
+}: {
+  list: PlSetPlayer[]
+  result: "W" | "L" | "N" | null
+  hidden: boolean
+  tierOf: Record<string, number>
+  mvpId: string | null
+  right?: boolean
+}) {
   const tag = result && <span className={cn("res-tag", result)}>{RESULT_TEXT[result]}</span>
   const sub = (p: PlSetPlayer) => `${tierOf[p.memberId] ? `${tierOf[p.memberId]}티어` : "티어 미정"} · ${p.race ? RACE_LABEL[p.race] : "종족 미정"}`
   return (
@@ -230,7 +244,16 @@ function Side({ list, result, hidden, tierOf, right }: { list: PlSetPlayer[]; re
           <div key={p.memberId} className="res-player">
             <span className="res-name">
               {i === 0 && tag}
-              {p.name}
+              {p.memberId === mvpId ? (
+                <>
+                  <span className="mvp-name" title="세트 MVP">
+                    {p.name}
+                  </span>
+                  <span className="mvp-tag">MVP</span>
+                </>
+              ) : (
+                p.name
+              )}
             </span>
             <span className="note">{sub(p)}</span>
           </div>

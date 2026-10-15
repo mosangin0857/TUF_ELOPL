@@ -113,6 +113,8 @@ type MatchRow = {
     id: string
     set_no: number
     is_ace: boolean
+    /** 013 실행 전이면 undefined */
+    mvp_member_id?: string | null
     format: PlSetFormat
     map_name: string | null
     pick_by: PlPickBy | null
@@ -208,16 +210,22 @@ export function entriesVisibleAt(status: PlMatchStatus, entryRevealAt: string | 
  * 시즌 경기 전체 (일정순). revealAll이면 공개 전 엔트리도 채운다 (관리자 · 엔트리 제출 화면 전용).
  */
 export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAll = false } = {}): Promise<PlMatch[]> {
-  const select = (withLabels: boolean) =>
+  const opt = { labels: true, mvp: true }
+  const select = () =>
     createServiceClient()
       .from("pl_matches")
       .select(
-        `id, stage, match_no, team_a_id, team_b_id, ${withLabels ? "team_a_label, team_b_label, " : ""}scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, pick_by, solo_map, picked_at, tier, tier_sum, winner, pl_set_players(side, slot, race, member_id, members(name)))`,
+        `id, stage, match_no, team_a_id, team_b_id, ${opt.labels ? "team_a_label, team_b_label, " : ""}scheduled_at, status, forfeit_winner, entry_reveal_at, note, pl_sets(id, set_no, is_ace, format, map_name, pick_by, solo_map, picked_at, tier, tier_sum, winner, ${opt.mvp ? "mvp_member_id, " : ""}pl_set_players(side, slot, race, member_id, members(name)))`,
       )
       .eq("season_id", seasonId)
-  let { data, error } = await select(true)
-  // 010_pl_match_tbd_teams.sql 실행 전이면 미정 팀 표시 이름 없이 다시 읽는다
-  if (isMissingColumn(error, "team_a_label")) ({ data, error } = await select(false))
+  let { data, error } = await select()
+  // 010(미정 팀 표시 이름) · 013(세트 MVP) 실행 전이면 그 컬럼 없이 다시 읽는다
+  for (let i = 0; i < 2 && error; i++) {
+    if (isMissingColumn(error, "mvp_member_id")) opt.mvp = false
+    else if (isMissingColumn(error, "team_a_label")) opt.labels = false
+    else break
+    ;({ data, error } = await select())
+  }
   if (error) throw new Error(`pl_matches 조회 실패: ${error.message}`)
   await settleExpiredPicks((data ?? []) as unknown as MatchRow[])
 
@@ -254,6 +262,7 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
           winner: s.winner,
           playersA: players("A"),
           playersB: players("B"),
+          mvpId: visible || revealAll ? (s.mvp_member_id ?? null) : null,
         }
       })
     const score = matchScore(
@@ -391,6 +400,7 @@ export function computePlayerStats(teams: PlTeam[], matches: PlMatch[]): PlPlaye
           losses: 0,
           games: 0,
           recognized: 0,
+          mvp: 0,
         })
       }
     }
@@ -400,6 +410,8 @@ export function computePlayerStats(teams: PlTeam[], matches: PlMatch[]): PlPlaye
     if (match.status !== "done") continue
     for (const set of match.sets) {
       if (!set.winner) continue
+      const mvp = set.mvpId ? stats.get(set.mvpId) : undefined
+      if (mvp) mvp.mvp++
       for (const [side, players] of [["A", set.playersA], ["B", set.playersB]] as const) {
         for (const p of players) {
           const s = stats.get(p.memberId)

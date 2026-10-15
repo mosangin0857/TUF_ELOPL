@@ -154,6 +154,7 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 | pl_penalties (`011`) | season_id · team_id(cascade), member_id · match_id(set null), kind(forfeit · withdraw · noshow · warning · other), points 0~50, note, created_by | 패널티 · 경고 기록. 팀 순위 3번째 기준. anon 조회 가능 |
 | pl_team_members 추가 컬럼 (`011`) | is_extra boolean | 추가 드래프트 선수 (최소 2 · 최대 8경기) |
 | pl_entry_logs (`006`) | match_id(cascade), side, member_id(set null), actor_name, action, created_at | 엔트리 제출 · 지정 세트 선택 기록. anon 조회 정책 없음 |
+| pl_sets 추가 컬럼 (`013`, **실행 대기**) | mvp_member_id uuid (→ members.id, on delete set null) | 세트 MVP — 그 세트 출전 선수 중 한 명(서버 검사). 개인 순위 MVP 횟수 |
 | pl_elo_links (`012`) | pl_match_id(cascade), set_no 1~9, slot 1~4, elo_match_id(→ matches.id, cascade, UNIQUE) · UNIQUE(pl_match_id, set_no, slot) | PL 관리 'DB전송'으로 보낸 ELO 전적 한 줄 = 세트의 슬롯 하나. 다시 보낼 때 중복 방지 · 바뀐 줄 되돌리기. anon 조회 정책 없음 (`lib/elo/pl-send.ts`) |
 
 - A팀 = 홈, B팀 = 원정. 엔트리 마감 = `entry_reveal_at` 2시간 전 (코드에서 계산, 저장 안 함)

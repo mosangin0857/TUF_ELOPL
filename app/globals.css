@@ -37,6 +37,8 @@
   --win: #1d8f4e;
   /* 팀 색을 글자로 쓸 때 흰색을 섞는 비율 — 다크에서 어두운 팀 색(RIP #121212 등)도 읽히게 */
   --team-ink-mix: 0%;
+  /* 세트 MVP 이름 위를 지나가는 빛 */
+  --mvp-glint: #f7c948;
 
   --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--surface));
   --accent-text: color-mix(in oklab, var(--accent) 80%, #000);
@@ -63,6 +65,7 @@
     --down: #5b95ff;
     --win: #3fcf7f;
     --team-ink-mix: 45%;
+    --mvp-glint: #fff4c8;
     --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
     --race-t: #6ea0ff;
     --race-p: #e2b545;
@@ -82,6 +85,7 @@
   --down: #5b95ff;
   --win: #3fcf7f;
   --team-ink-mix: 45%;
+  --mvp-glint: #fff4c8;
   --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
   --race-t: #6ea0ff;
   --race-p: #e2b545;
@@ -3018,6 +3022,66 @@
     color: var(--win);
     font-weight: 700;
   }
+  /* 진 쪽: 회색 이름 · 종족 배지 흐리게 (이긴 쪽이 한눈에) */
+  .set-side.lose .p-cell {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .set-side.lose .race {
+    opacity: 0.4;
+    filter: saturate(0.5);
+  }
+
+  /* 세트 MVP: 금색 이름에 빛이 지나가는 효과 + MVP 표시가 은은하게 빛남 */
+  .mvp-name {
+    font-weight: 800;
+    background: linear-gradient(100deg, var(--accent-text) 0 38%, var(--mvp-glint) 50%, var(--accent-text) 62% 100%);
+    background-size: 260% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: mvp-shine 2.6s linear infinite;
+  }
+  .mvp-tag {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 4px;
+    font-family: var(--font-cond);
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 16px;
+    color: #1a1407;
+    background: var(--accent);
+    animation: mvp-glow 2.6s ease-in-out infinite;
+  }
+  .mvp-count {
+    color: var(--accent-text);
+    font-weight: 700;
+  }
+  @keyframes mvp-shine {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: 0% 0;
+    }
+  }
+  @keyframes mvp-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 10px 1px color-mix(in oklab, var(--accent) 70%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mvp-name,
+    .mvp-tag {
+      animation: none;
+    }
+  }
   .race.R {
     color: var(--ink-2);
   }
@@ -5443,6 +5507,24 @@
     width: auto;
     min-width: 150px;
   }
+  /* 결과 입력: 세트 MVP (그 세트 출전 선수 중에서) */
+  .se-mvp {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .se-mvp > span {
+    font-family: var(--font-cond);
+    font-weight: 800;
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    color: var(--accent-text);
+  }
+  .se-mvp .field {
+    width: auto;
+    min-width: 140px;
+  }
 }
 
 /* 프로리그 › 패널티 · PL 관리 › 패널티 (룰북 1-7 · 2-8 · 5장) */
@@ -6177,5 +6259,25 @@
   }
   .match-date b {
     font-size: 17px;
+  }
+  /* 세트 MVP 표시: 좁은 화면에서는 'MVP' 글자 대신 작은 별 배지 (이름 · 종족이 승패 칸을 밀지 않게) */
+  .set-row .mvp-tag {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    line-height: 15px;
+    text-align: center;
+  }
+  .set-row .mvp-tag::before {
+    content: "★";
+    font-size: 10px;
+  }
+  .set-row .set-players {
+    gap: 4px;
+  }
+  .set-row .p-cell {
+    gap: 4px;
   }
 }

@@ -11,7 +11,7 @@ import type { PlMatch, PlPlayerStat, PlTeamStanding, Race, Tier } from "@/lib/ty
 import { cn } from "@/lib/utils"
 
 type View = "team" | "player"
-type SortKey = "rank" | "name" | "team" | "tier" | "race" | "wins" | "losses" | "rate" | "games" | "recognized"
+type SortKey = "rank" | "name" | "team" | "tier" | "race" | "wins" | "losses" | "rate" | "mvp" | "games" | "recognized"
 type Sort = { key: SortKey; dir: "asc" | "desc" }
 
 const RACE_ORDER: Record<Race, number> = { T: 0, P: 1, Z: 2 }
@@ -27,6 +27,7 @@ const FIRST_DIR: Record<SortKey, "asc" | "desc"> = {
   wins: "desc",
   losses: "desc",
   rate: "desc",
+  mvp: "desc",
   games: "desc",
   recognized: "desc",
 }
@@ -185,6 +186,7 @@ function PlayerTable({ players, teams, matches }: { players: PlPlayerStat[]; tea
               {th("wins", "승", true)}
               {th("losses", "패", true)}
               {th("rate", "승률")}
+              {th("mvp", "MVP", true)}
               {th("games", "실경기", true)}
               {th("recognized", "출전인정", true)}
             </tr>
@@ -233,12 +235,13 @@ function PlayerTable({ players, teams, matches }: { players: PlPlayerStat[]; tea
                       <i style={{ width: `${p.rate}%` }} />
                     </span>
                   </td>
+                  <td className={cn("n", p.mvp > 0 && "mvp-count")}>{p.mvp || <span className="text-ink-3">—</span>}</td>
                   <td className="n">{p.games}</td>
                   <td className="n">{p.recognized}</td>
                 </tr>
                 {open === p.memberId && (
                   <tr className="pr-detail">
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <PlayerRecord memberId={p.memberId} name={p.name} matches={matches} />
                     </td>
                   </tr>

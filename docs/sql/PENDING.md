@@ -6,7 +6,9 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-(없음 — 2026-10-13에 012 실행 완료)
+| 순서 | 파일 | 내용 | 실행 안 하면 |
+| --- | --- | --- | --- |
+| 1 | [`013_pl_set_mvp.sql`](013_pl_set_mvp.sql) | `pl_sets.mvp_member_id`(세트 MVP, → members.id, on delete set null) | 결과 입력에서 MVP를 골라 저장하면 "결과는 저장, MVP는 SQL 실행 필요" 안내. 일정 · 결과 · 개인 순위 MVP는 비어 있음 |
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 

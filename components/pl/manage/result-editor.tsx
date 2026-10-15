@@ -42,6 +42,8 @@ type SetDraft = {
   winner: PlSide | null
   playersA: SlotValue[]
   playersB: SlotValue[]
+  /** 세트 MVP (members.id). 그 세트 선수에서 빠지면 저장할 때 비운다 */
+  mvp: string | null
 }
 
 /**
@@ -82,6 +84,7 @@ export function ResultEditor({
       winner: s.winner,
       playersA: s.playersA.map((p) => ({ memberId: p.memberId, race: p.race })),
       playersB: s.playersB.map((p) => ({ memberId: p.memberId, race: p.race })),
+      mvp: s.mvpId,
     }))
   const [sets, setSets] = useState<SetDraft[]>(initial)
   // 팀장이 제출한 쪽: 엔트리 공개 전까지 가림 (서버가 선수를 비워서 보냄, 저장해도 그 쪽은 그대로)
@@ -106,6 +109,12 @@ export function ResultEditor({
   const score = matchScore(match.stage, status === "forfeit" ? "forfeit" : "done", forfeitWinner, sets.map((s) => s.winner))
   const target = winTarget(match.stage)
 
+  /** MVP 선택지: 그 세트에 넣은 홈 · 원정 선수 */
+  const mvpOptions = (s: SetDraft) => [
+    ...filled(s.playersA).map((p) => ({ id: p.memberId, name: rosterA.find((m) => m.memberId === p.memberId)?.name ?? "선수", side: "홈" })),
+    ...filled(s.playersB).map((p) => ({ id: p.memberId, name: rosterB.find((m) => m.memberId === p.memberId)?.name ?? "선수", side: "원정" })),
+  ]
+
   const addBj = () => {
     const name = bjInput.trim()
     if (name && !bjs.includes(name)) setBjs([...bjs, name])
@@ -127,6 +136,7 @@ export function ResultEditor({
             playersA: filled(s.playersA),
             playersB: filled(s.playersB),
             ...(s.isAce ? { aceTier: s.tier } : {}),
+            mvpId: mvpOptions(s).some((o) => o.id === s.mvp) ? s.mvp : null,
           })),
           bjs,
         }),
@@ -387,6 +397,29 @@ export function ResultEditor({
                   placeholder="맵"
                   aria-label={`${no}세트 맵`}
                 />
+                {(() => {
+                  const opts = mvpOptions(s)
+                  return (
+                    <label className="se-mvp">
+                      <span>MVP</span>
+                      <select
+                        className="field"
+                        value={opts.some((o) => o.id === s.mvp) ? (s.mvp ?? "") : ""}
+                        disabled={!opts.length}
+                        onChange={(e) => patch(i, { mvp: e.target.value || null })}
+                        aria-label={`${no}세트 MVP`}
+                        title={opts.length ? undefined : "출전 선수를 넣으면 고를 수 있어요"}
+                      >
+                        <option value="">— 없음 —</option>
+                        {opts.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name} ({o.side})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )
+                })()}
               </div>
               <div className="se-body">
                 {sealedA && !s.isAce ? (

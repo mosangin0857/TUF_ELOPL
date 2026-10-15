@@ -263,6 +263,8 @@ export interface PlSet {
   winner: PlSide | null
   playersA: PlSetPlayer[]
   playersB: PlSetPlayer[]
+  /** 세트 MVP (그 세트 출전 선수 중 한 명, members.id) — docs/sql/013_pl_set_mvp.sql 실행 전이면 null */
+  mvpId: string | null
 }
 
 export interface PlMatch {
@@ -312,4 +314,6 @@ export interface PlPlayerStat {
   games: number
   /** 출전인정: 정규 라운드(1R~3R)에서 ACE를 뺀 세트 */
   recognized: number
+  /** 세트 MVP 횟수 (종료 경기, 정규 · 플레이오프 · ACE 모두) */
+  mvp: number
 }

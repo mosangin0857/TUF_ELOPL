@@ -811,6 +811,8 @@ export type SetInput = {
   playersB: SetPlayerInput[]
   /** ACE 결정전만: 경기 당일 핀볼로 뽑은 티어 (null = 아직) */
   aceTier?: Tier | null
+  /** 세트 MVP: 이 세트 홈 · 원정 출전 선수 중 한 명 (members.id) — docs/sql/013_pl_set_mvp.sql */
+  mvpId?: string | null
 }
 
 type MatchForWrite = {
@@ -953,6 +955,9 @@ export async function saveMatchResultAction(
     if (s.winner && (s.playersA.length !== size || s.playersB.length !== size)) {
       return { ok: false, error: `${label}: 승자를 정하려면 양쪽 출전 선수를 ${size}명씩 모두 넣어 주세요.` }
     }
+    if (s.mvpId && ![...s.playersA, ...s.playersB].some((p) => p.memberId === s.mvpId)) {
+      return { ok: false, error: `${label}: MVP는 그 세트에 나간 선수 중에서 골라 주세요.` }
+    }
   }
 
   const supabase = createServiceClient()
@@ -962,26 +967,35 @@ export async function saveMatchResultAction(
     .eq("id", matchId)
   if (upd.error) return fail("경기 상태를 저장하지 못했어요", upd.error)
 
+  // 013 실행 전이면 MVP 없이 저장하고 마지막에 안내
+  let mvpReady = true
   for (const s of input.sets) {
     const setId = setBySetNo.get(s.setNo)!.id
     const from = setBySetNo.get(s.fromSetNo)!
-    const u = await supabase
-      .from("pl_sets")
-      .update({
-        format: s.format,
-        map_name: s.mapName.trim().slice(0, 40) || null,
-        winner: s.winner,
-        pick_by: from.pick_by,
-        solo_map: from.solo_map,
-        picked_at: from.picked_at,
-        ...(from.is_ace
-          ? { tier: s.aceTier && [1, 2, 3, 4].includes(s.aceTier) ? s.aceTier : null }
-          : from.tier !== undefined
-            ? { tier: s.format === "1v1" ? from.tier : null }
-            : {}),
-        ...(from.tier_sum !== undefined ? { tier_sum: s.format === SAENGCON_FORMAT ? from.tier_sum : null } : {}),
-      })
-      .eq("id", setId)
+    const setUpdate = (withMvp: boolean) =>
+      supabase
+        .from("pl_sets")
+        .update({
+          ...(withMvp ? { mvp_member_id: s.mvpId || null } : {}),
+          format: s.format,
+          map_name: s.mapName.trim().slice(0, 40) || null,
+          winner: s.winner,
+          pick_by: from.pick_by,
+          solo_map: from.solo_map,
+          picked_at: from.picked_at,
+          ...(from.is_ace
+            ? { tier: s.aceTier && [1, 2, 3, 4].includes(s.aceTier) ? s.aceTier : null }
+            : from.tier !== undefined
+              ? { tier: s.format === "1v1" ? from.tier : null }
+              : {}),
+          ...(from.tier_sum !== undefined ? { tier_sum: s.format === SAENGCON_FORMAT ? from.tier_sum : null } : {}),
+        })
+        .eq("id", setId)
+    let u = await setUpdate(mvpReady)
+    if (u.error && mvpReady && isMissingColumn(u.error, "mvp_member_id")) {
+      mvpReady = false
+      u = await setUpdate(false)
+    }
     if (u.error) return fail(`${s.setNo}세트를 저장하지 못했어요`, u.error)
     const ea = await replacePlayers(setId, "A", s.playersA)
     if (ea) return fail(`${s.setNo}세트 A팀 선수를 저장하지 못했어요`, ea)
@@ -1006,6 +1020,9 @@ export async function saveMatchResultAction(
   if (bjs.length) {
     const ins = await supabase.from("pl_match_bjs").insert(bjs.map((name, i) => ({ match_id: matchId, name, sort_order: i })))
     if (ins.error) return fail("경기 결과는 저장했지만 방송 BJ를 저장하지 못했어요", ins.error)
+  }
+  if (!mvpReady && input.sets.some((s) => s.mvpId)) {
+    return { ok: false, error: "경기 결과는 저장했어요. 세트 MVP는 docs/sql/013_pl_set_mvp.sql을 Supabase에서 실행한 뒤 다시 저장해 주세요." }
   }
   return { ok: true }
 }

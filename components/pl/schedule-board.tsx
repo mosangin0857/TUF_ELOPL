@@ -29,17 +29,24 @@ function defaultTab(matches: PlMatch[]): Tab {
   return last ? tabOf(last.stage) : "R1"
 }
 
-/** 세트 한쪽 선수. 홈(왼쪽)은 이름 → 종족, 원정(오른쪽)은 종족 → 이름 (종족이 가운데 승패 쪽) */
-function Players({ list, home }: { list: PlSetPlayer[]; home?: boolean }) {
+/** 세트 한쪽 선수. 홈(왼쪽)은 이름 → 종족, 원정(오른쪽)은 종족 → 이름 (종족이 가운데 승패 쪽). MVP는 반짝이는 이름 */
+function Players({ list, home, mvpId }: { list: PlSetPlayer[]; home?: boolean; mvpId: string | null }) {
   if (!list.length) return <span className="text-ink-3">—</span>
   return (
     <span className="set-players">
       {list.map((p) => {
         const race = p.race && p.race !== "R" ? <RaceBadge race={p.race} /> : p.race === "R" ? <span className="race R">R</span> : null
         return (
-          <span key={p.memberId} className="p-cell">
+          <span key={p.memberId} className={cn("p-cell", p.memberId === mvpId && "is-mvp")}>
             {!home && race}
-            {p.name}
+            {p.memberId === mvpId ? (
+              <span className="mvp-name" title="세트 MVP">
+                {p.name}
+              </span>
+            ) : (
+              p.name
+            )}
+            {p.memberId === mvpId && <span className="mvp-tag">MVP</span>}
             {home && race}
           </span>
         )
@@ -206,8 +213,8 @@ export function ScheduleBoard({
                               <span className="set-map">{s.mapName ?? ""}</span>
                             )}
                           </span>
-                          <span className={cn("set-side", s.winner === "A" && "win")}>
-                            <Players list={s.playersA} home />
+                          <span className={cn("set-side", s.winner === "A" && "win", s.winner === "B" && "lose")}>
+                            <Players list={s.playersA} home mvpId={s.mvpId} />
                           </span>
                           <span className="set-mid">
                             {s.winner ? (
@@ -221,8 +228,8 @@ export function ScheduleBoard({
                                   : `${winTarget(m.stage) - 1}:${winTarget(m.stage) - 1}일 때`
                                 : "vs"}
                           </span>
-                          <span className={cn("set-side r", s.winner === "B" && "win")}>
-                            <Players list={s.playersB} />
+                          <span className={cn("set-side r", s.winner === "B" && "win", s.winner === "A" && "lose")}>
+                            <Players list={s.playersB} mvpId={s.mvpId} />
                           </span>
                         </div>
                       ))}

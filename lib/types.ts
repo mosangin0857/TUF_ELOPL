@@ -288,6 +288,8 @@ export interface PlMatch {
   entriesVisible: boolean
   /** PL 관리: 팀장이 제출한 쪽은 엔트리 공개 전까지 가림 — 그 쪽 선수는 비워서 보내고 제출 수만 (sealSubmittedEntries) */
   sealed?: Partial<Record<PlSide, { filled: number; total: number }>>
+  /** 엔트리를 몇 세트 채웠는지 (ACE 제외, 인원을 다 채운 세트) — 선수 이름 없이 수만, 공개 전에도 일정에서 보여 줌 */
+  entryStatus: Record<PlSide, { filled: number; total: number }>
   sets: PlSet[]
 }
 

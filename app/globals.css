@@ -571,6 +571,7 @@
     padding: 18px 20px 12px;
   }
   .panel-head h2 {
+    word-break: keep-all;
     margin: 2px 0 0;
     font-size: 19px;
     font-weight: 700;
@@ -3798,6 +3799,22 @@
   .tc-entry .e.bad i {
     background: var(--up);
   }
+  /* 아직 마감 전이라 덜 낸 쪽 (일정 › 다가오는 경기) */
+  .tc-entry .e.wait i {
+    background: var(--accent);
+  }
+  .tc-act {
+    gap: 6px;
+  }
+  .tc-act .mini-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+  }
+  .match-item {
+    scroll-margin-top: 72px;
+  }
   .tc-act {
     display: flex;
     justify-content: flex-end;
@@ -6259,6 +6276,14 @@
   }
   .match-date b {
     font-size: 17px;
+  }
+  /* 패널 제목 옆 설명(.note)은 좁은 화면에서 제목 아래 줄로 — '처리할 경 / 기'처럼 제목이 쪼개지지 않게 */
+  .panel-head:has(> .note) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .panel-head > .note {
+    flex-basis: 100%;
   }
   /* 세트 MVP 표시: 좁은 화면에서는 'MVP' 글자 대신 작은 별 배지 (이름 · 종족이 승패 칸을 밀지 않게) */
   .set-row .mvp-tag {

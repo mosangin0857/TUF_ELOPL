@@ -265,6 +265,11 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
           mvpId: visible || revealAll ? (s.mvp_member_id ?? null) : null,
         }
       })
+    // 엔트리 제출 현황: 공개 전이라 선수는 비워도 채운 세트 수는 원래 행에서 센다
+    const entrySets = m.pl_sets.filter((s) => !s.is_ace)
+    const filledOf = (side: PlSide) =>
+      entrySets.filter((s) => !(s.pick_by && !s.picked_at) && s.pl_set_players.filter((p) => p.side === side).length === FORMAT_SIZE[s.format]).length
+    const entryStatus = { A: { filled: filledOf("A"), total: entrySets.length }, B: { filled: filledOf("B"), total: entrySets.length } }
     const score = matchScore(
       m.stage,
       m.status,
@@ -282,6 +287,7 @@ export async function fetchMatches(seasonId: string, teams: PlTeam[], { revealAl
       status: m.status,
       forfeitWinner: m.forfeit_winner,
       entryRevealAt: m.entry_reveal_at,
+      entryStatus,
       note: m.note,
       scoreA: score.a,
       scoreB: score.b,

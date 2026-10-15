@@ -8,7 +8,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
+import { entryDeadline, entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -61,6 +61,7 @@ export function ScheduleBoard({
   matches,
   captains,
   bjByMatch = {},
+  upcomingIds = [],
 }: {
   seasonName: string
   matches: PlMatch[]
@@ -68,6 +69,8 @@ export function ScheduleBoard({
   bjByMatch?: Record<string, string[]>
   /** 팀 id → 현재 팀장 · 부팀장 member id (엔트리 제출 버튼 표시용, 실제 권한은 서버에서 다시 확인) */
   captains: Record<string, string[]>
+  /** 맨 위 '다가오는 경기' 카드 (서버에서 시간순으로 골라 줌) */
+  upcomingIds?: string[]
 }) {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>(() => defaultTab(matches))
@@ -77,7 +80,80 @@ export function ScheduleBoard({
   const isCaptainOf = (m: PlMatch) =>
     !!user && ((captains[m.teamA.id] ?? []).includes(user.id) || (captains[m.teamB.id] ?? []).includes(user.id))
 
+  const upcoming = upcomingIds.map((id) => matches.find((m) => m.id === id)).filter((m): m is PlMatch => !!m)
+  /** 카드의 '세트 보기': 그 라운드 탭으로 가서 경기 행을 펼치고 스크롤 */
+  const showMatch = (m: PlMatch) => {
+    setTab(tabOf(m.stage))
+    setOpen(m.id)
+    requestAnimationFrame(() => document.getElementById(`match-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }))
+  }
+
   return (
+    <>
+    {upcoming.length > 0 && (
+      <section className="panel" aria-labelledby="pl-upcoming-title">
+        <div className="panel-head">
+          <div>
+            <div className="eyebrow">UPCOMING</div>
+            <h2 id="pl-upcoming-title">다가오는 경기</h2>
+          </div>
+          <span className="note">엔트리는 공개 시각까지 제출한 세트 수만 보여요</span>
+        </div>
+        <div className="todo-grid">
+          {upcoming.map((m, i) => {
+            const deadline = entryDeadline(m.entryRevealAt)
+            const closed = !!deadline && new Date(deadline).getTime() <= Date.now()
+            return (
+              <div key={m.id} className={cn("todo-card", i === 0 && "next")}>
+                <div className="tc-top">
+                  <b className="num">{m.code}</b>
+                  <span className={cn("pill", m.status === "live" ? "st-live" : "soon")}>
+                    {m.status === "live" ? "진행 중" : m.status === "postponed" ? "연기된 경기" : i === 0 ? "다음 경기" : "예정"}
+                  </span>
+                </div>
+                <span className="note">
+                  {shortWhen(m.scheduledAt)}
+                  {deadline && !m.entriesVisible && ` · 엔트리 마감 ${shortWhen(deadline).split(" ").pop()}`}
+                </span>
+                <div className="tc-teams">
+                  <span>
+                    <Crest team={m.teamA.name} color={m.teamA.color} />
+                    {m.teamA.name}
+                  </span>
+                  <span className="vs num">vs</span>
+                  <span className="r">
+                    {m.teamB.name}
+                    <Crest team={m.teamB.name} color={m.teamB.color} />
+                  </span>
+                </div>
+                <div className="tc-entry">
+                  {(["A", "B"] as const).map((side) => {
+                    const c = m.entryStatus[side]
+                    const full = c.filled === c.total
+                    return (
+                      <span key={side} className={cn("e", full ? "ok" : closed ? "bad" : "wait")}>
+                        <i />
+                        {side === "A" ? "홈" : "원정"} 엔트리 {c.filled}/{c.total}
+                      </span>
+                    )
+                  })}
+                </div>
+                <div className="tc-act">
+                  {isCaptainOf(m) && entryOpen(m.status, m.entryRevealAt) && (
+                    <Link className="mini-btn on" href={`/pl/entry/${m.id}`}>
+                      <ClipboardList size={13} aria-hidden /> 엔트리 제출
+                    </Link>
+                  )}
+                  <button type="button" className="mini-btn" onClick={() => showMatch(m)}>
+                    {m.entriesVisible ? "세트 · 엔트리 보기" : "세트 보기"}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+    )}
     <section className="panel" data-capture>
       <div className="panel-head">
         <div>
@@ -109,7 +185,7 @@ export function ScheduleBoard({
           const expanded = open === m.id
           const canEntry = isCaptainOf(m) && entryOpen(m.status, m.entryRevealAt)
           return (
-            <div key={m.id} className={cn("match-item", expanded && "open")} data-capture>
+            <div key={m.id} id={`match-${m.id}`} className={cn("match-item", expanded && "open")} data-capture>
               <button type="button" className="match-row" onClick={() => setOpen(expanded ? null : m.id)} aria-expanded={expanded}>
                 <div className="match-date">
                   {when ? (
@@ -241,5 +317,6 @@ export function ScheduleBoard({
         })
       )}
     </section>
+    </>
   )
 }

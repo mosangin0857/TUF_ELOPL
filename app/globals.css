@@ -3922,7 +3922,8 @@
 
 @media (max-width: 1100px) {
   .pl-split {
-    grid-template-columns: 1fr;
+    /* 1fr은 안쪽 표 폭만큼 늘어나 모바일에서 페이지가 넓어짐 → minmax(0, 1fr) (표는 .table-wrap 안에서 가로 스크롤) */
+    grid-template-columns: minmax(0, 1fr);
   }
   .pl-side {
     position: static;
@@ -5572,5 +5573,530 @@
   .rule-site {
     border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
     background: color-mix(in oklab, var(--accent) 5%, var(--surface));
+  }
+
+  /* ELO 보드 › 대시보드 '전적 등록' 팝업 (components/elo/register-match.tsx) */
+  .reg-modal {
+    width: min(460px, calc(100vw - 32px));
+  }
+  .reg-modal .form-row .field {
+    width: 100%;
+  }
+  .reg-hint {
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .reg-swap {
+    height: 32px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+  .reg-suggest {
+    position: relative;
+    min-width: 0;
+  }
+  .reg-suggest > .field {
+    width: 100%;
+  }
+  .reg-suggest .field.chosen {
+    border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+  }
+  /* 입력칸 바로 아래 같은 폭 · 8줄쯤 보이고 나머지는 스크롤 */
+  .reg-suggest-list {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    max-height: 276px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  }
+  .reg-suggest-list button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    text-align: left;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .reg-suggest-list button:hover,
+  .reg-suggest-list button.on {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .reg-suggest-list .sub {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .reg-ok {
+    margin: 0;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1f8a5b;
+    background: color-mix(in oklab, #1f8a5b 10%, var(--surface));
+  }
+  .reg-foot {
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
+  .reg-foot .btn,
+  .reg-foot .btn-ghost {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  /* ELO 보드 › 대시보드 선수 전적 검색 + 필터 (components/elo/dashboard-search.tsx) */
+  .search-form .vsbox {
+    padding-bottom: 12px;
+  }
+  .vs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mf {
+    margin: 0 20px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .mf > summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .mf > summary::-webkit-details-marker {
+    display: none;
+  }
+  .mf > summary::after {
+    content: "▾";
+    margin-left: auto;
+    color: var(--ink-3);
+    transition: transform 0.15s;
+  }
+  .mf[open] > summary::after {
+    transform: rotate(180deg);
+  }
+  .mf-count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .mf-body {
+    display: grid;
+    gap: 12px;
+    padding: 4px 14px 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  .mf-row {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+  }
+  .mf-label {
+    display: grid;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .mf-label small {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .mf-dates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .mf-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mf-date .field {
+    width: 160px;
+    max-width: 100%;
+  }
+  .mf-map {
+    max-width: 320px;
+  }
+  .mf-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .fchip {
+    position: relative;
+    cursor: pointer;
+  }
+  .fchip input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+  .fchip span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .fchip:hover span {
+    border-color: var(--accent);
+  }
+  .fchip input:checked + span {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .fchip input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .mf-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  /* 최근 전적: 오른쪽 위 [캡처] [공유] [필터 초기화] + 경기 수 */
+  .rc-side {
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+    flex: none;
+  }
+  a.cap-btn {
+    text-decoration: none;
+  }
+  .cap-btn.is-off {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .cap-btn.is-off:hover {
+    border-color: var(--line);
+    color: var(--ink-2);
+  }
+  .cap-btn.is-done {
+    border-color: #1f8a5b;
+    color: #1f8a5b;
+  }
+  .share-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .share-toast {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--surface);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  }
+  .share-toast.err {
+    background: var(--up);
+    color: #fff;
+  }
+  /* 최근 전적 표: 번호 · 선수 1 오른쪽 정렬로 vs를 두 선수 가운데에 */
+  .t.match-table th.rn,
+  .t.match-table td.rn {
+    width: 1%;
+    padding-right: 4px;
+    text-align: right;
+    color: var(--ink-3);
+    font-size: 12.5px;
+  }
+  .t.match-table .p1 {
+    text-align: right;
+  }
+  .t.match-table td.p1 .p-cell {
+    justify-content: flex-end;
+  }
+  .t.match-table th.vs,
+  .t.match-table td.vs {
+    width: 1%;
+    padding-inline: 4px;
+    text-align: center;
+  }
+  @media (max-width: 880px) {
+    .mf {
+      margin: 0 14px 14px;
+    }
+    .vs-actions > * {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+  }
+  @media (max-width: 560px) {
+    /* 페이지 번호 (components/ui/pagination.tsx): '1 / 19 페이지'가 끊기지 않게, 번호는 다음 줄로 */
+    .pager {
+      flex-wrap: wrap;
+    }
+    .pager > .num {
+      white-space: nowrap;
+    }
+    .mf-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+    .mf-label {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .mf-map {
+      max-width: none;
+    }
+    .mf-date {
+      flex: 1 1 140px;
+    }
+    .mf-date .field {
+      width: 100%;
+    }
+    .mf > summary .note {
+      display: none;
+    }
+  }
+
+  /* ELO 보드 › 최근 전적 수정 · 삭제 (components/elo/match-admin.tsx) */
+  .t th.match-act,
+  .t td.match-act {
+    width: 1%;
+    padding-left: 4px;
+    text-align: right;
+  }
+  .t td.match-act {
+    padding-block: 6px;
+  }
+  .win-pick {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .win-pick button {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 10px 8px 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink-2);
+  }
+  .win-pick button:hover {
+    border-color: color-mix(in oklab, var(--down) 50%, var(--line));
+  }
+  .win-pick button.on {
+    border-color: var(--down);
+    background: color-mix(in oklab, var(--down) 8%, var(--surface));
+    color: var(--ink);
+  }
+  .win-pick small {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+  .win-pick .who {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .win-pick .tag {
+    min-height: 16px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--down);
+  }
+  .del-sum {
+    display: grid;
+    gap: 6px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .del-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .del-effect {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+
+  /* PL 관리 › 경기 목록: 관리 버튼 4개(결과 입력 · DB전송 · 수정 · 삭제)가 잘리지 않게 칸 여백을 줄이고, 그래도 좁으면 오른쪽 정렬 두 줄 */
+  .t.pl-match-table th,
+  .t.pl-match-table td {
+    padding-inline: 10px;
+  }
+  .t.pl-match-table th:first-child,
+  .t.pl-match-table td:first-child {
+    padding-left: 14px;
+  }
+  .t.pl-match-table th:last-child,
+  .t.pl-match-table td:last-child {
+    padding-right: 14px;
+  }
+  .pl-act {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+  .pl-act .mini-btn {
+    padding: 0 9px;
+  }
+
+  /* PL 관리 › 경기 'DB전송' 팝업 (components/elo/pl-elo-send.tsx) */
+  .elo-send {
+    display: grid;
+    gap: 12px;
+  }
+  .elo-send:not([open]) {
+    display: none;
+  }
+  .elo-send .modal-sub .note {
+    margin-left: 6px;
+    font-weight: 500;
+  }
+  .xs-pad {
+    padding: 2px 0;
+    line-height: 1.6;
+  }
+  .xs-banner {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+  }
+  .xs-banner svg {
+    flex: none;
+    margin-top: 1px;
+  }
+  .xs-banner b {
+    font-size: 14.5px;
+  }
+  .xs-banner p {
+    margin: 3px 0 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .xs-banner .xs-sub {
+    color: var(--ink-3);
+  }
+  .xs-banner.ok {
+    color: #1f8a5b;
+    border-color: color-mix(in oklab, #1f8a5b 35%, transparent);
+    background: color-mix(in oklab, #1f8a5b 8%, var(--surface));
+  }
+  .xs-banner.warn {
+    color: #c26a00;
+    border-color: color-mix(in oklab, #c26a00 35%, transparent);
+    background: color-mix(in oklab, #c26a00 8%, var(--surface));
+  }
+  .xs-banner.fail {
+    color: var(--up);
+    border-color: color-mix(in oklab, var(--up) 35%, transparent);
+    background: color-mix(in oklab, var(--up) 7%, var(--surface));
+  }
+  .xs-banner b,
+  .xs-banner p:first-of-type {
+    color: inherit;
+  }
+  .xs-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .xs-table {
+    max-height: 46vh;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .xs-table .t td {
+    white-space: nowrap;
+  }
+  .xs-table .p-cell {
+    gap: 6px;
+  }
+  .xs-win {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--down);
+  }
+  .xs-extras {
+    display: grid;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .xs-extras ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 3px;
+    color: var(--ink-2);
+  }
+  .xs-extras li .pill {
+    margin-left: 6px;
   }
 }

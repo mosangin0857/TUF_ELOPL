@@ -12,8 +12,8 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-16 · 공지 · 건의 조회수 (공통 메뉴)**
-- **DB 변경 SQL: `docs/sql/014_board_views.sql` (실행 대기)** — `notices` · `suggestions`에 `view_count`(기본 0) + 함수 `increment_board_view`(service_role만 실행). 기존 사이트가 suggestions에 글을 넣어도 기본값이라 영향 없음.
+**2026-10-16 · 공지 · 건의 조회수 (공통 메뉴, main 반영)**
+- **DB 변경 SQL: `docs/sql/014_board_views.sql`** (2026-10-16 실행 완료) — `notices` · `suggestions`에 `view_count`(기본 0) + 함수 `increment_board_view`(service_role만 실행). 기존 사이트가 suggestions에 글을 넣어도 기본값이라 영향 없음.
 - 게시판에서 글을 펼치면 +1(로그인 없이도, 같은 탭에서는 글 하나당 한 번 — sessionStorage), 목록 줄에 '조회 N'. `viewPostAction`은 화면 새로고침 없이 새 값만 돌려줌.
 - 014 실행 전에는 `fetchBoard`가 view_count 없이 다시 읽어서 조회수만 안 보임.
 

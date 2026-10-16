@@ -59,6 +59,10 @@
 
 ## 기록
 
+### 2026-10-16 — SQL 014 실행 · 조회수 main 반영
+**한 일**
+- 사용자가 `014_board_views.sql` 실행 → view_count 두 테이블 확인, 함수는 서버로만 실행되고 anon 호출은 막힘(42501) 확인, 문서 실행 완료 표시, main 반영
+
 ### 2026-10-16 — 공지 · 건의 조회수 (공통 메뉴, SQL 014 실행 대기)
 **한 일**
 - SQL 014: `notices` · `suggestions`에 `view_count`, 함수 `increment_board_view`(+1 후 새 값, service_role만)

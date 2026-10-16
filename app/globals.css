@@ -4174,10 +4174,13 @@
     font-weight: 800;
     line-height: 1.1;
   }
-  .h2h-rec span {
+  .h2h-rec > span {
     display: block;
     font-size: 12.5px;
     color: var(--ink-2);
+  }
+  .h2h-rec b {
+    white-space: nowrap;
   }
   .h2h-rec small {
     font-size: 12px;
@@ -4308,6 +4311,115 @@
   .h2h-res.N {
     background: var(--surface-2);
     color: var(--ink-2);
+  }
+  /* 팀 대 팀 › 상대 펼침 › 전력분석 (상대 개인전) */
+  .scout {
+    display: grid;
+    gap: 14px;
+    margin-top: 4px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .scout-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .scout-head b {
+    font-family: var(--font-cond);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: var(--accent-text);
+  }
+  .scout-block {
+    display: grid;
+    gap: 6px;
+  }
+  .scout-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .scout-sets,
+  .scout-log {
+    display: grid;
+    gap: 4px;
+  }
+  .scout-set {
+    display: grid;
+    grid-template-columns: 50px 96px 62px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+  .scout-set.ace {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .ss-no {
+    font-family: var(--font-cond);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+  }
+  .ss-map {
+    color: var(--ink-2);
+  }
+  .ss-tier {
+    font-weight: 700;
+  }
+  .ss-cands {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    min-width: 0;
+  }
+  .ss-cand {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .ss-cand small {
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .scout-log {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  .sl-row {
+    display: grid;
+    grid-template-columns: 190px 170px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 12.5px;
+  }
+  .sl-when {
+    color: var(--ink-2);
+  }
+  .sl-ppl {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+  }
+  .sl-row.L .sl-ppl b {
+    color: var(--ink-3);
+  }
+  .scout-none {
+    padding: 2px 0;
   }
   .h2h-legend {
     display: flex;
@@ -4589,6 +4701,10 @@
     gap: 12px;
     padding: 12px 14px;
   }
+  .h2h-opp .h2h-caret {
+    grid-column: 3;
+    grid-row: 1;
+  }
   .h2h-form {
     grid-column: 1 / -1;
     justify-content: flex-start;
@@ -4601,6 +4717,28 @@
   }
   .h2h-sets {
     grid-column: 1 / -1;
+  }
+  .scout {
+    padding: 12px;
+  }
+  .scout-set {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 6px 8px;
+  }
+  .ss-cands {
+    grid-column: 1 / -1;
+  }
+  .sl-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+  }
+  .sl-set,
+  .sl-ppl {
+    grid-column: 1;
+  }
+  .sl-row .h2h-res {
+    grid-column: 2;
+    grid-row: 1 / span 3;
   }
   .h2h-matrix-wrap {
     padding: 0 14px 14px;

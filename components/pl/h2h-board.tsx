@@ -4,13 +4,13 @@ import { useState } from "react"
 import { ChevronDown } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
-import { Crest } from "@/components/ui/race"
+import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen } from "@/lib/pl/format"
-import { isCounted, REGULAR_STAGES } from "@/lib/pl/rules"
-import type { PlMatch } from "@/lib/types"
+import { isCounted, PICK_LABEL, REGULAR_STAGES, type PlSide } from "@/lib/pl/rules"
+import type { PlMatch, PlSet, PlTeamMember, Race } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-type TeamRef = { id: string; name: string; color: string }
+type TeamRef = { id: string; name: string; color: string; members: PlTeamMember[] }
 
 type Item = {
   match: PlMatch
@@ -54,6 +54,163 @@ const roundOf = (m: PlMatch) => `${m.stage.slice(1)}R`
 const md = (iso: string | null) => {
   const w = matchWhen(iso)
   return w ? `${Number(w.md.slice(0, 2))}/${Number(w.md.slice(3))}` : "미정"
+}
+
+/* ---------------- 전력분석: 상대 팀 개인전 (정규 · 플레이오프, ACE 포함) ---------------- */
+
+type WL = { w: number; l: number }
+type SoloRow = { match: PlMatch; set: PlSet; memberId: string; name: string; race: Race | null; win: boolean; vsName: string; oppTeam: string }
+
+/** 한 팀이 치른 개인전 세트 (승패가 난 1:1 세트) — 최근 경기부터 */
+function soloLog(teamId: string, matches: PlMatch[]): SoloRow[] {
+  const rows: SoloRow[] = []
+  for (const m of matches) {
+    if (!isCounted(m.status)) continue
+    const side: PlSide | null = m.teamA.id === teamId ? "A" : m.teamB.id === teamId ? "B" : null
+    if (!side) continue
+    for (const s of m.sets) {
+      if (s.format !== "1v1" || !s.winner) continue
+      const me = (side === "A" ? s.playersA : s.playersB)[0]
+      const vs = (side === "A" ? s.playersB : s.playersA)[0]
+      if (!me) continue
+      rows.push({
+        match: m,
+        set: s,
+        memberId: me.memberId,
+        name: me.name,
+        race: me.race === "R" ? null : (me.race as Race | null),
+        win: s.winner === side,
+        vsName: vs?.name ?? "—",
+        oppTeam: side === "A" ? m.teamB.name : m.teamA.name,
+      })
+    }
+  }
+  return rows.sort((a, b) => (b.match.scheduledAt ?? "").localeCompare(a.match.scheduledAt ?? "") || a.set.setNo - b.set.setNo)
+}
+
+const wl = (r: WL | undefined) => (r ? `${r.w}승 ${r.l}패` : "0승 0패")
+
+/** 세트 이름: 1세트 · ACE */
+const setName = (s: PlSet) => (s.isAce ? "ACE" : `${s.setNo}세트`)
+
+/**
+ * 상대 팀 전력분석 (내 팀 입장): 다음 맞대결의 개인전 세트마다 그 티어 상대 선수 · 개인전 전적 · 그 맵 전적,
+ * 아래에 상대가 이번 시즌 치른 개인전 기록 (최근부터).
+ */
+function Scout({ me, opp, matches }: { me: TeamRef; opp: TeamRef; matches: PlMatch[] }) {
+  const log = soloLog(opp.id, matches)
+  const total = new Map<string, WL>()
+  const byMap = new Map<string, WL>()
+  for (const r of log) {
+    const t = total.get(r.memberId) ?? { w: 0, l: 0 }
+    if (r.win) t.w++
+    else t.l++
+    total.set(r.memberId, t)
+    const k = `${r.memberId}|${r.set.mapName ?? ""}`
+    const mm = byMap.get(k) ?? { w: 0, l: 0 }
+    if (r.win) mm.w++
+    else mm.l++
+    byMap.set(k, mm)
+  }
+  // 다음 맞대결: 아직 안 치른 두 팀 경기 중 가장 이른 것
+  const next = matches
+    .filter((m) => !isCounted(m.status) && m.status !== "canceled" && ((m.teamA.id === me.id && m.teamB.id === opp.id) || (m.teamB.id === me.id && m.teamA.id === opp.id)))
+    .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))[0]
+  const meHome = next?.teamA.id === me.id
+  const games = (id: string) => (total.get(id)?.w ?? 0) + (total.get(id)?.l ?? 0)
+
+  return (
+    <div className="scout">
+      <div className="scout-head">
+        <b>전력분석</b>
+        <span className="note">
+          {opp.name} 개인전 · 이번 시즌 {log.length}세트
+        </span>
+      </div>
+
+      {next ? (
+        <div className="scout-block">
+          <div className="scout-title">
+            다음 맞대결 <b className="num">{next.code}</b>
+            <span className="note">
+              {md(next.scheduledAt)} · {me.name} {meHome ? "홈" : "원정"}
+            </span>
+          </div>
+          <div className="scout-sets">
+            {next.sets
+              .filter((s) => s.format === "1v1" || (s.pickBy && !s.pickedAt))
+              .map((s) => {
+                const waiting = !!s.pickBy && !s.pickedAt
+                const tier = waiting ? null : s.tier
+                const map = waiting ? (s.soloMap ?? s.mapName) : s.mapName
+                const cands = tier
+                  ? opp.members.filter((m) => m.tier === tier).sort((a, b) => games(b.memberId) - games(a.memberId) || a.name.localeCompare(b.name, "ko"))
+                  : []
+                return (
+                  <div key={s.id} className={cn("scout-set", s.isAce && "ace")}>
+                    <span className="ss-no">{setName(s)}</span>
+                    <span className="ss-map">{map ?? "맵 미정"}</span>
+                    <span className="ss-tier">{tier ? `${tier}티어` : s.isAce ? "티어 추첨" : waiting ? PICK_LABEL[s.pickBy!] : "—"}</span>
+                    <span className="ss-cands">
+                      {tier ? (
+                        cands.length ? (
+                          cands.map((m) => {
+                            const onMap = byMap.get(`${m.memberId}|${map ?? ""}`)
+                            return (
+                              <span key={m.memberId} className="ss-cand">
+                                <RaceBadge race={m.race} />
+                                <b>{m.name}</b>
+                                <small className="num">
+                                  {wl(total.get(m.memberId))}
+                                  {onMap ? ` · 이 맵 ${onMap.w}승 ${onMap.l}패` : ""}
+                                </small>
+                              </span>
+                            )
+                          })
+                        ) : (
+                          <span className="note">{tier}티어 선수 없음 (아래 티어가 나와요)</span>
+                        )
+                      ) : (
+                        <span className="note">{s.isAce ? "경기 당일 추첨 뒤 정해져요" : `${meHome ? me.name : opp.name}가 고르면 정해져요`}</span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      ) : (
+        <p className="note scout-none">남은 맞대결이 없어요.</p>
+      )}
+
+      <div className="scout-block">
+        <div className="scout-title">{opp.name} 개인전 기록</div>
+        {log.length ? (
+          <div className="scout-log">
+            {log.map((r) => (
+              <div key={r.set.id} className={cn("sl-row", r.win ? "W" : "L")}>
+                <span className="sl-when">
+                  <b className="num">{r.match.code}</b> {md(r.match.scheduledAt)} · vs {r.oppTeam}
+                </span>
+                <span className="sl-set">
+                  {setName(r.set)} · {r.set.mapName ?? "—"}
+                  {r.set.tier ? ` · ${r.set.tier}티어` : ""}
+                </span>
+                <span className="sl-ppl">
+                  <RaceBadge race={r.race} />
+                  <b>{r.name}</b>
+                  <small className="note">vs {r.vsName}</small>
+                </span>
+                <span className={cn("h2h-res", r.win ? "W" : "L")}>{r.win ? "승" : "패"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="note scout-none">아직 치른 개인전이 없어요.</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function TeamView({ team, teams, matches, open, setOpen }: { team: TeamRef; teams: TeamRef[]; matches: PlMatch[]; open: string | null; setOpen: (id: string | null) => void }) {
@@ -187,6 +344,7 @@ function TeamView({ team, teams, matches, open, setOpen }: { team: TeamRef; team
                   ) : (
                     <p className="note">정규 라운드 맞대결이 아직 없어요.</p>
                   )}
+                  <Scout me={team} opp={o} matches={matches} />
                 </div>
               )}
             </div>

@@ -3,7 +3,6 @@ import { H2HBoard } from "@/components/pl/h2h-board"
 import { DbError } from "@/components/ui/db-error"
 import { Empty } from "@/components/ui/empty"
 import { fetchCurrentSeason, fetchMatches, fetchTeams } from "@/lib/data/pl"
-import { REGULAR_STAGES } from "@/lib/pl/rules"
 import type { PlMatch, PlSeason, PlTeam } from "@/lib/types"
 
 export const metadata: Metadata = { title: "팀 대 팀" }
@@ -36,8 +35,8 @@ export default async function PlVsPage() {
   return (
     <H2HBoard
       seasonName={season.name}
-      teams={teams.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
-      matches={matches.filter((m) => REGULAR_STAGES.includes(m.stage))}
+      teams={teams.map((t) => ({ id: t.id, name: t.name, color: t.color, members: t.members.filter((m) => !m.leftOn) }))}
+      matches={matches}
     />
   )
 }

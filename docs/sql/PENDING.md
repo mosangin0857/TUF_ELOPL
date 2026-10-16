@@ -6,7 +6,9 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-(없음 — 2026-10-15에 013 실행 완료)
+| 순서 | 파일 | 내용 | 실행 안 하면 |
+| --- | --- | --- | --- |
+| 1 | [`014_board_views.sql`](014_board_views.sql) | `notices.view_count` · `suggestions.view_count` + 함수 `increment_board_view` | 공지 · 건의에 조회수가 안 보이고 안 올라감 (게시판은 그대로 동작) |
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 

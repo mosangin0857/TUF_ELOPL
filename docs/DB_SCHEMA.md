@@ -109,6 +109,7 @@ id, admin_username, action, target, detail, created_at
 | author_member_id | uuid | Y | | → members.id (on delete set null) |
 | author_name | text | N | | 작성 당시 닉네임 |
 | created_at / updated_at | timestamptz | N | now() | |
+| view_count | integer | N | 0 | 조회수 (`014`, **실행 대기**) — 글을 펼치면 +1 |
 
 - RLS: 조회는 누구나(`notices_select_all`), 쓰기는 서버(service_role)에서만 — `app/notice/actions.ts`
 
@@ -116,6 +117,9 @@ id, admin_username, action, target, detail, created_at
 | 컬럼 | 타입 | null | 비고 |
 |---|---|---|---|
 | member_id | uuid | Y | → members.id. 새 사이트에서 로그인해 쓴 건의만 채워짐 (기존 사이트 글은 null) |
+| view_count | integer | N | 조회수, 기본 0 (`014`, **실행 대기**) |
+
+- 함수 `increment_board_view(p_kind 'notice' · 'suggestion', p_id)` (`014`): 조회수 +1 후 새 값. 실행 권한은 service_role만 (`app/notice/actions.ts`의 `viewPostAction`)
 
 ### clan_bjs — 클랜 BJ (추가: `docs/sql/004_clan_bjs.sql`)
 | 컬럼 | 타입 | null | 기본값 | 비고 |

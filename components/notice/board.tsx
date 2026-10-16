@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Megaphone, MessageSquarePlus, PenLine } from "lucide-react"
@@ -14,6 +14,7 @@ import {
   setNoticeHomeAction,
   updateNoticeAction,
   updateReplyAction,
+  viewPostAction,
   type ActionResult,
 } from "@/app/notice/actions"
 import type { BoardPost, BoardTab, NoticePost, SuggestionCategory, SuggestionPost } from "@/lib/data/board"
@@ -59,6 +60,24 @@ export function Board({
   const [composer, setComposer] = useState<Composer>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  /** 펼쳐서 새로 받은 조회수 (서버 새로고침 없이 그 글만 바꿔 보여 줌) */
+  const [views, setViews] = useState<Record<string, number>>({})
+
+  // 글을 펼치면 조회수 +1 — 같은 탭에서는 글 하나당 한 번만 (sessionStorage)
+  useEffect(() => {
+    const post = posts.find((p) => p.id === open)
+    if (!post || post.views === null) return
+    const key = `tuf:viewed:${post.id}`
+    try {
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, "1")
+    } catch {
+      // 저장소를 못 쓰는 브라우저(사생활 보호 등)는 펼칠 때마다 센다
+    }
+    viewPostAction(post.kind, post.id).then((n) => {
+      if (n !== null) setViews((v) => ({ ...v, [post.id]: n }))
+    })
+  }, [open, posts])
 
   const isAdmin = viewer.adminName !== null
   const loggedIn = viewer.memberId !== null || isAdmin
@@ -165,6 +184,12 @@ export function Board({
                   </button>
                   <span className="post-meta">
                     {p.author} · <span className="num">{seoulDate(new Date(p.createdAt))}</span>
+                    {p.views !== null && (
+                      <>
+                        {" "}
+                        · <span className="views">조회 <span className="num">{(views[p.id] ?? p.views).toLocaleString()}</span></span>
+                      </>
+                    )}
                   </span>
                   {p.kind === "notice" && isAdmin && (
                     <label className="expose" title="클랜하우스 대문 공지 줄에 표시">

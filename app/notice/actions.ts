@@ -31,6 +31,20 @@ function revalidateBoard() {
   revalidatePath("/")
 }
 
+/* ---------- 조회수 (docs/sql/014_board_views.sql) ---------- */
+
+/**
+ * 글을 펼쳤을 때 조회수 +1 (로그인 없이도). 같은 탭에서 한 번만 부르는 건 화면이 막는다.
+ * 화면 새로고침(revalidate) 없이 새 값만 돌려준다. 014 실행 전이거나 실패하면 null — 조용히 넘어간다.
+ */
+export async function viewPostAction(kind: "notice" | "suggestion", id: string): Promise<number | null> {
+  if (kind !== "notice" && kind !== "suggestion") return null
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+  const { data, error } = await createServiceClient().rpc("increment_board_view", { p_kind: kind, p_id: id })
+  if (error) return null
+  return typeof data === "number" ? data : null
+}
+
 /* ---------- 공지 ---------- */
 
 function checkNotice(title: string, body: string): string | null {

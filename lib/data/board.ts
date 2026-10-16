@@ -26,6 +26,8 @@ export interface NoticePost {
   author: string
   createdAt: string
   updatedAt: string
+  /** 조회수 — docs/sql/014_board_views.sql 실행 전이면 null */
+  views: number | null
 }
 
 export interface SuggestionReply {
@@ -45,6 +47,8 @@ export interface SuggestionPost {
   memberId: string | null
   createdAt: string
   replies: SuggestionReply[]
+  /** 조회수 — docs/sql/014_board_views.sql 실행 전이면 null */
+  views: number | null
 }
 
 export type BoardPost = NoticePost | SuggestionPost
@@ -52,14 +56,22 @@ export type BoardTab = "all" | "notice" | "suggestion"
 
 const PAGE = 1000
 
+/** 014(조회수) 실행 전이면 view_count 없이 다시 읽는다 */
+function missingViews(error: { message?: string } | null) {
+  return !!error && /view_count/.test(error.message ?? "")
+}
+
 async function fetchNotices(): Promise<NoticePost[]> {
-  const { data, error } = await createServiceClient()
-    .from("notices")
-    .select("id, title, body, show_on_home, author_name, created_at, updated_at")
-    .order("created_at", { ascending: false })
-    .limit(PAGE)
+  const select = (withViews: boolean) =>
+    createServiceClient()
+      .from("notices")
+      .select(`id, title, body, show_on_home, author_name, created_at, updated_at${withViews ? ", view_count" : ""}`)
+      .order("created_at", { ascending: false })
+      .limit(PAGE)
+  let { data, error } = await select(true)
+  if (missingViews(error)) ({ data, error } = await select(false))
   if (error) throw new Error(`notices 조회 실패: ${error.message} (docs/sql/003_notices.sql을 실행했는지 확인해 주세요)`)
-  return (data ?? []).map((r) => ({
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
     kind: "notice",
     id: r.id as string,
     title: r.title as string,
@@ -68,15 +80,23 @@ async function fetchNotices(): Promise<NoticePost[]> {
     author: r.author_name as string,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
+    views: (r.view_count as number | undefined) ?? null,
   }))
 }
 
 async function fetchSuggestions(): Promise<SuggestionPost[]> {
   const supabase = createServiceClient()
-  const [{ data: rows, error }, { data: replies, error: replyError }] = await Promise.all([
-    supabase.from("suggestions").select("id, category, content, nickname, member_id, created_at").order("created_at", { ascending: false }).limit(PAGE),
+  const select = (withViews: boolean) =>
+    supabase
+      .from("suggestions")
+      .select(`id, category, content, nickname, member_id, created_at${withViews ? ", view_count" : ""}`)
+      .order("created_at", { ascending: false })
+      .limit(PAGE)
+  let [{ data: rows, error }, { data: replies, error: replyError }] = await Promise.all([
+    select(true),
     supabase.from("suggestion_replies").select("id, suggestion_id, admin_username, content, created_at").order("created_at", { ascending: true }).limit(PAGE),
   ])
+  if (missingViews(error)) ({ data: rows, error } = await select(false))
   if (error) throw new Error(`suggestions 조회 실패: ${error.message} (docs/sql/003_notices.sql을 실행했는지 확인해 주세요)`)
   if (replyError) throw new Error(`suggestion_replies 조회 실패: ${replyError.message}`)
 
@@ -87,7 +107,7 @@ async function fetchSuggestions(): Promise<SuggestionPost[]> {
     bySuggestion.set(r.suggestion_id as string, list)
   }
 
-  return (rows ?? []).map((r) => ({
+  return ((rows ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
     kind: "suggestion",
     id: r.id as string,
     category: r.category as string,
@@ -96,6 +116,7 @@ async function fetchSuggestions(): Promise<SuggestionPost[]> {
     memberId: (r.member_id as string | null) ?? null,
     createdAt: r.created_at as string,
     replies: bySuggestion.get(r.id as string) ?? [],
+    views: (r.view_count as number | undefined) ?? null,
   }))
 }
 

@@ -89,6 +89,9 @@ function soloLog(teamId: string, matches: PlMatch[]): SoloRow[] {
   return rows.sort((a, b) => (b.match.scheduledAt ?? "").localeCompare(a.match.scheduledAt ?? "") || a.set.setNo - b.set.setNo)
 }
 
+/** 개인전 기록: 처음 보여 줄 경기 수 · '더 보기' 한 번에 늘리는 수 */
+const LOG_STEP = 3
+
 const wl = (r: WL | undefined) => (r ? `${r.w}승 ${r.l}패` : "0승 0패")
 
 /** 세트 이름: 1세트 · ACE */
@@ -142,6 +145,14 @@ function Scout({ me, opp, matches }: { me: TeamRef; opp: TeamRef; matches: PlMat
     .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""))[0]
   const meHome = next?.teamA.id === me.id
   const games = (id: string) => (total.get(id)?.w ?? 0) + (total.get(id)?.l ?? 0)
+  // 개인전 기록은 경기 단위로 묶어 최근 3경기만, '더 보기'로 3경기씩
+  const groups: { match: PlMatch; rows: SoloRow[] }[] = []
+  for (const r of log) {
+    const g = groups[groups.length - 1]
+    if (g && g.match.id === r.match.id) g.rows.push(r)
+    else groups.push({ match: r.match, rows: [r] })
+  }
+  const [shown, setShown] = useState(LOG_STEP)
 
   return (
     <div className="scout" data-capture>
@@ -213,25 +224,49 @@ function Scout({ me, opp, matches }: { me: TeamRef; opp: TeamRef; matches: PlMat
 
       <div className="scout-block">
         <div className="scout-title">{opp.name} 개인전 기록</div>
-        {log.length ? (
+        {groups.length ? (
           <div className="scout-log">
-            {log.map((r) => (
-              <div key={r.set.id} className={cn("sl-row", r.win ? "W" : "L")}>
-                <span className="sl-when">
-                  <b className="num">{r.match.code}</b> {md(r.match.scheduledAt)} · vs {r.oppTeam}
-                </span>
-                <span className="sl-set">
-                  {setName(r.set)} · {r.set.mapName ?? "—"}
-                  {r.set.tier ? ` · ${r.set.tier}티어` : ""}
-                </span>
-                <span className="sl-ppl">
-                  <RaceBadge race={r.race} />
-                  <b>{r.name}</b>
-                  <small className="note">vs {r.vsName}</small>
-                </span>
-                <span className={cn("h2h-res", r.win ? "W" : "L")}>{r.win ? "승" : "패"}</span>
-              </div>
-            ))}
+            {groups.slice(0, shown).map(({ match: m, rows }) => {
+              const oppHome = m.teamA.id === opp.id
+              const my = oppHome ? m.scoreA : m.scoreB
+              const their = oppHome ? m.scoreB : m.scoreA
+              const won = m.winner === (oppHome ? "A" : "B")
+              return (
+                <div key={m.id} className="sl-match">
+                  <div className="sl-mhead">
+                    <b className="num">{m.code}</b>
+                    <span className="note">
+                      {md(m.scheduledAt)} · vs {rows[0].oppTeam}
+                    </span>
+                    <span className={cn("h2h-res", won ? "W" : "L")}>
+                      <b className="num">
+                        {my}:{their}
+                      </b>{" "}
+                      {won ? "승" : "패"}
+                    </span>
+                  </div>
+                  {rows.map((r) => (
+                    <div key={r.set.id} className={cn("sl-row", r.win ? "W" : "L")}>
+                      <span className="sl-set">
+                        {setName(r.set)} · {r.set.mapName ?? "—"}
+                        {r.set.tier ? ` · ${r.set.tier}티어` : ""}
+                      </span>
+                      <span className="sl-ppl">
+                        <RaceBadge race={r.race} />
+                        <b>{r.name}</b>
+                        <small className="note">vs {r.vsName}</small>
+                      </span>
+                      <span className={cn("sl-wl", r.win ? "W" : "L")}>{r.win ? "승" : "패"}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+            {groups.length > shown && (
+              <button type="button" className="mini-btn sl-more" onClick={() => setShown(shown + LOG_STEP)} data-capture-hide>
+                이전 경기 더 보기 ({groups.length - shown}경기)
+              </button>
+            )}
           </div>
         ) : (
           <p className="note scout-none">아직 치른 개인전이 없어요.</p>

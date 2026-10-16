@@ -4328,6 +4328,11 @@
     align-items: baseline;
     gap: 8px;
   }
+  .scout-tools {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 6px;
+  }
   .scout-head b {
     font-family: var(--font-cond);
     font-weight: 800;

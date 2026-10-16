@@ -3,10 +3,11 @@
 import { useState } from "react"
 import { ChevronDown } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
+import { CopyTextButton } from "@/components/ui/copy-text-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen } from "@/lib/pl/format"
-import { isCounted, PICK_LABEL, REGULAR_STAGES, type PlSide } from "@/lib/pl/rules"
+import { isCounted, PICK_LABEL, REGULAR_STAGES, SAENGCON_LABEL, type PlSide } from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlTeamMember, Race } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -97,6 +98,29 @@ const setName = (s: PlSet) => (s.isAce ? "ACE" : `${s.setNo}세트`)
  * 상대 팀 전력분석 (내 팀 입장): 다음 맞대결의 개인전 세트마다 그 티어 상대 선수 · 개인전 전적 · 그 맵 전적,
  * 아래에 상대가 이번 시즌 치른 개인전 기록 (최근부터).
  */
+/**
+ * 카톡 붙여넣기용 다음 맞대결 세트 글 (ACE 제외, 내 팀 입장):
+ *   1세트 백룸 4티어 상대닉, 상대닉 / 3세트 홈지정(애티튜드) 우리팀 선택 / 4세트 헌터 팀플합 우리팀 선택
+ * 지정 세트 · 팀플합은 홈 팀이 고른다.
+ */
+function lineupText(next: PlMatch, me: TeamRef, opp: TeamRef): string {
+  const meHome = next.teamA.id === me.id
+  const who = (homeSide: boolean) => (homeSide === meHome ? "우리팀" : "상대팀")
+  return next.sets
+    .filter((s) => !s.isAce)
+    .map((s) => {
+      const no = `${s.setNo}세트`
+      if (s.pickBy && !s.pickedAt) return `${no} 홈지정(${s.soloMap ?? s.mapName ?? "맵 미정"}) ${who(s.pickBy === "home")} 선택`
+      if (s.format !== "1v1") {
+        if (s.tierSum) return `${no} ${s.mapName ?? "맵 미정"} ${SAENGCON_LABEL} 티어합 ${s.tierSum}↑`
+        return `${no} ${s.mapName ?? "맵 미정"} 팀플합 ${who(true)} 선택`
+      }
+      const names = s.tier ? opp.members.filter((m) => m.tier === s.tier).map((m) => m.name) : []
+      return [no, s.mapName ?? "맵 미정", s.tier ? `${s.tier}티어` : "개인전", names.join(", ")].filter(Boolean).join(" ")
+    })
+    .join("\n")
+}
+
 function Scout({ me, opp, matches }: { me: TeamRef; opp: TeamRef; matches: PlMatch[] }) {
   const log = soloLog(opp.id, matches)
   const total = new Map<string, WL>()
@@ -120,11 +144,15 @@ function Scout({ me, opp, matches }: { me: TeamRef; opp: TeamRef; matches: PlMat
   const games = (id: string) => (total.get(id)?.w ?? 0) + (total.get(id)?.l ?? 0)
 
   return (
-    <div className="scout">
+    <div className="scout" data-capture>
       <div className="scout-head">
         <b>전력분석</b>
         <span className="note">
           {opp.name} 개인전 · 이번 시즌 {log.length}세트
+        </span>
+        <span className="scout-tools">
+          <CaptureButton name={`${me.name}_전력분석_${opp.name}${next ? `_${next.code}` : ""}`} />
+          {next && <CopyTextButton text={lineupText(next, me, opp)} label="세트 · 상대 선수 글로 복사 (카톡 붙여넣기용)" done="글을 복사했어요" />}
         </span>
       </div>
 

@@ -2863,9 +2863,11 @@
     color: var(--ink-2);
     margin-bottom: 3px;
   }
+  /* 양쪽 팀 모두 자기 칸 가운데 (날짜 · 라운드 칸과 가운데 점수 사이) */
   .match-row .team {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
     font-weight: 600;
     min-width: 0;
@@ -2876,8 +2878,7 @@
     white-space: nowrap;
   }
   .match-row .team.r {
-    justify-content: flex-end;
-    text-align: right;
+    justify-content: center;
   }
   .match-row .team.lose {
     opacity: 0.55;

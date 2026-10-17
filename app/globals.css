@@ -2863,27 +2863,35 @@
     color: var(--ink-2);
     margin-bottom: 3px;
   }
-  /* 양쪽 팀 모두 자기 칸 가운데 (날짜 · 라운드 칸과 가운데 점수 사이) */
+  /*
+   * 양쪽 팀: 자기 칸 가운데에 같은 폭 상자(.team-in)를 두고, 홈은 왼쪽 · 원정은 오른쪽 정렬
+   * → 팀 이름 길이가 달라도 모든 줄의 로고가 세로로 같은 자리
+   */
   .match-row .team {
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 10px;
     font-weight: 600;
     min-width: 0;
   }
-  .match-row .team span {
+  .match-row .team-in {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: min(100%, 170px);
+    min-width: 0;
+  }
+  .match-row .team.r .team-in {
+    justify-content: flex-end;
+  }
+  .match-row .team-in > span:not(.crest) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .match-row .team.r {
-    justify-content: center;
-  }
   .match-row .team.lose {
     opacity: 0.55;
   }
-  .match-row .team.win > span:not(.crest) {
+  .match-row .team.win .team-in > span:not(.crest) {
     color: color-mix(in oklab, var(--tc), #fff var(--team-ink-mix));
     font-weight: 700;
   }
@@ -6433,8 +6441,10 @@
     padding: 12px 10px;
   }
   .match-row .team {
-    gap: 6px;
     font-size: 14px;
+  }
+  .match-row .team-in {
+    gap: 6px;
   }
   .match-row .team .crest {
     width: 26px;

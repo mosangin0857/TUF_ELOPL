@@ -126,8 +126,10 @@ export function ScheduleBoard({
                   <span className={cn("pill", `st-${m.status}`)}>{STATUS_LABEL[m.status]}</span>
                 </div>
                 <div className={cn("team", m.winner === "B" && "lose", m.winner === "A" && "win")} style={{ "--tc": m.teamA.color } as CSSProperties}>
-                  <Crest team={m.teamA.name} color={m.teamA.color} />
-                  <span>{m.teamA.name}</span>
+                  <span className="team-in">
+                    <Crest team={m.teamA.name} color={m.teamA.color} />
+                    <span>{m.teamA.name}</span>
+                  </span>
                 </div>
                 <div className="vs">
                   {counted ? (
@@ -142,8 +144,10 @@ export function ScheduleBoard({
                   )}
                 </div>
                 <div className={cn("team r", m.winner === "A" && "lose", m.winner === "B" && "win")} style={{ "--tc": m.teamB.color } as CSSProperties}>
-                  <span>{m.teamB.name}</span>
-                  <Crest team={m.teamB.name} color={m.teamB.color} />
+                  <span className="team-in">
+                    <span>{m.teamB.name}</span>
+                    <Crest team={m.teamB.name} color={m.teamB.color} />
+                  </span>
                 </div>
                 <ChevronDown className="match-caret" size={16} aria-hidden />
               </button>

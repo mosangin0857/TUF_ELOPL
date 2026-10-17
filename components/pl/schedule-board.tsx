@@ -4,12 +4,13 @@ import { useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { ChevronDown, ClipboardList, PenLine } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
+import { CopyTextButton } from "@/components/ui/copy-text-button"
 import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
 import { entryDeadline, entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
-import type { PlMatch, PlSetPlayer } from "@/lib/types"
+import type { PlMatch, PlSet, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 type Tab = "R1" | "R2" | "R3" | "PO"
@@ -53,6 +54,18 @@ function Players({ list, home, mvpId }: { list: PlSetPlayer[]; home?: boolean; m
       })}
     </span>
   )
+}
+
+/** 세트 구성 글 (텍스트 복사): 'SET 1 4티어 백룸' · 'SET 3 홈 지정 애티튜드' · 'ACE 개인전 컬러리스' — 화면의 세트 줄과 같은 내용 */
+function setLinesText(sets: PlSet[]): string {
+  return sets
+    .map((s) => {
+      const waiting = !!s.pickBy && !s.pickedAt
+      const kind = s.isAce ? (s.tier ? `${s.tier}티어` : "개인전") : waiting ? PICK_LABEL[s.pickBy!] : `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
+      const map = waiting && !s.isAce ? (s.soloMap ?? s.mapName) : s.mapName
+      return [s.isAce ? "ACE" : `SET ${s.setNo}`, kind, map].filter(Boolean).join(" ")
+    })
+    .join("\n")
 }
 
 /** 프로리그 › 일정: 라운드 탭 + 경기 행 (누르면 세트 결과 · 엔트리) */
@@ -186,6 +199,7 @@ export function ScheduleBoard({
                     {m.note && <span className="text-ink-2">{m.note}</span>}
                     <span className="md-actions">
                       <CaptureButton name={`${seasonName}_${m.code}`} />
+                      <CopyTextButton text={setLinesText(m.sets)} label="세트 구성 글로 복사 (카톡 붙여넣기용)" done="글을 복사했어요" />
                       {canEntry && (
                         <Link className="mini-btn" href={`/pl/entry/${m.id}`} data-capture-hide>
                           <ClipboardList size={13} aria-hidden /> 엔트리 제출

@@ -25,6 +25,65 @@ export interface RegisterOptions {
   matchTypes: string[]
 }
 
+/* ---------- ELO 보드 › 시즌 관리 ---------- */
+
+export interface SeasonInfo {
+  id: string
+  name: string
+  startDate: string
+  /** null = 진행 중 */
+  endDate: string | null
+  /** 이 시즌으로 표시된 전적 수 */
+  matches: number
+  /** 저장된 최종 순위(season_rankings) 수 — 끝난 시즌만 */
+  snapshot: number
+}
+
+export type MemberStats = { elo: number; wins: number; losses: number; streak: number }
+
+export interface MemberChange {
+  id: string
+  name: string
+  before: MemberStats
+  after: MemberStats
+}
+
+/** 진행 중 시즌을 전적 기록 기준으로 다시 계산하면 바뀌는 것 */
+export interface RecalcPreview {
+  seasonName: string
+  startDate: string
+  /** 시작일 이후 전적 (이 시즌으로 계산) */
+  matches: number
+  /** ELO 변동 · 시즌 표시가 바뀌는 전적 */
+  matchChanges: number
+  /** 시작일보다 앞인데 이 시즌으로 표시돼 있어 시즌 밖으로 돌리는 전적 */
+  untagged: number
+  /** ELO · 승패 · 연승이 바뀌는 선수 수 */
+  memberChanges: number
+  /** 바뀌는 선수 (ELO 차이가 큰 순, 최대 30명) */
+  changes: MemberChange[]
+}
+
+export interface NewSeasonPreview {
+  name: string
+  startDate: string
+  /** 지금 진행 중인 시즌 → 시작일 하루 전으로 종료 + 최종 순위 저장 */
+  prev: {
+    name: string
+    endDate: string
+    /** 저장할 최종 순위 (활동 클랜원) */
+    snapshotCount: number
+    /** 시작일 이후 전적이 있어 지난 시즌 점수를 시작일 전날까지로 다시 계산해 저장하는지 */
+    recomputed: boolean
+    /** 이미 저장돼 있던 최종 순위 (덮어씀) */
+    existingSnapshot: number
+  } | null
+  /** ELO를 티어 시작값으로 되돌리는 활동 클랜원 */
+  activeMembers: number
+  /** 시작일 이후 이미 들어온 전적 (새 시즌으로 옮겨 다시 계산) */
+  matchesAfter: number
+}
+
 /* ---------- ELO 보드 › 최근 전적 수정 · 삭제 ---------- */
 
 /** current = 진행 중 시즌(ELO · 승패에 반영됨) · ended = 끝난 시즌 · none = 시즌 밖 — 끝난 시즌 · 시즌 밖은 기록만 고치고 지운다 */

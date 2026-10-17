@@ -81,6 +81,7 @@ export const AREAS: Area[] = [
       { slug: "data-center", label: "데이터센터" },
       { slug: "history", label: "전적 기록" },
       { slug: "weekly", label: "위클리 베스트" },
+      { slug: "season", label: "시즌 관리", adminOnly: true },
     ],
   },
   {

@@ -5996,6 +5996,123 @@
     justify-content: center;
   }
 
+  /* ELO 보드 › 시즌 관리 (components/elo/season-manager.tsx) */
+  .sm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .sm-actions .btn-ghost {
+    gap: 6px;
+  }
+  .sm-current {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 220px)) minmax(0, 1fr);
+    gap: 16px 24px;
+    align-items: start;
+    padding: 4px 20px 20px;
+  }
+  .sm-current > div {
+    display: grid;
+    gap: 2px;
+  }
+  .sm-current small {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .sm-current > div > b {
+    font-family: var(--font-cond);
+    font-size: 26px;
+    line-height: 1.1;
+  }
+  .sm-current em {
+    font-style: normal;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .sm-current .note {
+    line-height: 1.6;
+  }
+  .sm-readonly {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .sm-new {
+    display: grid;
+    gap: 14px;
+    padding: 4px 20px 20px;
+  }
+  .sm-new-form {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 200px) auto;
+    justify-content: start;
+    gap: 12px;
+    align-items: end;
+  }
+  .sm-new-form .field {
+    width: 100%;
+  }
+  .sm-preview {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .sm-steps {
+    margin: 0;
+    padding-left: 20px;
+    list-style: decimal;
+    display: grid;
+    gap: 6px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .sm-steps b {
+    color: var(--ink);
+  }
+  .sm-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sm-confirm .field {
+    flex: 1 1 200px;
+    max-width: 320px;
+  }
+  .sm-dialog {
+    display: grid;
+    gap: 12px;
+  }
+  @media (max-width: 880px) {
+    .sm-current {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-inline: 14px;
+    }
+    .sm-current .note {
+      grid-column: 1 / -1;
+    }
+    .sm-new {
+      padding-inline: 14px;
+    }
+  }
+  @media (max-width: 560px) {
+    .sm-new-form {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .sm-confirm .field {
+      max-width: none;
+    }
+    .sm-confirm .btn {
+      flex: 1 1 100%;
+      justify-content: center;
+    }
+  }
+
   /* ELO 보드 › 대시보드 선수 전적 검색 + 필터 (components/elo/dashboard-search.tsx) */
   .search-form .vsbox {
     padding-bottom: 12px;

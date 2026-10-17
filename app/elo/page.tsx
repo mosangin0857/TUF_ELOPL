@@ -115,7 +115,7 @@ export default async function EloDashboardPage({ searchParams }: { searchParams:
               <RegisterMatchButton />
             </div>
           </div>
-          <MatchFilterPanel filters={filters} options={options} activeCount={filterCount} />
+          <MatchFilterPanel filters={filters} options={options} activeCount={filterCount} resetHref={href(playerQuery)} />
         </SearchForm>
 
         {missing.length > 0 && (

@@ -12,6 +12,33 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-17 · ELO 데이터센터 2 · 3단계 — 클랜 통계 · 런처 통계 (ELO 담당)**
+- 데이터센터에서 **선수를 고르기 전** 화면(바로가기 아래)에 클랜 통계. 기존 TuFelo 메타 통계를 옮기고 운영진과 정한 개선을 넣음.
+  파일: 계산 `lib/data/elo-datacenter-meta.ts`(서버 전용), 화면 `components/elo/datacenter/meta-cards.tsx`(요약 · 런처) · `meta-panels.tsx`(종족 상성 · 맵별 종족 상성 · ELO 변동성) · `trend-chart.tsx`(기간별 경기 수), 타입 `lib/elo/datacenter.ts` 아래쪽.
+- 화면: **클랜 통계**(경기 · 경기한 선수 · 경기한 날 · 가장 많이 한 맵) · **종족 상성**(테란 vs 저그 · 테란 vs 토스 · 토스 vs 저그 막대 + 종족별 선수 · 출전 비율 · 타종족전 승률, **티어 칩** = 같은 티어끼리 경기만) ·
+  **기간별 경기 수**(62일 이하 일별 · 2년 이하 주별 · 그 이상 월별, 빈 날 0) · **맵별 종족 상성**(칸 = 더 많이 이긴 종족 · 승률 · 경기 수, 30경기 이상에서 55% 이상이면 불균형 색칠, 10경기 미만 흐리게, 불균형 순 정렬) ·
+  **ELO 변동성**(현재 시즌 · 그래프와 같은 14일 · 30일 · 시즌, 개인전 3경기 이상, 최저~최고 막대 + 시작 눈금 + 지금 점, 이름 → 그 선수 프로필) · **런처 사용**.
+- 필터: 기간 · 맵 · 시즌 · 경기 유형만 적용(상대 티어 · 상대 종족 칩은 선수를 고르면 나옴, 필터 수에서도 뺌). 기본은 1단계처럼 현재 시즌. 종족 · 티어는 선수들의 **지금** 종족 · 티어, 팀플 맵은 종족 통계에서 뺌.
+  계산은 서버에서 필터 조합마다 **10분 캐시**(`unstable_cache`, 전적 전체를 나눠 읽어 숫자만 내려보냄), ELO 변동성도 10분 캐시.
+- **런처 통계(3단계)**: ① 런처를 쓴 활동 클랜원 · 최근 30일 사용 — 런처(`TuFlauncher/database.py`)가 `members.last_launcher_used_at`에 직접 기록, 사이트는 읽기만 ② 전적 중 런처로 입력 비율 — 기존과 같은 Apps Script `?action=launcher_stats`(구글 시트 기준).
+  ②는 **새 환경변수 `LAUNCHER_STATS_APPS_SCRIPT_URL`**(기존 tufelo Vercel과 같은 값)이 있어야 나옴 → 없으면 그 칸만 '불러올 수 없어요'. Apps Script 응답이 8~10초라 **그 칸만 따로 받아 채움**(Suspense, 5분 캐시), 페이지 `maxDuration = 30`.
+- 2026-10-17 확인: 전체 기간 5,868경기 · 217명, 테란 vs 저그 51.8% · 테란 vs 토스 50.9% · 토스 vs 저그 47.3%, 런처 클랜원 11/213명 · 시트 60.6%(시즌3(승패) 2,960건 중 1,795건). 시즌4는 아직 3경기 이상 선수가 없어 ELO 변동성이 비어 있음.
+- `MatchFilterPanel`에 `hideTier` 추가, `lib/data/elo-dashboard.ts`의 `applyFilters` export.
+
+**2026-10-17 · ELO 데이터센터 1단계 — 선수 프로필 (ELO 담당)**
+- 새 탭 **ELO 보드 › 데이터센터**(`/elo/data-center`, 모두 공개). 기존 TuFelo 데이터센터의 '선수 프로필'을 옮기고 운영진과 정한 개선을 넣음. 메타 통계(2단계) · 런처 통계(3단계) · 장식 뱃지는 다음 작업.
+  파일: `app/elo/data-center/page.tsx`, `components/elo/datacenter/`(`profile-cards` · `elo-chart` · `recent-games` · `opponents-table` · `maps-table`), 계산 `lib/data/elo-datacenter.ts`(서버 전용), 타입 · 규칙 `lib/elo/datacenter.ts`(화면 공통).
+- 화면: 선수 카드(티어 순위 — 랭킹과 같은 기준, **티어 1위는 왕관 + 'N티어의 왕'**, 시즌 ELO · 승패 · 연승, 승률 · 종족전 승률(막대는 상대 종족 색 `--race-*`)) · ELO 그래프(14일 · 30일 · 시즌, 현재 시즌만, 시즌 시작일 출발점) · 최근 20경기 칸(누르면 상세) + 오른쪽 **맵별 승패 막대**(같은 20경기, 맵을 올리거나 누르면 그 맵 칸만 강조) · 상대별 전적(위험도 · **천적 · 호적수**, 최소 경기 · 정렬) · 맵별 승률(테란전 · 토스전 · 저그전 + 클랜 평균).
+  **선수 2를 넣으면 맞대결**: 스코어 · 위험도 · 두 선수 비교표 · 최근 맞대결 10경기 · 그래프 두 줄. 상대 이름(천적 · 호적수 · 상대별 표 · 최근 경기 상세)을 누르면 맞대결 패널로 스크롤(`#dc-h2h`). 선수를 고르기 전엔 티어별 1위 · 최근 경기한 선수 바로가기.
+- 클랜 평균 = 선수 1과 **같은 종족(지금 종족)** 클랜원 전체의 그 맵 승률, 같은 종족끼리 경기 제외 · **전체 기간**(필터와 상관없음) · 1시간 캐시, 5경기 이상일 때만 표시.
+- 규칙: 위험도 = 선수 1 승률 30% 미만 매우높음 · 45% 미만 높음 · 60% 미만 보통 · 70% 미만 낮음 · 이상 매우낮음. 천적 = 5경기 이상 · 승률 30% 미만 중 가장 낮은 1명, 호적수 = 승률 30~60% 중 많이 붙은 3명 (표를 접어도 표 위에 항상 표시).
+- 필터는 대시보드 `MatchFilterPanel` 재사용(기간 · 맵 · 시즌 · 경기 유형 + **상대 티어 · 상대 종족** `?race=`) — 그래프 말고 모든 곳에 적용. 그래프 기간은 `?range=14|season`(기본 30일). 주소 공유 · 캡처 버튼.
+  **기본 범위 = 현재 시즌**: 시즌 · 기간을 안 고르면 현재 시즌만(주소에는 안 남김, 필터 수에도 안 셈 — `effectiveDcFilters`). 시즌 칩 맨 앞 **'전체 기간'**(`?season=all`)은 다른 시즌과 같이 못 고르고, 시즌 칩을 다 끄면 '전체 기간'으로. 카드 · 비교표 승률 이름도 '시즌4 승률' · '전체 기간 승률' · '필터 조건 승률'.
+- 기존과 다른 점: 전적 전체를 브라우저로 받지 않고 **고른 선수 전적만 서버에서 계산**(클랜 맵 평균만 1시간 캐시 `fetchClanMapRace`).
+- ELO 랭킹 표의 선수 이름 → 그 선수 데이터센터로 이동. 그래프 색 토큰 `--chart-1`(골드) · `--chart-2`(보라) 추가(`globals.css`, 다크 따로).
+- `MatchFilterPanel`에 `tierLabel` · `tierHint` · `races` · `seasonAll` · `resetHref` · `note` 선택 props 추가.
+  **필터 패널을 펼치면 오른쪽 위 '필터만 초기화'**(`resetHref`, 대시보드 · 데이터센터 둘 다) — 선수 · 그래프 기간은 남기고 필터만 지움(필터가 없으면 흐리게). 검색 줄의 '초기화'는 선수까지 전부. `.fchip span` → `.fchip > span`(칩 안 종족 배지가 칩 모양이 되던 것).
+
 **2026-10-17 · ELO 시즌 관리 (ELO 담당)**
 - 새 탭 **ELO 보드 › 시즌 관리**(`/elo/season`, 관리자에게만 보임 `adminOnly` + 서버 확인). **시작 · 수정 · 삭제 · 다시 계산은 최고 관리자(super)만**(기존 사이트도 '제작자'만), 관리자는 보기만.
   파일: `app/elo/season/page.tsx` · `actions.ts`, `components/elo/season-manager.tsx`, 규칙 `lib/elo/season.ts`.
@@ -249,6 +276,7 @@
 | ELO 보드 › 시즌 관리 | **실제 DB** (진행 중 시즌 · 새 시즌 시작 · 전적 다시 계산 · 시즌 수정 · 삭제, 미리보기 → 확인, 최고 관리자만) | `app/elo/season/`, `components/elo/season-manager.tsx`, `lib/elo/season.ts` |
 | ELO 쓰기 (전적 등록 · 시트 연동 · 프로리그 DB전송) | **운영 중** — 시트 연동 새 사이트로 전환(2026-10-14), DB전송은 1R-1M부터 사용 | `lib/elo/`, `app/elo/actions.ts`, `app/api/sheets-sync/route.ts`, `components/elo/` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
+| ELO 보드 › 데이터센터 | **실제 DB** 선수 프로필(선수 카드 · ELO 그래프 · 최근 20경기 · 상대별 · 맵별 · 맞대결) + 선수를 고르기 전 클랜 통계(종족 상성 · 기간별 경기 수 · 맵별 종족 상성 · ELO 변동성 · 런처 사용) · 필터 | `app/elo/data-center/`, `components/elo/datacenter/`, `lib/data/elo-datacenter.ts`, `lib/data/elo-datacenter-meta.ts`, `lib/elo/datacenter.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
 | 관리자 설정 › 활동 로그 | **실제 DB** (`admin_logs`) | `app/admin/logs/`, `lib/data/admin-logs.ts` |
 | 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
@@ -264,7 +292,10 @@
 - [x] 클랜원 추가 버튼 (티어 시작 ELO로 생성 — `lib/elo/index.ts`)
 - [x] 관리자 설정 › 활동 로그
 - [x] ELO 랭킹 탭 · 대문 ELO TOP 8(티어별) · 지난 주 ELO 흐름
-- [ ] ELO 전적 기록 · 위클리 베스트 · 데이터센터 탭 (기존 TuFelo 화면 이식)
+- [x] ELO 데이터센터 1단계 (선수 프로필 · 맞대결)
+- [x] ELO 데이터센터 2단계(클랜 통계) · 3단계(런처 통계) — Vercel에 `LAUNCHER_STATS_APPS_SCRIPT_URL` 등록 필요
+- [ ] ELO 데이터센터 장식 뱃지
+- [ ] ELO 전적 기록 · 위클리 베스트 탭 (기존 TuFelo 화면 이식)
 - [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
 - [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ (`docs/sql/004_clan_bjs.sql` 실행 완료)
 - [x] 프로리그 일정 · 순위 · PL 관리 · 엔트리 제출 + 대문 다가오는 경기 · 팀 순위 · 팀 소개 (`docs/sql/005_pl_league.sql` 실행 완료)
@@ -290,6 +321,7 @@ app/
   page.tsx                  클랜하우스(대문)
   elo/page.tsx              ELO 대시보드 (실제 DB)
   elo/ranking/page.tsx      ELO 랭킹 (실제 DB)
+  elo/data-center/page.tsx  ELO 데이터센터 (선수 프로필 · 맞대결 / 선수를 고르기 전엔 클랜 통계 · 런처, 필터 · 그래프 기간은 주소에)
   elo/actions.ts            ELO 쓰기 서버 액션: 전적 등록 · 수정 · 삭제 · 프로리그 DB전송(미리보기 · 전송)
   elo/season/               ELO 시즌 관리 (page.tsx, 관리자만 보기) + 시작 · 다시 계산 · 수정 · 삭제 액션 (actions.ts, 최고 관리자만)
   api/sheets-sync/route.ts  구글 시트(Apps Script) → ELO 전적 등록 (Bearer SHEETS_SYNC_SECRET)
@@ -314,7 +346,7 @@ components/home/            대문 섹션 (RailSection · useRail 가로 슬라�
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
 components/pl/              일정(schedule-board) · 순위(standings-board) · 엔트리(entry-form) · 세트 선수 선택(side-slots) · manage/(PL 관리 패널들)
-components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx)
+components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx) · 데이터센터 (datacenter/)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
 lib/nav.ts                  사이드바 메뉴 + 영역별 탭 (탭 추가는 여기서)
@@ -331,11 +363,13 @@ lib/data/pl.ts              프로리그 조회 · 팀 순위/개인 순위 계�
 lib/pl/                     rules.ts(세트 수 · 선승 · 경기 코드 · 라벨, 화면 공통) · format.ts(날짜 표시) · permissions.ts(팀장 · 부팀장 엔트리 권한)
 lib/soop.ts                 SOOP Open API (스타크래프트 방송 리스트) · 방송국/시청/프로필 주소 · 링크에서 아이디 추출
 lib/data/elo-ranking.ts     ELO 랭킹 · 지난 시즌 스냅샷 · 대문 TOP 8(티어별) · 지난 주 흐름 (fetchAll: 1,000행 넘게 나눠 조회)
+lib/data/elo-datacenter.ts  데이터센터 선수 프로필 계산 (고른 선수 전적만 읽음 · 클랜 맵 평균 캐시 · 바로가기)
+lib/data/elo-datacenter-meta.ts  데이터센터 클랜 통계 · ELO 변동성 (10분 캐시) · 런처 통계 (members.last_launcher_used_at + Apps Script)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
 lib/supabase/service.ts     쓰기 · 관리자 조회용 클라이언트 (service_role 키, 서버 전용)
 lib/admin-log.ts            admin_logs 기록
-lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 수정 · 되돌리기, 서버 전용) · season.ts(시즌 시작 · 다시 계산 · 수정 · 삭제, 서버 전용) · pl-send.ts(프로리그 → ELO) · filters.ts(대시보드 필터 ↔ 주소) · types.ts
+lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 수정 · 되돌리기, 서버 전용) · season.ts(시즌 시작 · 다시 계산 · 수정 · 삭제, 서버 전용) · pl-send.ts(프로리그 → ELO) · filters.ts(대시보드 필터 ↔ 주소) · datacenter.ts(데이터센터 타입 · 위험도 · 천적/호적수 · 주소) · types.ts
 ```
 
 ## DB 규칙
@@ -436,6 +470,7 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 | `SOOP_CLIENT_ID` | SOOP Open API (대문 BJ 방송 상태). 없으면 모두 '오프라인' | 서버 전용 · 로컬 + Vercel |
 | `SOOP_CLIENT_SECRET` | SOOP Open API 시크릿 (지금 코드에서는 안 씀, 보관용) | **서버 전용 비밀** · 로컬 + Vercel |
 | `SHEETS_SYNC_SECRET` | 시트 연동 `/api/sheets-sync` 인증 (Apps Script가 `Authorization: Bearer <값>`으로 보냄). 없으면 시트 연동 전부 401 | **서버 전용 비밀** · Vercel (기존 tufelo Vercel과 **같은 값** → Apps Script 토큰은 그대로). 로컬은 시험할 때만 |
+| `LAUNCHER_STATS_APPS_SCRIPT_URL` | 데이터센터 › 런처 사용 '전적 중 런처로 입력' 비율 (구글 시트 Apps Script 웹 앱 주소, `?action=launcher_stats`). 없으면 그 칸만 '불러올 수 없어요' | 서버 전용 · Vercel (기존 tufelo Vercel과 **같은 값**). 로컬은 시험할 때만 |
 | `DEV_ADMIN_USERNAME` | 로컬 개발용 관리자 스위치 | **로컬 전용**, Vercel에 넣지 말 것 |
 
 ## 협업 · 배포

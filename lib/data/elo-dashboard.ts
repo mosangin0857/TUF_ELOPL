@@ -87,7 +87,7 @@ function tierMemberIds(members: Member[], tiers: Tier[]): string[] | null {
  * 선수 조건(or)과 함께 써도 PostgREST가 두 or를 '그리고'로 합친다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyFilters<Q extends { gte: any; lte: any; ilike: any; in: any; or: any }>(query: Q, f: MatchFilters, tierIds: string[]): Q {
+export function applyFilters<Q extends { gte: any; lte: any; ilike: any; in: any; or: any }>(query: Q, f: MatchFilters, tierIds: string[]): Q {
   let q = query
   if (f.from) q = q.gte("played_date", f.from)
   if (f.to) q = q.lte("played_date", f.to)

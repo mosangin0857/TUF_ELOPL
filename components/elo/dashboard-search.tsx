@@ -1,12 +1,13 @@
 "use client"
 
 import { useMemo, useState, type ReactNode } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { SlidersHorizontal } from "lucide-react"
+import { FunnelX, SlidersHorizontal } from "lucide-react"
 import { Suggest, textItems } from "@/components/elo/suggest"
 import { RaceBadge } from "@/components/ui/race"
 import type { MatchFilters } from "@/lib/elo/filters"
-import type { Member } from "@/lib/types"
+import type { Member, Race } from "@/lib/types"
 import { seoulDate } from "@/lib/utils"
 
 /**
@@ -50,15 +51,36 @@ export function PlayerInput({ id, name, placeholder, defaultValue, players }: { 
   return <Suggest id={id} name={name} ariaLabel={placeholder} value={text} placeholder={placeholder} items={items} onInput={setText} onPick={setText} chosen={players.some((p) => p.name.toLowerCase() === text.trim().toLowerCase())} />
 }
 
+const RACE_NAME: Record<Race, string> = { T: "테란", P: "프로토스", Z: "저그" }
+
 /** 필터: 칩 · 맵을 고르면 바로 적용, 날짜는 칸을 벗어나거나 Enter */
 export function MatchFilterPanel({
   filters,
   options,
   activeCount,
+  tierLabel = "티어",
+  tierHint = "선수 1 기준",
+  hideTier,
+  races,
+  seasonAll,
+  resetHref,
+  note = "칩 · 맵은 고르면 바로 적용돼요. 날짜는 고른 뒤 칸 밖을 누르거나 Enter. 필터 초기화는 최근 전적 위 아이콘으로.",
 }: {
   filters: MatchFilters
   options: { seasons: { id: string; name: string }[]; matchTypes: string[]; maps: string[] }
   activeCount: number
+  /** 데이터센터는 '상대 티어' */
+  tierLabel?: string
+  tierHint?: string
+  /** 티어 칩 숨김 (데이터센터에서 선수를 고르기 전 — 클랜 통계에는 안 쓰는 필터) */
+  hideTier?: boolean
+  /** 주면 '상대 종족' 칩을 보여줌 (데이터센터, 주소 race=T,P,Z) */
+  races?: Race[]
+  /** 주면 시즌 칩 맨 앞에 '전체 기간'(이 값) — 다른 시즌 칩과 같이 못 고르고, 시즌을 다 끄면 이걸로 (데이터센터: 기본이 현재 시즌) */
+  seasonAll?: string
+  /** 펼쳤을 때 오른쪽 위 '필터만 초기화' — 선수 등 필터 말고 다른 조건은 남긴 주소 */
+  resetHref?: string
+  note?: string
 }) {
   const [map, setMap] = useState(filters.map)
   const today = seoulDate()
@@ -70,7 +92,23 @@ export function MatchFilterPanel({
         <SlidersHorizontal size={15} aria-hidden />
         <b>필터</b>
         {activeCount > 0 && <span className="mf-count">{activeCount}</span>}
-        <span className="note">기간 · 맵 · 시즌 · 경기 유형 · 티어</span>
+        <span className="note">
+          기간 · 맵 · 시즌 · 경기 유형{hideTier ? "" : ` · ${tierLabel}`}
+          {races ? " · 상대 종족" : ""}
+        </span>
+        {resetHref &&
+          (activeCount > 0 ? (
+            <Link className="mf-reset" href={resetHref} scroll={false}>
+              <FunnelX size={14} aria-hidden />
+              필터만 초기화
+            </Link>
+          ) : (
+            // 눌러도 패널이 접히지 않게
+            <span className="mf-reset is-off" aria-disabled="true" title="걸린 필터가 없어요" onClick={(e) => e.preventDefault()}>
+              <FunnelX size={14} aria-hidden />
+              필터만 초기화
+            </span>
+          ))}
       </summary>
 
       <div className="mf-body">
@@ -114,19 +152,37 @@ export function MatchFilterPanel({
           </div>
         </div>
 
-        <Chips label="시즌" name="season" items={options.seasons.map((s) => ({ value: s.id, label: s.name }))} selected={filters.seasons} onPick={submitFrom} />
-        <Chips label="경기 유형" name="type" items={options.matchTypes.map((t) => ({ value: t, label: t }))} selected={filters.types} onPick={submitFrom} />
         <Chips
-          label="티어"
-          hint="선수 1 기준"
-          name="tier"
-          items={[1, 2, 3, 4].map((t) => ({ value: String(t), label: `${t}티어` }))}
-          selected={filters.tiers.map(String)}
+          label="시즌"
+          name="season"
+          items={[...(seasonAll ? [{ value: seasonAll, label: "전체 기간" }] : []), ...options.seasons.map((s) => ({ value: s.id, label: s.name }))]}
+          selected={filters.seasons}
+          exclusive={seasonAll}
           onPick={submitFrom}
         />
+        <Chips label="경기 유형" name="type" items={options.matchTypes.map((t) => ({ value: t, label: t }))} selected={filters.types} onPick={submitFrom} />
+        {!hideTier && (
+          <Chips
+            label={tierLabel}
+            hint={tierHint}
+            name="tier"
+            items={[1, 2, 3, 4].map((t) => ({ value: String(t), label: `${t}티어` }))}
+            selected={filters.tiers.map(String)}
+            onPick={submitFrom}
+          />
+        )}
+        {races && (
+          <Chips
+            label="상대 종족"
+            name="race"
+            items={(["T", "P", "Z"] as const).map((r) => ({ value: r, label: RACE_NAME[r] }))}
+            selected={races}
+            onPick={submitFrom}
+          />
+        )}
 
         <div className="mf-foot">
-          <span className="note">칩 · 맵은 고르면 바로 적용돼요. 날짜는 고른 뒤 칸 밖을 누르거나 Enter. 필터 초기화는 최근 전적 위 아이콘으로.</span>
+          <span className="note">{note}</span>
         </div>
       </div>
     </details>
@@ -139,6 +195,7 @@ function Chips({
   name,
   items,
   selected,
+  exclusive,
   onPick,
 }: {
   label: string
@@ -146,8 +203,20 @@ function Chips({
   name: string
   items: { value: string; label: string }[]
   selected: string[]
+  /** 이 값은 혼자만 켜짐 + 다 끄면 이 값이 켜짐 ('전체 기간') */
+  exclusive?: string
   onPick: (el: Element) => void
 }) {
+  const pick = (el: HTMLInputElement) => {
+    if (exclusive !== undefined) {
+      const boxes = [...(el.closest(".mf-chips")?.querySelectorAll<HTMLInputElement>("input") ?? [])]
+      for (const b of boxes) {
+        if (el.checked && b !== el && (el.value === exclusive || b.value === exclusive)) b.checked = false
+      }
+      if (!boxes.some((b) => b.checked)) boxes.forEach((b) => (b.checked = b.value === exclusive))
+    }
+    onPick(el)
+  }
   return (
     <div className="mf-row">
       <span className="mf-label">
@@ -157,7 +226,7 @@ function Chips({
       <div className="mf-chips" role="group" aria-label={label}>
         {items.map((it) => (
           <label key={it.value} className="fchip">
-            <input type="checkbox" name={name} value={it.value} defaultChecked={selected.includes(it.value)} onChange={(e) => onPick(e.currentTarget)} />
+            <input type="checkbox" name={name} value={it.value} defaultChecked={selected.includes(it.value)} onChange={(e) => pick(e.currentTarget)} />
             <span>{it.label}</span>
           </label>
         ))}

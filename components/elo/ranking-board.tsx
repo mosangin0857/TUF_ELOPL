@@ -188,7 +188,7 @@ export function RankingBoard({
                         </span>
                       </td>
                       <td>
-                        <Link className="p-cell" href={`/elo?p1=${encodeURIComponent(p.name)}`} title={`${p.name} 전적 보기`}>
+                        <Link className="p-cell" href={`/elo/data-center?p1=${encodeURIComponent(p.name)}`} title={`${p.name} 데이터센터 프로필`}>
                           <RaceBadge race={p.race} />
                           {p.name}
                         </Link>

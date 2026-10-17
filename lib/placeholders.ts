@@ -1,10 +1,5 @@
 /** 아직 구현 전인 화면에 표시할 안내 (구현하면 해당 항목 삭제) */
 export const PLACEHOLDERS: Record<string, { title: string; body: string; items?: string[] }> = {
-  "elo/data-center": {
-    title: "데이터센터",
-    body: "기존 /data-center 화면을 옮겨올 자리입니다.",
-    items: ["선수 프로필 · 상대전적 · 최근 20경기", "종족·맵별 승률 차트", "런처 사용 통계 · 전적 등록 추세"],
-  },
   "elo/history": { title: "전적 기록", body: "경기유형·시즌·티어 필터가 있는 전체 전적 테이블.", items: ["필터 URL 공유 · 테이블 캡처"] },
   "elo/weekly": { title: "위클리 베스트", body: "주간 ELO 상승 TOP 5." },
 

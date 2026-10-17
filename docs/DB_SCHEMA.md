@@ -39,7 +39,7 @@ suggestions ─< suggestion_replies (suggestion_id)
 | streak | integer | N | 0 | 연승/연패 |
 | is_active | boolean | N | true | 활동 여부 |
 | admin_memo | text | Y | | |
-| last_launcher_used_at | timestamptz | Y | | ELO 런처 사용 기록 |
+| last_launcher_used_at | timestamptz | Y | | ELO 런처 사용 기록 (런처 `TuFlauncher/database.py`가 직접 씀, 새 사이트는 데이터센터 › 런처 사용에서 읽기만) |
 | created_at / updated_at | timestamptz | N | now() | |
 
 ### matches — ELO 1:1 경기 기록

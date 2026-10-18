@@ -6,6 +6,7 @@ import { pickSetFormatAction, submitEntryAction } from "@/app/pl/actions"
 import { usePlAction } from "@/components/pl/manage/use-pl-action"
 import { PickBox } from "@/components/pl/pick-box"
 import { filled, raceModeOf, SideSlots, type SlotValue } from "@/components/pl/side-slots"
+import { CopyTextButton } from "@/components/ui/copy-text-button"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { shortWhen } from "@/lib/pl/format"
 import {
@@ -160,6 +161,26 @@ export function EntryForm({
       () => setSaved(doneCount === entrySets.length ? "엔트리를 제출했어요." : `${doneCount}세트를 저장했어요. 나머지는 마감 전까지 채워 주세요.`),
     )
 
+  /**
+   * 팀 카톡 전달용 엔트리 글 (지금 화면에 고른 그대로 — 제출 전이면 제출 전 값):
+   *   1R-4M 10/20(화) 21:00 티트와라트(홈) vs BRG
+   *   SET 1 4티어 아이올로스 - 2EEMIN(P)
+   */
+  const entryText = () => {
+    const nameOf = (id: string) => roster.find((r) => r.memberId === id)?.name ?? "선수"
+    const head = `${match.code} ${shortWhen(match.scheduledAt)} ${match.teamA.name}${side === "A" ? "(홈)" : ""} vs ${match.teamB.name}${side === "B" ? "(원정)" : ""}`
+    const lines = entrySets.map((s) => {
+      if (waiting(s)) return `SET ${s.setNo} ${PICK_LABEL[s.pickBy!]}(${s.soloMap ?? s.mapName ?? "맵 미정"}) - 형식 고르기 전`
+      const kind = `${setKindLabel(s.format, s.tier, s.tierSum)}${s.pickBy ? ` (${PICK_LABEL[s.pickBy]})` : ""}`
+      const ppl = slotsOf(s)
+        .map((p) => `${nameOf(p.memberId)}${p.race ? `(${p.race})` : ""}`)
+        .join(", ")
+      return `SET ${s.setNo} ${kind} ${s.mapName ?? "맵 미정"} - ${ppl || "미입력"}`
+    })
+    if (ace) lines.push(`ACE ${ace.mapName ?? "맵 미정"} - ${entrySets.length / 2}:${entrySets.length / 2}일 때`)
+    return [head, ...lines].join("\n")
+  }
+
   return (
     <>
       <section className="panel">
@@ -172,6 +193,9 @@ export function EntryForm({
           </div>
           <span className="note">
             1~{entrySets.length}세트 엔트리 · {entrySets.length + 1}세트는 {entrySets.length / 2}:{entrySets.length / 2}일 때 ACE 결정전
+          </span>
+          <span className="entry-copy">
+            <CopyTextButton text={entryText()} label="우리 팀 엔트리를 글로 복사 (팀 카톡 전달용)" done="엔트리 글을 복사했어요" caption="엔트리 글 복사" />
           </span>
         </div>
         <div className="entry-hero">

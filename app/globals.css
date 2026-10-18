@@ -3820,6 +3820,20 @@
   .tc-act {
     gap: 6px;
   }
+  /* 엔트리 제출 화면: 엔트리 글 복사 버튼 (제목 줄 오른쪽 위) */
+  .entry-copy {
+    margin-left: auto;
+    align-self: flex-start;
+  }
+  .copy-caption {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .copy-caption.is-done {
+    color: var(--win);
+  }
   /* 일정 경기 펼침 줄(일시 · 방송 옆)의 엔트리 제출 현황 */
   .md-entry {
     font-size: 12px;
@@ -7567,6 +7581,10 @@
   }
   .panel-head > .note {
     flex-basis: 100%;
+  }
+  /* 엔트리 제출 화면: 복사 버튼은 제목 옆(첫 줄), 설명은 그 아래 */
+  .panel-head:has(> .entry-copy) > .note {
+    order: 3;
   }
   /* 세트 MVP 표시: 좁은 화면에서는 'MVP' 글자 대신 작은 별 배지 (이름 · 종족이 승패 칸을 밀지 않게) */
   .set-row .mvp-tag {

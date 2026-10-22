@@ -12,6 +12,26 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-22 · 장식 뱃지 개편 — ELO 보드 › 뱃지 관리 (ELO 담당)**
+- 기존 TuFelo '전역 장식 뱃지'(글자 + 색 10가지 + 정렬, 제작자만, 데이터센터에만 표시)를 **클릭만으로 관리**하게 개편. 새 탭 **ELO 보드 › 뱃지 관리**(`/elo/badges`, 관리자 이상 — `adminOnly` + 서버 확인).
+  파일: 정의 `lib/badges.ts`(아이콘 12 · 색 10 · 등급 · 분류 · 입력 검사, 화면 공통), 조회 · 자동 제안 `lib/data/badges.ts`, 쓰기 공통 `lib/badge-write.ts`, 액션 `app/elo/badges/actions.ts`, 화면 `components/badges/`(`badge-chip` · `badge-list` · `badge-manager`).
+- **DB 변경 SQL: `docs/sql/015_decorative_badges.sql`** (2026-10-22 실행 완료 — 뱃지 5개 · 부여 44건 확인) — 기존 두 테이블에 **칸만 추가**: `decorative_badges.icon` · `description` · `grade`(normal · shine) · `category`(pl · solo · team · elo · event), `member_decorative_badges.awarded_at` + (badge_id, member_id) 중복 방지.
+  기존 5개 뱃지(TFTL · TFSL · TFPL 우승)를 트로피 · 금색 · 빛나는 뱃지로 채우고, **'티르의 후긴' 삭제**(운영진 결정). 기존 사이트는 새 칸을 무시해서 그대로 동작. 실행 전에는 기본 모양(상장 · 이벤트)으로 보이고 만들기 · 수정은 막힘(받은 선수 바꾸기는 됨).
+- 관리: 만들기 · 수정(이름 · 설명 · 아이콘 · 색 · 등급 · 분류를 클릭으로 + 미리보기) · **받은 선수**(검색해서 넣기 · ✕로 빼기 · **프로리그 팀 통째로**(시즌 · 팀 고르면 그 시즌 선수단 전원)) · 순서(↑↓ = 카드에 보이는 순서, 첫 번째가 대표 뱃지) · 삭제(이름 입력 확인).
+  **자동 제안**: 끝난 ELO 시즌의 티어별 1위(`season_rankings`, 선수들의 지금 티어 기준 — 랭킹 지난 시즌과 같음) · 프로리그 결승이 끝난 시즌의 우승 팀 선수단 → '만들고 부여' 한 번(이름 등은 고칠 수 있음, 서버가 다시 계산).
+  **새 시즌 시작**(시즌 관리)에 '끝나는 시즌 티어별 1위 뱃지도 만들기' 체크(기본 켜짐) — `startNewSeasonAction(…, tierBadges)` · `createSeasonTierBadges`.
+- 보이는 곳: 데이터센터 선수 카드(전부) · 맞대결 이름 옆(아이콘 3개 +N) · 랭킹 이름 옆 · 대문 ELO TOP 8(대표 뱃지 아이콘). 뱃지를 누르면 같은 뱃지를 받은 선수 목록(누구나, `loadBadgeHoldersAction`). 대문 TOP 8은 줄 전체가 링크라 아이콘만(누르기 없음).
+  빛나는 뱃지는 프로리그 MVP처럼 금빛이 지나감(`--mvp-glint`, `prefers-reduced-motion`이면 멈춤). 색 토큰 `--badge-*`(라이트 · 다크 따로, 이름은 기존 사이트 accent 값과 같음).
+- 클랜원 **완전 삭제** 때 그 선수의 뱃지 연결도 먼저 지움(`app/members/actions.ts`). `fetchAll`은 `lib/data/fetch-all.ts`로 옮김(`@/lib/data/elo-ranking`에서 import해도 그대로 동작).
+- 2026-10-22 확인(SQL 실행 전): 자동 제안 8개(시즌3 · 시즌3 프리시즌 티어별 1위), 프로리그는 S4 결승 전이라 아직 없음.
+
+**2026-10-22 · 전적 기록 탭 삭제 · 클랜 공유 API 이전 (ELO 담당)**
+- ELO 보드 › **전적 기록** 탭 없앰 (대시보드 최근 전적이 같은 기능) — `lib/nav.ts` · `lib/placeholders.ts`에서 뺌, `/elo/history`는 404.
+- **`POST /api/clan-share`** 이전 (`app/api/clan-share/route.ts`): 다른 사이트가 경기 1건을 보내면 ELO 전적으로 기록. 기존 tufelo와 요청 · 응답이 같아서 **보내는 쪽은 주소만** `https://tufelopl.vercel.app/api/clan-share`로 바꾸면 된다.
+  `Authorization: Bearer <CLAN_API_KEY>`(Bearer 없이 키만도 됨), `{ player1, player2, winner, map, matchType, playedDate }` → `{ ok: true }` · 401 · 400 · 404(없는 닉네임) · 500. 기록은 `recordEloMatch`(다른 경로와 같은 규칙), 기존처럼 player1 = 승자, `admin_logs`에 '클랜공유'로 남김(기존은 안 남김).
+  **새 환경변수 `CLAN_API_KEY`**(기존 tufelo Vercel과 같은 값) — Vercel 등록 필요. 이름으로 선수 찾기는 `findMemberByName`(`lib/elo/record.ts`, 시트 연동과 같이 씀).
+- 기존 사이트의 공지 배너(`site_notice`) · 방문자 수(`daily_visitors`)는 새 사이트에 **안 옮김**(운영진 결정) → 아래 "기존 사이트 폐쇄 체크리스트".
+
 **2026-10-17 · ELO 데이터센터 2 · 3단계 — 클랜 통계 · 런처 통계 (ELO 담당)**
 - 데이터센터에서 **선수를 고르기 전** 화면(바로가기 아래)에 클랜 통계. 기존 TuFelo 메타 통계를 옮기고 운영진과 정한 개선을 넣음.
   파일: 계산 `lib/data/elo-datacenter-meta.ts`(서버 전용), 화면 `components/elo/datacenter/meta-cards.tsx`(요약 · 런처) · `meta-panels.tsx`(종족 상성 · 맵별 종족 상성 · ELO 변동성) · `trend-chart.tsx`(기간별 경기 수), 타입 `lib/elo/datacenter.ts` 아래쪽.
@@ -277,6 +297,7 @@
 | ELO 쓰기 (전적 등록 · 시트 연동 · 프로리그 DB전송) | **운영 중** — 시트 연동 새 사이트로 전환(2026-10-14), DB전송은 1R-1M부터 사용 | `lib/elo/`, `app/elo/actions.ts`, `app/api/sheets-sync/route.ts`, `components/elo/` |
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 데이터센터 | **실제 DB** 선수 프로필(선수 카드 · ELO 그래프 · 최근 20경기 · 상대별 · 맵별 · 맞대결) + 선수를 고르기 전 클랜 통계(종족 상성 · 기간별 경기 수 · 맵별 종족 상성 · ELO 변동성 · 런처 사용) · 필터 | `app/elo/data-center/`, `components/elo/datacenter/`, `lib/data/elo-datacenter.ts`, `lib/data/elo-datacenter-meta.ts`, `lib/elo/datacenter.ts` |
+| ELO 보드 › 뱃지 관리 | **실제 DB** (장식 뱃지 만들기 · 수정 · 받은 선수 · 프로리그 팀 통째로 · 자동 제안 · 순서 · 삭제, 관리자) — `015_decorative_badges.sql` 실행 완료 | `app/elo/badges/`, `components/badges/`, `lib/badges.ts`, `lib/data/badges.ts`, `lib/badge-write.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
 | 관리자 설정 › 활동 로그 | **실제 DB** (`admin_logs`) | `app/admin/logs/`, `lib/data/admin-logs.ts` |
 | 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
@@ -294,8 +315,9 @@
 - [x] ELO 랭킹 탭 · 대문 ELO TOP 8(티어별) · 지난 주 ELO 흐름
 - [x] ELO 데이터센터 1단계 (선수 프로필 · 맞대결)
 - [x] ELO 데이터센터 2단계(클랜 통계) · 3단계(런처 통계) — Vercel에 `LAUNCHER_STATS_APPS_SCRIPT_URL` 등록 필요
-- [ ] ELO 데이터센터 장식 뱃지
-- [ ] ELO 전적 기록 · 위클리 베스트 탭 (기존 TuFelo 화면 이식)
+- [x] ELO 장식 뱃지 개편 — ELO 보드 › 뱃지 관리 (`docs/sql/015_decorative_badges.sql` 2026-10-22 실행 완료)
+- [ ] ELO 위클리 베스트 탭 (기존 TuFelo 대시보드 '위클리 베스트' 이식) — 전적 기록 탭은 2026-10-22 삭제(대시보드와 중복)
+- [x] 클랜 공유 API `/api/clan-share` 이전 — Vercel에 `CLAN_API_KEY` 등록 필요 · 보내는 쪽 주소 변경 필요
 - [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
 - [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ (`docs/sql/004_clan_bjs.sql` 실행 완료)
 - [x] 프로리그 일정 · 순위 · PL 관리 · 엔트리 제출 + 대문 다가오는 경기 · 팀 순위 · 팀 소개 (`docs/sql/005_pl_league.sql` 실행 완료)
@@ -323,8 +345,10 @@ app/
   elo/ranking/page.tsx      ELO 랭킹 (실제 DB)
   elo/data-center/page.tsx  ELO 데이터센터 (선수 프로필 · 맞대결 / 선수를 고르기 전엔 클랜 통계 · 런처, 필터 · 그래프 기간은 주소에)
   elo/actions.ts            ELO 쓰기 서버 액션: 전적 등록 · 수정 · 삭제 · 프로리그 DB전송(미리보기 · 전송)
+  elo/badges/               ELO 뱃지 관리 (page.tsx, 관리자만) + 만들기 · 수정 · 삭제 · 순서 · 받은 선수 · 자동 제안 액션 (actions.ts) + 받은 선수 보기(누구나)
   elo/season/               ELO 시즌 관리 (page.tsx, 관리자만 보기) + 시작 · 다시 계산 · 수정 · 삭제 액션 (actions.ts, 최고 관리자만)
   api/sheets-sync/route.ts  구글 시트(Apps Script) → ELO 전적 등록 (Bearer SHEETS_SYNC_SECRET)
+  api/clan-share/route.ts   다른 사이트 → ELO 전적 1건 등록 (Bearer CLAN_API_KEY, 기존 tufelo와 같은 형식)
   members/page.tsx          클랜원 명단 (실제 DB)
   members/actions.ts        클랜원 서버 액션: 추가 · 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제
   admin/page.tsx            관리자 설정 › 관리자 · 권한 (실제 DB)
@@ -347,6 +371,7 @@ components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 ·
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
 components/pl/              일정(schedule-board) · 순위(standings-board) · 엔트리(entry-form) · 세트 선수 선택(side-slots) · manage/(PL 관리 패널들)
 components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx) · 데이터센터 (datacenter/)
+components/badges/          장식 뱃지 한 개 (badge-chip.tsx, 서버 · 화면 공통) · 선수 뱃지 목록 + 받은 선수 팝업 (badge-list.tsx) · 뱃지 관리 화면 (badge-manager.tsx)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
 lib/nav.ts                  사이드바 메뉴 + 영역별 탭 (탭 추가는 여기서)
@@ -364,6 +389,10 @@ lib/pl/                     rules.ts(세트 수 · 선승 · 경기 코드 · �
 lib/soop.ts                 SOOP Open API (스타크래프트 방송 리스트) · 방송국/시청/프로필 주소 · 링크에서 아이디 추출
 lib/data/elo-ranking.ts     ELO 랭킹 · 지난 시즌 스냅샷 · 대문 TOP 8(티어별) · 지난 주 흐름 (fetchAll: 1,000행 넘게 나눠 조회)
 lib/data/elo-datacenter.ts  데이터센터 선수 프로필 계산 (고른 선수 전적만 읽음 · 클랜 맵 평균 캐시 · 바로가기)
+lib/badges.ts               장식 뱃지 정의 (아이콘 · 색 · 등급 · 분류 · 타입 · 입력 검사, 화면 공통)
+lib/badge-write.ts          장식 뱃지 쓰기 공통 (만들고 부여 · 받은 선수 맞추기 · 시즌 티어별 1위, 서버 전용)
+lib/data/badges.ts          장식 뱃지 조회 (015 전이면 기본값) · 선수별 뱃지 · 받은 선수 · 프로리그 선수단 · 자동 제안
+lib/data/fetch-all.ts       1,000행 넘는 조회 나눠 읽기 (fetchAll)
 lib/data/elo-datacenter-meta.ts  데이터센터 클랜 통계 · ELO 변동성 (10분 캐시) · 런처 통계 (members.last_launcher_used_at + Apps Script)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
@@ -388,6 +417,7 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 | `season_rankings` | ELO 랭킹의 지난 시즌 최종 순위(조회), 새 시즌 시작 때 저장 | 쓰기는 `lib/elo/season.ts`에서만 (UNIQUE(season_id, member_id) upsert, 시즌 삭제 시 cascade) |
 | `pl_*` 7개 | 프로리그 (새 테이블, `005_pl_league.sql`) | 쓰기는 `app/pl/actions.ts`에서만. `pl_set_players`는 anon 조회 정책 없음(엔트리 비공개). 선수는 `members.id` 참조(on delete cascade) |
 | `clan_bjs` | 클랜 BJ (새 테이블, `004_clan_bjs.sql`) | 쓰기는 `app/admin/bj/actions.ts`에서만. anon 조회 정책 있음. 방송 상태는 저장 안 함(SOOP API) |
+| `decorative_badges` · `member_decorative_badges` | 장식 뱃지 (기존 테이블, 기존 사이트와 공유) | 쓰기는 `app/elo/badges/actions.ts` · `lib/badge-write.ts`에서만(+ 클랜원 완전 삭제 때 연결 삭제). 015로 칸만 추가(icon · description · grade · category · awarded_at). `accent`는 기존 이름(amber · slate …) 그대로. anon 조회 정책 있음 |
 | `pl_elo_links` | 프로리그 세트 → ELO 전적 연결 (새 테이블, `012_pl_elo_links.sql`) | 읽기 · 쓰기 모두 `lib/elo/pl-send.ts`에서만(anon 정책 없음). `matches` 삭제 시 같이 삭제(cascade) |
 
 - **PL 영역** 새 테이블은 `pl_` 접두사 (예: `pl_seasons`, `pl_teams`, `pl_matches`), 개인리그는 `solo_`. 선수는 `members.id` 참조.
@@ -471,7 +501,16 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 | `SOOP_CLIENT_SECRET` | SOOP Open API 시크릿 (지금 코드에서는 안 씀, 보관용) | **서버 전용 비밀** · 로컬 + Vercel |
 | `SHEETS_SYNC_SECRET` | 시트 연동 `/api/sheets-sync` 인증 (Apps Script가 `Authorization: Bearer <값>`으로 보냄). 없으면 시트 연동 전부 401 | **서버 전용 비밀** · Vercel (기존 tufelo Vercel과 **같은 값** → Apps Script 토큰은 그대로). 로컬은 시험할 때만 |
 | `LAUNCHER_STATS_APPS_SCRIPT_URL` | 데이터센터 › 런처 사용 '전적 중 런처로 입력' 비율 (구글 시트 Apps Script 웹 앱 주소, `?action=launcher_stats`). 없으면 그 칸만 '불러올 수 없어요' | 서버 전용 · Vercel (기존 tufelo Vercel과 **같은 값**). 로컬은 시험할 때만 |
+| `CLAN_API_KEY` | 다른 사이트 → ELO 전적 등록 `/api/clan-share` 인증 (`Authorization: Bearer <값>`). 없으면 전부 401 | **서버 전용 비밀** · Vercel (기존 tufelo Vercel과 **같은 값**). 로컬은 시험할 때만 |
 | `DEV_ADMIN_USERNAME` | 로컬 개발용 관리자 스위치 | **로컬 전용**, Vercel에 넣지 말 것 |
+
+## 기존 사이트(tufelo) 폐쇄 체크리스트
+기존 사이트는 같은 DB를 쓰므로, 아래 정리는 **기존 사이트를 닫은 뒤에** 한다 (닫기 전에 지우면 기존 사이트가 깨짐).
+- [x] 시트 연동 주소 이전 (2026-10-14, Apps Script `API_URL`) · 런처 통계 Apps Script 주소(`LAUNCHER_STATS_APPS_SCRIPT_URL`) 새 Vercel 등록
+- [ ] `/api/clan-share`를 부르는 쪽 주소를 `https://tufelopl.vercel.app/api/clan-share`로 + 새 Vercel에 `CLAN_API_KEY`
+- [ ] 기존 사이트에서 시즌 시작 · 전적 등록을 더 하지 않기 (새 사이트에서만)
+- [ ] 닫은 뒤 DB 정리: `admins`(새 사이트는 `members.role`) · `site_notice`(공지 배너, 안 옮김) · `daily_visitors`(방문자 수, 안 옮김) 테이블 삭제
+- [ ] 기존 tufelo Vercel 프로젝트 정리 (런처 등에 tufelo 주소가 남아 있는지 확인)
 
 ## 협업 · 배포
 - 레포는 공개(public). Vercel Hobby 플랜은 비공개 레포에서 다른 사람 커밋을 배포하지 않기 때문 — 공개면 누구 커밋이든 `main` 푸시 시 자동 배포.

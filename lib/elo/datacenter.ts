@@ -1,4 +1,5 @@
 import { activeFilterCount, filterQuery, parseMatchFilters, type MatchFilters } from "@/lib/elo/filters"
+import type { BadgeLite } from "@/lib/badges"
 import type { Race, Tier } from "@/lib/types"
 
 /**
@@ -95,6 +96,8 @@ export interface PlayerSummary {
   /** 필터 안 전적 */
   overall: WinStat
   vsRace: Record<Race, WinStat>
+  /** 장식 뱃지 (관리 화면 순서) */
+  badges: BadgeLite[]
 }
 
 export interface GameRow {

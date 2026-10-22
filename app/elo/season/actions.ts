@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { insertAdminLog } from "@/lib/admin-log"
 import { deleteSeason, previewNewSeason, recalcActiveSeason, startNewSeason, updateSeason } from "@/lib/elo/season"
 import type { NewSeasonPreview, RecalcPreview } from "@/lib/elo/types"
+import { createSeasonTierBadges } from "@/lib/badge-write"
 import { getSuperAdmin } from "@/lib/permissions"
 import { createServiceClient } from "@/lib/supabase/service"
 
@@ -58,7 +59,9 @@ export async function startNewSeasonAction(
   name: string,
   startDate: string,
   confirmName: string,
-): Promise<Res<{ preview: NewSeasonPreview; failedRecalc: string | null }>> {
+  /** 끝나는 시즌의 티어별 1위 장식 뱃지도 만들기 (뱃지 관리 › 자동 제안과 같은 값) */
+  tierBadges = false,
+): Promise<Res<{ preview: NewSeasonPreview; failedRecalc: string | null; badges: { made: string[]; error: string | null } | null }>> {
   const actor = await getSuperAdmin()
   if (!actor) return { ok: false, error: NO_PERMISSION }
   if (confirmName.trim() !== name.trim()) return { ok: false, error: "확인 칸에 시즌 이름을 똑같이 입력해 주세요." }
@@ -80,8 +83,14 @@ export async function startNewSeasonAction(
       .filter(Boolean)
       .join(" · "),
   )
+  let badges: { made: string[]; error: string | null } | null = null
+  if (tierBadges && p.prev) {
+    const r = await createSeasonTierBadges(createServiceClient(), p.prev.id)
+    badges = { made: r.made.map((b) => `${b.label}(${b.holder})`), error: r.error }
+    if (r.made.length) await insertAdminLog(actor.username, "뱃지 생성 · 부여 (시즌 종료)", p.prev.name, badges.made.join(", "))
+  }
   revalidateSeasonPaths()
-  return { ok: true, data: { preview: p, failedRecalc } }
+  return { ok: true, data: { preview: p, failedRecalc, badges } }
 }
 
 /** 시즌 수정 (진행 중 시즌의 시작일을 바꾸면 다시 계산) */

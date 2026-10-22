@@ -13,6 +13,15 @@ import type { EloRecordKind, MatchScope } from "@/lib/elo/types"
 type Db = SupabaseClient
 type Result<T> = { ok: true; data: T } | { ok: false; error: string }
 
+/** 대소문자만 무시하고 이름이 정확히 같은 클랜원 한 명 (ilike의 % _ 는 글자 그대로, 결과도 한 번 더 비교) — 외부 연동(시트 · 클랜 공유)용 */
+export async function findMemberByName(db: Db, name: string): Promise<{ id: string; name: string } | null> {
+  const pattern = name.replace(/[\\%_]/g, (c) => `\\${c}`)
+  const { data, error } = await db.from("members").select("id, name").ilike("name", pattern).limit(5)
+  const same = (data ?? []).filter((m) => (m.name as string).toLowerCase() === name.toLowerCase())
+  if (error || same.length !== 1) return null
+  return { id: same[0].id as string, name: same[0].name as string }
+}
+
 export interface ActiveSeason {
   id: string
   name: string

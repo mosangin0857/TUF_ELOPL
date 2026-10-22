@@ -287,7 +287,7 @@ async function planNewSeason(db: Db, rawName: string, startDate: string) {
   const preview: NewSeasonPreview = {
     name,
     startDate,
-    prev: active ? { name: active.name, endDate: dayBefore(startDate), snapshotCount: snapshot.length, recomputed, existingSnapshot } : null,
+    prev: active ? { id: active.id, name: active.name, endDate: dayBefore(startDate), snapshotCount: snapshot.length, recomputed, existingSnapshot } : null,
     activeMembers: activeMembers.length,
     matchesAfter: after.length,
   }

@@ -1,6 +1,5 @@
 /** 아직 구현 전인 화면에 표시할 안내 (구현하면 해당 항목 삭제) */
 export const PLACEHOLDERS: Record<string, { title: string; body: string; items?: string[] }> = {
-  "elo/history": { title: "전적 기록", body: "경기유형·시즌·티어 필터가 있는 전체 전적 테이블.", items: ["필터 URL 공유 · 테이블 캡처"] },
   "elo/weekly": { title: "위클리 베스트", body: "주간 ELO 상승 TOP 5." },
 
   "pl/predictions": { title: "승부예측", body: "기존 tufpl 승부예측 기능이 들어갈 자리입니다." },

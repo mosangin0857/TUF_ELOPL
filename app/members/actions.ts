@@ -247,6 +247,10 @@ export async function purgeMemberAction(id: string, confirmName: string): Promis
   const { error: matchErr } = await supabase.from("matches").delete().or(`player1_id.eq.${id},player2_id.eq.${id}`)
   if (matchErr) return { ok: false, error: `경기 기록을 지우지 못했어요: ${matchErr.message}` }
 
+  // 받은 장식 뱃지 연결도 지움 (DB에서 연결이 선수 삭제를 막지 않게)
+  const { error: badgeErr } = await supabase.from("member_decorative_badges").delete().eq("member_id", id)
+  if (badgeErr) return { ok: false, error: `장식 뱃지를 지우지 못했어요: ${badgeErr.message}` }
+
   const { error } = await supabase.from("members").delete().eq("id", id)
   if (error) return { ok: false, error: `삭제하지 못했어요: ${error.message}` }
 

@@ -170,8 +170,8 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 
 | 테이블 | 컬럼 | 용도 |
 |---|---|---|
-| decorative_badges | id, label, sort_order, accent('amber'), created_at | 장식 뱃지 정의 |
-| member_decorative_badges | badge_id, member_id | 멤버-뱃지 연결 (N:M) |
+| decorative_badges | id, label, sort_order, accent('amber'), created_at + 015: icon('award'), description, grade('normal' · 'shine'), category('pl' · 'solo' · 'team' · 'elo' · 'event') | 장식 뱃지 정의 (새 사이트: ELO 보드 › 뱃지 관리) |
+| member_decorative_badges | badge_id, member_id + 015: awarded_at(기본 now()) · (badge_id, member_id) UNIQUE | 멤버-뱃지 연결 (N:M) |
 | daily_visitors | visit_date, count | 일별 방문자 수 |
 | settings | id(=1), current_version, screp_url, notice, is_maintenance | 단일 행 설정 (런처 버전, 점검 모드) |
 | site_notice | id(=1), title, items(jsonb), updated_at | 단일 행 공지 |

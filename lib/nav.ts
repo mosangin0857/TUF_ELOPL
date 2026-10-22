@@ -79,9 +79,9 @@ export const AREAS: Area[] = [
       { slug: "", label: "대시보드" },
       { slug: "ranking", label: "랭킹" },
       { slug: "data-center", label: "데이터센터" },
-      { slug: "history", label: "전적 기록" },
       { slug: "weekly", label: "위클리 베스트" },
       { slug: "season", label: "시즌 관리", adminOnly: true },
+      { slug: "badges", label: "뱃지 관리", adminOnly: true },
     ],
   },
   {

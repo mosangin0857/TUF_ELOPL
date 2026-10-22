@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache"
 import { type NextRequest, NextResponse } from "next/server"
 import { insertAdminLog } from "@/lib/admin-log"
 import { MAP_NAME_PATTERN } from "@/lib/elo"
-import { recordEloMatch } from "@/lib/elo/record"
+import { findMemberByName, recordEloMatch } from "@/lib/elo/record"
 import { createServiceClient } from "@/lib/supabase/service"
 import { seoulDate } from "@/lib/utils"
 
@@ -19,15 +19,6 @@ import { seoulDate } from "@/lib/utils"
 export const dynamic = "force-dynamic"
 
 const DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/
-
-/** 대소문자만 무시하고 이름이 정확히 같은 클랜원 (ilike의 % _ 는 글자 그대로, 결과도 한 번 더 비교) */
-async function findMember(db: ReturnType<typeof createServiceClient>, name: string) {
-  const pattern = name.replace(/[\\%_]/g, (c) => `\\${c}`)
-  const { data, error } = await db.from("members").select("id, name").ilike("name", pattern).limit(5)
-  const same = (data ?? []).filter((m) => (m.name as string).toLowerCase() === name.toLowerCase())
-  if (error || same.length !== 1) return null
-  return { id: same[0].id as string, name: same[0].name as string }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // 3. 선수 조회 (대소문자 무시)
     const db = createServiceClient()
-    const [m1, m2] = await Promise.all([findMember(db, player1Name), findMember(db, player2Name)])
+    const [m1, m2] = await Promise.all([findMemberByName(db, player1Name), findMemberByName(db, player2Name)])
     if (!m1) return bad(`선수를 찾을 수 없음: "${player1Name}"`)
     if (!m2) return bad(`선수를 찾을 수 없음: "${player2Name}"`)
     if (m1.id === m2.id) return bad("같은 선수를 선택할 수 없습니다")

@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { BadgeList } from "@/components/badges/badge-list"
 import { RaceBadge } from "@/components/ui/race"
+import type { BadgeLite } from "@/lib/badges"
 import type { Race, RankingEntry, Season, SeasonSnapshotEntry, Tier } from "@/lib/types"
 import { cn, signed } from "@/lib/utils"
 
@@ -38,11 +40,14 @@ export function RankingBoard({
   players,
   pastSeasons,
   snapshots,
+  badges = {},
 }: {
   currentSeason: Season | null
   players: RankingEntry[]
   pastSeasons: Season[]
   snapshots: Record<string, SeasonSnapshotEntry[]>
+  /** 선수별 장식 뱃지 — 이름 옆에 대표 뱃지 아이콘 */
+  badges?: Record<string, BadgeLite[]>
 }) {
   const [seasonId, setSeasonId] = useState<string>("current")
   const [tier, setTier] = useState<Tier>(1)
@@ -188,10 +193,13 @@ export function RankingBoard({
                         </span>
                       </td>
                       <td>
-                        <Link className="p-cell" href={`/elo/data-center?p1=${encodeURIComponent(p.name)}`} title={`${p.name} 데이터센터 프로필`}>
-                          <RaceBadge race={p.race} />
-                          {p.name}
-                        </Link>
+                        <span className="rank-who">
+                          <Link className="p-cell" href={`/elo/data-center?p1=${encodeURIComponent(p.name)}`} title={`${p.name} 데이터센터 프로필`}>
+                            <RaceBadge race={p.race} />
+                            {p.name}
+                          </Link>
+                          <BadgeList badges={badges[p.id] ?? []} iconOnly max={1} />
+                        </span>
                       </td>
                       <td className="n rank-elo">{p.elo.toLocaleString()}</td>
                       <td className="n">

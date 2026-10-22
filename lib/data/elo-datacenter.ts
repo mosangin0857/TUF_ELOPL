@@ -1,5 +1,6 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
+import { fetchBadgeMap } from "@/lib/data/badges"
 import { fetchAll } from "@/lib/data/elo-ranking"
 import type { CurrentSeason, DcFilters, DcProfile, EloPoint, EloRange, GameRow, MapRow, OpponentRow, PlayerSummary, WinStat } from "@/lib/elo/datacenter"
 import { VIRTUAL_SEASONS } from "@/lib/elo/filters"
@@ -157,7 +158,7 @@ function eloSeries(all: Seen[], seasonId: string, startDate: string, range: EloR
   return points.filter((p) => p.date >= since)
 }
 
-function summarize(member: Member & { elo: number; wins: number; losses: number; streak: number }, list: Seen[], byId: Map<string, Member>): Omit<PlayerSummary, "tierRank"> {
+function summarize(member: Member & { elo: number; wins: number; losses: number; streak: number }, list: Seen[], byId: Map<string, Member>): Omit<PlayerSummary, "tierRank" | "badges"> {
   const overall: WinStat = { games: 0, wins: 0 }
   const vsRace = emptyVs()
   for (const s of list) {
@@ -218,12 +219,14 @@ export async function fetchDcProfile(opts: {
   const all2 = m2?.map((m) => seen(m, opts.p2!.id)) ?? null
   const f2 = all2?.filter((s) => passes(s.m, s.oppId, opts.filters, byId)) ?? null
 
-  const [rank1, rank2] = await Promise.all([
+  const [rank1, rank2, badgeMap] = await Promise.all([
     fetchTierRank(opts.p1.id, opts.p1.tier),
     opts.p2 ? fetchTierRank(opts.p2.id, opts.p2.tier) : Promise.resolve(null),
+    fetchBadgeMap(),
   ])
-  const p1: PlayerSummary = { ...summarize({ ...opts.p1, ...stat(opts.p1.id) }, f1, byId), tierRank: rank1 }
-  const p2: PlayerSummary | null = opts.p2 && f2 ? { ...summarize({ ...opts.p2, ...stat(opts.p2.id) }, f2, byId), tierRank: rank2 } : null
+  const p1: PlayerSummary = { ...summarize({ ...opts.p1, ...stat(opts.p1.id) }, f1, byId), tierRank: rank1, badges: badgeMap[opts.p1.id] ?? [] }
+  const p2: PlayerSummary | null =
+    opts.p2 && f2 ? { ...summarize({ ...opts.p2, ...stat(opts.p2.id) }, f2, byId), tierRank: rank2, badges: badgeMap[opts.p2.id] ?? [] } : null
 
   // 상대별
   const opp = new Map<string, OpponentRow>()

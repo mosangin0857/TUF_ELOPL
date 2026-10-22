@@ -1,3 +1,4 @@
+import type { BadgeLite } from "@/lib/badges"
 import type { PenaltyKind, PlMatchStatus, PlPickBy, PlRace, PlSetFormat, PlSide, PlStage, PlTeamRole } from "@/lib/pl/rules"
 
 /** ELO 영역 — 기존 TuFelo DB 스키마 기준 */
@@ -151,6 +152,8 @@ export interface EloEntry {
   tier: Tier
   elo: number
   weeklyDelta?: number
+  /** 대표 장식 뱃지 (대문 ELO TOP 8 이름 옆 아이콘) */
+  badge?: BadgeLite
 }
 
 export interface MatchRow {

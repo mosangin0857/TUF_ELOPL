@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { BadgeChip } from "@/components/badges/badge-chip"
 import { Empty } from "@/components/ui/empty"
 import { RaceBadge } from "@/components/ui/race"
 import type { EloEntry, Tier } from "@/lib/types"
@@ -37,7 +38,10 @@ export function EloTopCard({ byTier }: { byTier: Record<Tier, EloEntry[]> }) {
           <Link key={p.name} className="rank-row" href={`/elo?p1=${encodeURIComponent(p.name)}`} title={`${p.name} 전적 보기`}>
             <span className={cn("rk", i < 3 && "top")}>{i + 1}</span>
             <RaceBadge race={p.race} />
-            <span className="rank-name">{p.name}</span>
+            <span className="rank-name">
+              {p.name}
+              {p.badge && <BadgeChip badge={p.badge} iconOnly />}
+            </span>
             <span className="rank-elo">{p.elo.toLocaleString()}</span>
           </Link>
         ))

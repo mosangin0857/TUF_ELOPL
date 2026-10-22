@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Crown, X } from "lucide-react"
+import { BadgeList } from "@/components/badges/badge-list"
 import { WinBar } from "@/components/elo/datacenter/opponents-table"
 import { CaptureButton } from "@/components/ui/capture-button"
 import { RaceBadge } from "@/components/ui/race"
@@ -28,6 +29,7 @@ function Tags({ p }: { p: PlayerSummary }) {
         </span>
       )}
       {!p.active && <span className="pill tone-danger">탈퇴</span>}
+      <BadgeList badges={p.badges} />
     </span>
   )
 }
@@ -143,6 +145,7 @@ export function H2HPanel({
           <i className="dc-key" style={{ background: "var(--chart-1)" }} aria-hidden />
           <RaceBadge race={p1.race} />
           {p1.name}
+          <BadgeList badges={p1.badges} iconOnly max={3} />
         </span>
         <span className="score">
           <span className="down">{h2h.stat.wins}</span>
@@ -153,6 +156,7 @@ export function H2HPanel({
           <i className="dc-key" style={{ background: "var(--chart-2)" }} aria-hidden />
           <RaceBadge race={p2.race} />
           {p2.name}
+          <BadgeList badges={p2.badges} iconOnly max={3} />
         </span>
         <span className="dc-h2h-meta">
           {h2h.stat.games ? (

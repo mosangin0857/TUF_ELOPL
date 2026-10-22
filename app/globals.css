@@ -42,6 +42,17 @@
   /* 그래프 계열 색 (ELO 데이터센터: 선수 1 · 선수 2) — dataviz validate_palette 라이트 · 다크 모두 통과 (2026-10-17) */
   --chart-1: #b8891c;
   --chart-2: #6250d6;
+  /* 장식 뱃지 색 (lib/badges.ts BADGE_COLORS — 이름은 기존 사이트 accent 값과 같음): 금 · 은 · 동 · 빨강 · 파랑 · 하늘 · 초록 · 보라 · 분홍 · 청록 */
+  --badge-amber: #b07d0c;
+  --badge-slate: #64748b;
+  --badge-orange: #b8642a;
+  --badge-rose: #c0344f;
+  --badge-blue: #2f6fd0;
+  --badge-sky: #0e86b4;
+  --badge-emerald: #138a5a;
+  --badge-violet: #6d4fd6;
+  --badge-fuchsia: #b03a98;
+  --badge-cyan: #0f8a8f;
 
   --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--surface));
   --accent-text: color-mix(in oklab, var(--accent) 80%, #000);
@@ -70,6 +81,16 @@
     --team-ink-mix: 45%;
     --mvp-glint: #fff4c8;
     --chart-2: #9085e9;
+    --badge-amber: #e2b545;
+    --badge-slate: #a3adbd;
+    --badge-orange: #e59a5e;
+    --badge-rose: #f07b92;
+    --badge-blue: #6ea0ff;
+    --badge-sky: #5cc3ea;
+    --badge-emerald: #4fcf93;
+    --badge-violet: #a08cf0;
+    --badge-fuchsia: #e57ccb;
+    --badge-cyan: #4fd0d0;
     --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
     --race-t: #6ea0ff;
     --race-p: #e2b545;
@@ -91,6 +112,16 @@
   --team-ink-mix: 45%;
   --mvp-glint: #fff4c8;
   --chart-2: #9085e9;
+  --badge-amber: #e2b545;
+  --badge-slate: #a3adbd;
+  --badge-orange: #e59a5e;
+  --badge-rose: #f07b92;
+  --badge-blue: #6ea0ff;
+  --badge-sky: #5cc3ea;
+  --badge-emerald: #4fcf93;
+  --badge-violet: #a08cf0;
+  --badge-fuchsia: #e57ccb;
+  --badge-cyan: #4fd0d0;
   --accent-text: color-mix(in oklab, var(--accent) 75%, #fff);
   --race-t: #6ea0ff;
   --race-p: #e2b545;
@@ -7048,6 +7079,26 @@
   .sm-steps b {
     color: var(--ink);
   }
+  /* 새 시즌 시작: 티어별 1위 뱃지도 만들기 */
+  .sm-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 13.5px;
+    line-height: 1.6;
+    cursor: pointer;
+  }
+  .sm-check input {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    flex: none;
+    accent-color: var(--accent);
+  }
   .sm-confirm {
     display: flex;
     flex-wrap: wrap;
@@ -7605,5 +7656,405 @@
   }
   .set-row .p-cell {
     gap: 4px;
+  }
+}
+
+/* =========================================================
+   장식 뱃지 (lib/badges.ts · components/badges/) — ELO 담당
+   ========================================================= */
+@layer components {
+  :is(.bdg, .bm-swatch) {
+    --bc: var(--badge-amber);
+  }
+  :is(.bdg, .bm-swatch)[data-c="slate"] {
+    --bc: var(--badge-slate);
+  }
+  :is(.bdg, .bm-swatch)[data-c="orange"] {
+    --bc: var(--badge-orange);
+  }
+  :is(.bdg, .bm-swatch)[data-c="rose"] {
+    --bc: var(--badge-rose);
+  }
+  :is(.bdg, .bm-swatch)[data-c="blue"] {
+    --bc: var(--badge-blue);
+  }
+  :is(.bdg, .bm-swatch)[data-c="sky"] {
+    --bc: var(--badge-sky);
+  }
+  :is(.bdg, .bm-swatch)[data-c="emerald"] {
+    --bc: var(--badge-emerald);
+  }
+  :is(.bdg, .bm-swatch)[data-c="violet"] {
+    --bc: var(--badge-violet);
+  }
+  :is(.bdg, .bm-swatch)[data-c="fuchsia"] {
+    --bc: var(--badge-fuchsia);
+  }
+  :is(.bdg, .bm-swatch)[data-c="cyan"] {
+    --bc: var(--badge-cyan);
+  }
+
+  /* 뱃지 한 개: 아이콘 + 이름 */
+  .bdg {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--bc) 50%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--bc) 12%, var(--surface));
+    color: color-mix(in oklab, var(--bc) 70%, var(--ink));
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  .bdg svg {
+    flex: none;
+    color: var(--bc);
+  }
+  .bdg.icon-only {
+    width: 22px;
+    padding: 0;
+    justify-content: center;
+  }
+  /* 빛나는 뱃지: 진한 테두리 + 금빛이 지나감 (프로리그 MVP 이름과 같은 빛 --mvp-glint) */
+  .bdg[data-g="shine"] {
+    border-color: color-mix(in oklab, var(--bc) 85%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--bc) 22%, transparent),
+      0 0 8px color-mix(in oklab, var(--bc) 25%, transparent);
+  }
+  .bdg[data-g="shine"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 35%, color-mix(in oklab, var(--mvp-glint) 65%, transparent) 50%, transparent 65%);
+    background-size: 260% 100%;
+    animation: bdg-shine 3.4s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes bdg-shine {
+    from {
+      background-position: 115% 0;
+    }
+    to {
+      background-position: -15% 0;
+    }
+  }
+
+  /* 선수 이름 옆 목록 · 누르면 받은 선수 */
+  .bdg-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    vertical-align: middle;
+  }
+  .bdg-btn {
+    display: inline-flex;
+    /* 누르는 칸은 32px 높이 (모양은 그대로) */
+    margin: -5px 0;
+    padding: 5px 0;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+  }
+  .bdg-btn:hover .bdg {
+    background: color-mix(in oklab, var(--bc) 22%, var(--surface));
+  }
+  .bdg-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .bdg-more {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bdg-dialog h3 .bdg {
+    height: 28px;
+    padding: 0 12px 0 9px;
+    font-size: 14px;
+  }
+  .bdg-dialog-sub {
+    margin-top: 6px;
+    line-height: 1.6;
+  }
+  .bdg-dialog > .note {
+    margin-top: 12px;
+  }
+  .bdg-holders {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+    max-height: 52vh;
+    overflow: auto;
+  }
+  .bdg-holders li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    min-height: 36px;
+    padding: 4px 2px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .bdg-holders a.p-cell {
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .bdg-holders a.p-cell:hover {
+    color: var(--accent-text);
+  }
+  .rank-who {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+  }
+  .rank-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .rank-name .bdg {
+    flex: none;
+  }
+
+  /* 뱃지 관리 (components/badges/badge-manager.tsx) */
+  .modal.bm-wide {
+    width: min(720px, calc(100vw - 32px));
+  }
+  .bm-holders {
+    display: grid;
+    gap: 12px;
+  }
+  .bm-suggest,
+  .bm-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .bm-suggest li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .bm-suggest-main,
+  .bm-main {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+  .bm-suggest-main {
+    flex: 1 1 280px;
+    justify-items: start;
+  }
+  .bm-names {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .bm-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .bm-list li:has(> .bm-main:first-child) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .bm-order {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .bm-title {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .bm-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+  }
+  .bm-actions .btn-ghost,
+  .bm-team .btn-ghost {
+    gap: 6px;
+  }
+  .icon-btn.danger {
+    color: var(--up);
+  }
+  .icon-btn.danger:hover:not(:disabled) {
+    border-color: var(--up);
+  }
+  .bm-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .bm-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .bm-pick,
+  .fchip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .fchip-btn {
+    border-radius: 999px;
+    padding: 0 12px;
+  }
+  .bm-pick:hover,
+  .fchip-btn:hover {
+    border-color: var(--accent);
+  }
+  .bm-pick.on,
+  .fchip-btn.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .bm-swatch i {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--bc);
+  }
+  .bm-team {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .bm-team select {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .bm-chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 240px;
+    overflow: auto;
+  }
+  .bm-chips li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 4px 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+  .bm-chips li.new {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .bm-chips em {
+    font-style: normal;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  .bm-chips li.new em {
+    color: var(--accent-text);
+  }
+  .bm-chips button {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .bm-chips button:hover {
+    background: var(--surface);
+    color: var(--up);
+  }
+  .bm-holder-note {
+    line-height: 1.6;
+  }
+
+  @media (max-width: 560px) {
+    .bm-suggest li,
+    .bm-list li {
+      padding-inline: 14px;
+    }
+    .bm-list li {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+    .bm-list li:has(> .bm-main:first-child) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .bm-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bdg[data-g="shine"]::after {
+      animation: none;
+      opacity: 0;
+    }
   }
 }

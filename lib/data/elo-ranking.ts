@@ -1,4 +1,6 @@
 import "server-only"
+import { fetchBadgeMap } from "@/lib/data/badges"
+import { fetchAll } from "@/lib/data/fetch-all"
 import { createReadClient } from "@/lib/supabase/server"
 import { seoulDate } from "@/lib/utils"
 import type { EloEntry, Race, RankingEntry, Season, SeasonSnapshotEntry, Tier } from "@/lib/types"
@@ -11,24 +13,12 @@ import type { EloEntry, Race, RankingEntry, Season, SeasonSnapshotEntry, Tier } 
  *   - 지난 시즌: season_rankings 스냅샷
  */
 
-const PAGE = 1000 // Supabase(PostgREST) 한 번 조회 최대 행 수
 const RECENT_MATCH_COUNT = 5
 
 type Db = ReturnType<typeof createReadClient>
 
-/** 1,000행 제한을 넘는 조회를 나눠서 모두 가져온다 */
-export async function fetchAll<T>(build: (db: Db) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }> }): Promise<T[]> {
-  const db = createReadClient()
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await build(db).range(from, from + PAGE - 1)
-    if (error) throw new Error(error.message)
-    const chunk = (data ?? []) as T[]
-    rows.push(...chunk)
-    if (chunk.length < PAGE) break
-  }
-  return rows
-}
+/** 1,000행 넘게 나눠 조회 — lib/data/fetch-all.ts로 옮김 (기존 import 경로도 그대로 동작) */
+export { fetchAll }
 
 type MemberRow = { id: string; name: string; race: Race; tier: Tier; elo: number; wins: number; losses: number; streak: number }
 type MatchRow = {
@@ -163,12 +153,12 @@ export async function fetchPastSeasonRankings(): Promise<{ seasons: Season[]; sn
 
 /** ELO TOP 8 (티어별): 활동 중 · 전적 있는 선수를 티어마다 ELO 순으로 limit명씩 */
 export async function fetchEloTopByTier(limit = 8): Promise<Record<Tier, EloEntry[]>> {
-  const members = await fetchActiveMembers() // ELO 내림차순
+  const [members, badges] = await Promise.all([fetchActiveMembers(), fetchBadgeMap()]) // ELO 내림차순
   const byTier: Record<Tier, EloEntry[]> = { 1: [], 2: [], 3: [], 4: [] }
   for (const m of members) {
     if (m.wins + m.losses === 0) continue
     const list = byTier[m.tier]
-    if (list && list.length < limit) list.push({ name: m.name, race: m.race, tier: m.tier, elo: m.elo })
+    if (list && list.length < limit) list.push({ name: m.name, race: m.race, tier: m.tier, elo: m.elo, ...(badges[m.id]?.[0] ? { badge: badges[m.id][0] } : {}) })
   }
   return byTier
 }

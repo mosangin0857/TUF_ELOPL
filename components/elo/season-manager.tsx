@@ -182,7 +182,8 @@ function NewSeason({ active, today, onDone }: { active: SeasonInfo | null; today
   const [preview, setPreview] = useState<NewSeasonPreview | null>(null)
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ name: string; failedRecalc: string | null } | null>(null)
+  const [result, setResult] = useState<{ name: string; failedRecalc: string | null; badges: { made: string[]; error: string | null } | null } | null>(null)
+  const [tierBadges, setTierBadges] = useState(true)
   const [busy, start] = useTransition()
 
   const edit = (fn: () => void) => {
@@ -206,9 +207,9 @@ function NewSeason({ active, today, onDone }: { active: SeasonInfo | null; today
     if (!preview) return
     setError(null)
     start(async () => {
-      const res = await startNewSeasonAction(preview.name, preview.startDate, confirm)
+      const res = await startNewSeasonAction(preview.name, preview.startDate, confirm, tierBadges && !!preview.prev)
       if (!res.ok) return setError(res.error)
-      setResult({ name: res.data.preview.name, failedRecalc: res.data.failedRecalc })
+      setResult({ name: res.data.preview.name, failedRecalc: res.data.failedRecalc, badges: res.data.badges })
       setPreview(null)
       setConfirm("")
       onDone()
@@ -260,6 +261,12 @@ function NewSeason({ active, today, onDone }: { active: SeasonInfo | null; today
             {result.failedRecalc
               ? `시즌은 만들었지만 ELO 다시 계산이 중간에 멈췄어요. 위 '전적 다시 계산'을 눌러 이어서 맞춰 주세요. (${result.failedRecalc})`
               : "활동 선수 ELO를 시작값으로 되돌렸어요. 랭킹 › 지난 시즌에서 이전 시즌 최종 순위를 볼 수 있어요."}
+            {result.badges &&
+              (result.badges.error
+                ? ` 티어별 1위 뱃지는 만들지 못했어요: ${result.badges.error}`
+                : result.badges.made.length
+                  ? ` 티어별 1위 뱃지 ${result.badges.made.length}개: ${result.badges.made.join(", ")}`
+                  : " 티어별 1위 뱃지는 이미 있거나 대상이 없어서 만들지 않았어요.")}
           </Banner>
         )}
 
@@ -289,6 +296,14 @@ function NewSeason({ active, today, onDone }: { active: SeasonInfo | null; today
             <Banner tone="warn" title="되돌리기 어려운 작업이에요">
               실행하면 모든 선수의 ELO · 승패가 바뀌어요. 확인을 위해 아래 칸에 시즌 이름 &apos;{preview.name}&apos;을 그대로 입력해 주세요.
             </Banner>
+            {preview.prev && (
+              <label className="sm-check">
+                <input type="checkbox" checked={tierBadges} onChange={(e) => setTierBadges(e.target.checked)} />
+                <span>
+                  <b>{preview.prev.name} 티어별 1위 뱃지도 만들기</b> — 최종 순위로 &apos;{preview.prev.name} N티어 1위&apos; 뱃지를 만들고 그 선수에게 부여 (뱃지 관리 › 자동 제안과 같아요)
+                </span>
+              </label>
+            )}
             <div className="sm-confirm">
               <input className="field" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={preview.name} aria-label="확인용 시즌 이름" />
               <button type="button" className="btn danger" disabled={busy || confirm.trim() !== preview.name} onClick={run}>

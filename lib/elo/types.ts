@@ -69,6 +69,7 @@ export interface NewSeasonPreview {
   startDate: string
   /** 지금 진행 중인 시즌 → 시작일 하루 전으로 종료 + 최종 순위 저장 */
   prev: {
+    id: string
     name: string
     endDate: string
     /** 저장할 최종 순위 (활동 클랜원) */

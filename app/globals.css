@@ -7329,11 +7329,12 @@
     border-color: #1f8a5b;
     color: #1f8a5b;
   }
-  .share-wrap {
+  /* 버튼 + 잠깐 뜨는 안내 (복사 · 공유). 'share-wrap'은 광고 차단 목록(Fanboy · EasyList)이 숨겨서 이름을 바꿈 */
+  .tool-pop {
     position: relative;
     display: inline-flex;
   }
-  .share-toast {
+  .tool-pop-msg {
     position: absolute;
     z-index: 20;
     top: calc(100% + 6px);
@@ -7347,7 +7348,7 @@
     white-space: nowrap;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
   }
-  .share-toast.err {
+  .tool-pop-msg.err {
     background: var(--up);
     color: #fff;
   }

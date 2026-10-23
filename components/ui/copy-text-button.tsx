@@ -36,7 +36,7 @@ export function CopyTextButton({ text, label, done = "복사했어요", caption 
   }
 
   return (
-    <span className="share-wrap" data-capture-hide>
+    <span className="tool-pop" data-capture-hide>
       <button
         type="button"
         className={cn(caption ? "btn-ghost copy-caption" : "cap-btn", state === "ok" && "is-done")}
@@ -48,7 +48,7 @@ export function CopyTextButton({ text, label, done = "복사했어요", caption 
         {caption}
       </button>
       {state !== "idle" && (
-        <span className={cn("share-toast", state === "err" && "err")} role="status">
+        <span className={cn("tool-pop-msg", state === "err" && "err")} role="status">
           {state === "ok" ? done : "복사하지 못했어요"}
         </span>
       )}

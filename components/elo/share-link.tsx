@@ -36,12 +36,12 @@ export function ShareLinkButton() {
   }
 
   return (
-    <span className="share-wrap" data-capture-hide>
+    <span className="tool-pop" data-capture-hide>
       <button type="button" className={cn("cap-btn", state === "ok" && "is-done")} onClick={copy} aria-label="공유하기: 이 화면 주소 복사" title="공유하기 (지금 보는 전적 주소 복사)">
         {state === "ok" ? <Check size={15} aria-hidden /> : <Share2 size={15} aria-hidden />}
       </button>
       {state !== "idle" && (
-        <span className={cn("share-toast", state === "err" && "err")} role="status">
+        <span className={cn("tool-pop-msg", state === "err" && "err")} role="status">
           {state === "ok" ? "주소를 복사했어요" : "복사하지 못했어요"}
         </span>
       )}

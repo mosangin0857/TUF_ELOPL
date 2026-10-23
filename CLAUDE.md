@@ -12,7 +12,7 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
-**2026-10-23 · 광고 차단기가 숨기던 클래스 이름 바꿈 (PL 담당, 공통)**
+**2026-10-23 · 광고 차단기가 숨기던 클래스 이름 바꿈 (PL 담당, 공통, main 반영)**
 - `share-wrap` → `tool-pop`, `share-toast` → `tool-pop-msg` (`components/ui/copy-text-button.tsx`, **ELO의 `components/elo/share-link.tsx`도**). 광고 차단 목록(Fanboy Social · Annoyance, EasyList 계열)에 `##.share-wrap` 규칙이 있어서 Opera 기본 차단 · uBlock 등을 켠 사람에게 텍스트 복사 · 공유하기 버튼이 통째로 안 보였다(제보: 일정 텍스트 복사 버튼이 일부 사람에게만 안 보임).
 - **앞으로 클래스 이름에 `share` · `social` · `ad` · `sponsor` · `banner` · `popup` 같은 말은 피할 것** — 그 이름만으로 숨겨질 수 있다. 지금 쓰는 클래스 685개를 목록과 대조했고 걸리는 건 이것 하나였음.
 

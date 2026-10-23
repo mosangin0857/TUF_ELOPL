@@ -116,7 +116,7 @@ export function RaceMatchups({ tiers, scope }: { tiers: Record<TierBucket, MetaT
                       <td className="n">{r.players}</td>
                       <td className="n">{r.games.toLocaleString()}</td>
                       <td>
-                        <span className="dc-share" style={{ "--bar": `var(--race-${r.race.toLowerCase()})` } as React.CSSProperties}>
+                        <span className="dc-portion" style={{ "--bar": `var(--race-${r.race.toLowerCase()})` } as React.CSSProperties}>
                           <span className="track" aria-hidden>
                             <i style={{ width: `${share}%` }} />
                           </span>

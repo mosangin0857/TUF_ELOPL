@@ -6517,13 +6517,13 @@
     background: var(--ink);
     box-shadow: 0 0 0 1px var(--surface);
   }
-  .dc-share {
+  .dc-portion {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     width: 100%;
   }
-  .dc-share .track {
+  .dc-portion .track {
     position: relative;
     flex: 1 1 60px;
     min-width: 48px;
@@ -6531,13 +6531,13 @@
     border-radius: 3px;
     background: color-mix(in oklab, var(--bar) 16%, var(--surface-2));
   }
-  .dc-share .track i {
+  .dc-portion .track i {
     position: absolute;
     inset: 0 auto 0 0;
     border-radius: 3px;
     background: var(--bar);
   }
-  .dc-share b {
+  .dc-portion b {
     min-width: 44px;
     text-align: right;
     font-size: 13px;
@@ -8054,6 +8054,337 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .bdg[data-g="shine"]::after {
+      animation: none;
+      opacity: 0;
+    }
+  }
+}
+
+/* =========================================================
+   ELO 보드 › 위클리 베스트 (components/elo/weekly-board.tsx) — ELO 담당
+   클래스 이름에 share · social · ad · banner · popup 같은 말은 쓰지 않음 (광고 차단기)
+   ========================================================= */
+@layer components {
+  /* 주 고르기 · 지난 주/이번 주 · 티어 */
+  .wb-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 0 20px 18px;
+  }
+  .wb-week {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wb-week-label {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 15px;
+  }
+  .wb-quick {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  a.fchip-btn {
+    text-decoration: none;
+  }
+
+  /* TOP 5 카드 */
+  .wb-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0 20px 6px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .wb-card {
+    position: relative;
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 14px 12px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .wb-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .wb-rank {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-cond);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink-2);
+  }
+  .wb-delta {
+    font-family: var(--font-cond);
+    font-size: 24px;
+  }
+  .wb-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .wb-name a.p-cell {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .wb-name a.p-cell:hover {
+    color: var(--accent-text);
+  }
+  .wb-meta {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+
+  /* 요일별 변동: 가운데 선 위로 오름(빨강) · 아래로 내림(파랑) */
+  .wb-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .wb-day {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+  }
+  .wb-day-track {
+    position: relative;
+    width: 100%;
+    height: 60px;
+  }
+  .wb-day-track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: var(--line);
+  }
+  .wb-day-track i {
+    position: absolute;
+    left: 50%;
+    width: min(12px, 70%);
+    transform: translateX(-50%);
+    border-radius: 3px;
+  }
+  .wb-day-track i.up {
+    bottom: 50%;
+    background: var(--up);
+  }
+  .wb-day-track i.down {
+    top: 50%;
+    background: var(--down);
+  }
+  .wb-day-track i.zero {
+    top: calc(50% - 2px);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    opacity: 0.6;
+  }
+  .wb-day small {
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  /* 1위 카드: 금 테두리 + 빛이 지나감 + 띠 */
+  .wb-card.champ {
+    border-color: color-mix(in oklab, var(--accent) 75%, var(--line));
+    background: color-mix(in oklab, var(--accent) 7%, var(--surface));
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
+      0 10px 28px color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  .wb-card.champ::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 38%, color-mix(in oklab, var(--mvp-glint) 30%, transparent) 50%, transparent 62%);
+    background-size: 260% 100%;
+    animation: wb-glint 4s linear infinite;
+    pointer-events: none;
+  }
+  .wb-card.champ .wb-rank {
+    color: var(--accent-text);
+  }
+  .wb-ribbon {
+    position: absolute;
+    top: 12px;
+    right: -38px;
+    z-index: 1;
+    padding: 3px 38px;
+    transform: rotate(32deg);
+    background: var(--accent);
+    color: #1a1406;
+    font-family: var(--font-cond);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .wb-card.champ .wb-card-top {
+    padding-right: 54px;
+  }
+  @keyframes wb-glint {
+    from {
+      background-position: 120% 0;
+    }
+    to {
+      background-position: -20% 0;
+    }
+  }
+
+  /* 주간 기록 */
+  .wb-records {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 20px 18px;
+  }
+  .wb-records > div {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .wb-records small {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .wb-records b {
+    font-family: var(--font-cond);
+    font-size: 24px;
+  }
+  .wb-records a.p-cell {
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .wb-records em {
+    font-style: normal;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+
+  /* 시즌 위클리 챔피언 */
+  .wb-history {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    gap: 16px;
+    padding: 0 20px 18px;
+    align-items: start;
+  }
+  .wb-titles {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .wb-titles small {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .wb-titles ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .wb-titles li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 32px;
+  }
+  .wb-titles a.p-cell,
+  .wb-table a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .wb-titles a.p-cell:hover,
+  .wb-table a:hover {
+    color: var(--accent-text);
+  }
+  .wb-titles b {
+    font-family: var(--font-cond);
+    font-size: 18px;
+    color: var(--accent-text);
+  }
+  .wb-history .table-wrap {
+    margin: 0;
+  }
+  .wb-table td:first-child {
+    white-space: nowrap;
+  }
+  .wb-table td:first-child .pill {
+    margin-left: 6px;
+  }
+  .wb-table tr.on td {
+    background: var(--accent-soft);
+  }
+  .wb-crown {
+    color: var(--accent);
+    flex: none;
+  }
+
+  @media (max-width: 1100px) {
+    .wb-cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .wb-records {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 880px) {
+    .wb-bar,
+    .wb-cards,
+    .wb-records,
+    .wb-history {
+      padding-inline: 14px;
+    }
+    .wb-history {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 560px) {
+    .wb-cards {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wb-card.champ::after {
       animation: none;
       opacity: 0;
     }

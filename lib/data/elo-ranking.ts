@@ -1,5 +1,6 @@
 import "server-only"
 import { fetchBadgeMap } from "@/lib/data/badges"
+import { fetchWeekTotals } from "@/lib/data/elo-weekly"
 import { fetchAll } from "@/lib/data/fetch-all"
 import { createReadClient } from "@/lib/supabase/server"
 import { seoulDate } from "@/lib/utils"
@@ -173,32 +174,10 @@ export function lastWeekRange(today = seoulDate()): { weekStart: string; weekEnd
   return { weekStart: start.toISOString().slice(0, 10), weekEnd: end.toISOString().slice(0, 10) }
 }
 
-/** 지난 주 ELO 흐름: 지난 주 월~일 경기의 ELO 변동 합계 — 경기가 있었던 활동 선수만, 변동 큰 순 */
+/** 지난 주 ELO 흐름: 지난 주 월~일 경기의 ELO 변동 합계 — ELO가 바뀐 활동 선수만, 변동 큰 순 (위클리 베스트와 같은 집계 lib/data/elo-weekly.ts) */
 export async function fetchLastWeekEloFlow(limit = 12): Promise<{ weekStart: string; weekEnd: string; entries: EloEntry[] }> {
   const { weekStart, weekEnd } = lastWeekRange()
-
-  const [members, matches] = await Promise.all([
-    fetchActiveMembers(),
-    fetchAll<MatchRow>((db) =>
-      db
-        .from("matches")
-        .select("player1_id, player2_id, player1_elo_delta, player2_elo_delta, played_date")
-        .gte("played_date", weekStart)
-        .lte("played_date", weekEnd),
-    ),
-  ])
-
-  const delta = new Map<string, number>()
-  for (const m of matches) {
-    if (m.player1_elo_delta !== null) delta.set(m.player1_id, (delta.get(m.player1_id) ?? 0) + m.player1_elo_delta)
-    if (m.player2_elo_delta !== null) delta.set(m.player2_id, (delta.get(m.player2_id) ?? 0) + m.player2_elo_delta)
-  }
-
-  const entries = members
-    .filter((m) => delta.has(m.id))
-    .map((m) => ({ name: m.name, race: m.race, tier: m.tier, elo: m.elo, weeklyDelta: delta.get(m.id)! }))
-    .sort((a, b) => b.weeklyDelta - a.weeklyDelta || b.elo - a.elo)
-    .slice(0, limit)
-
+  const totals = await fetchWeekTotals(weekStart)
+  const entries = totals.slice(0, limit).map(({ member: m, delta }) => ({ name: m.name, race: m.race, tier: m.tier, elo: m.elo, weeklyDelta: delta }))
   return { weekStart, weekEnd, entries }
 }

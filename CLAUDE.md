@@ -12,6 +12,16 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-23 · ELO 보드 › 위클리 베스트 (ELO 담당)**
+- 기존 TuFelo 대시보드 '위클리 베스트(ELO 상승 TOP 5)'를 탭으로 옮기고 운영진과 정한 개선을 넣음 (`/elo/weekly`, 누구나).
+  파일: 규칙 · 타입 `lib/elo/weekly.ts`(주 계산 · 주소), 계산 `lib/data/elo-weekly.ts`(서버 전용), 화면 `app/elo/weekly/page.tsx` · `components/elo/weekly-board.tsx`. DB 변경 없음(전적으로 계산).
+- 규칙(기존과 같음): 주 = **월~일(서울)**, 그 주 경기의 ELO 변동 합계 순(팀플 · 시즌 밖은 0) · 같으면 지금 ELO → 이름 순, 활동 클랜원만, 티어 · 티어 순위는 지금 기준. **TOP 5는 ELO가 오른 선수만**(기존은 0 · 마이너스도 채웠음).
+- 개선: **주 넘겨 보기**(‹ › · '지난 주' · '이번 주(진행 중)', `?week=<월요일>` — 안 주면 지난 주) · **티어 칩**(`?tier=1~4`) · 카드에 그 주 경기 수 · 승패 · **요일별 변동 막대**(오름 빨강 · 내림 파랑) · 대표 뱃지 · 이름 → 데이터센터,
+  **주간 기록**(다승 · 최다 경기 · 최고 연승 · 최대 업셋 = 한 경기 최대 ELO 상승) · **시즌 위클리 챔피언**(그 시즌 주별 1위 표 + 챔피언 횟수, 진행 중인 주는 횟수에서 뺌, 시즌마다 10분 캐시) · 캡처 · 주소 공유 · **카톡용 글 복사**. 1위 카드는 금 테두리 + 빛 + 'WEEKLY CHAMPION' 띠(`prefers-reduced-motion`이면 멈춤).
+- 대문 '지난 주 ELO 흐름'도 같은 집계를 씀(`fetchWeekTotals` — 값은 그대로, 같은 점수 · ELO일 때 이름 순으로 순서만 고정). 위클리 베스트 뱃지 자동 제안은 안 넣음(운영진 결정).
+- ELO에 준비 중 탭이 없어져서 `app/elo/[tab]/` 삭제(없는 ELO 탭 주소는 404). 지운 뒤 로컬 개발 서버가 멈추면 `.next/dev`를 지우고 다시 켤 것(Turbopack 캐시).
+- 동료 규칙(광고 차단기)에 맞춰 데이터센터 `.dc-share` → `.dc-portion`.
+
 **2026-10-23 · 광고 차단기가 숨기던 클래스 이름 바꿈 (PL 담당, 공통, main 반영)**
 - `share-wrap` → `tool-pop`, `share-toast` → `tool-pop-msg` (`components/ui/copy-text-button.tsx`, **ELO의 `components/elo/share-link.tsx`도**). 광고 차단 목록(Fanboy Social · Annoyance, EasyList 계열)에 `##.share-wrap` 규칙이 있어서 Opera 기본 차단 · uBlock 등을 켠 사람에게 텍스트 복사 · 공유하기 버튼이 통째로 안 보였다(제보: 일정 텍스트 복사 버튼이 일부 사람에게만 안 보임).
 - **앞으로 클래스 이름에 `share` · `social` · `ad` · `sponsor` · `banner` · `popup` 같은 말은 피할 것** — 그 이름만으로 숨겨질 수 있다. 지금 쓰는 클래스 685개를 목록과 대조했고 걸리는 건 이것 하나였음.
@@ -19,7 +29,8 @@
 **2026-10-22 · TFPL S4 정규 경기 세트 순서 재배치 — DB 데이터만 (운영진 요청, ELO 담당이 적용) ⚠️ PL 담당 확인**
 - 팀마다 라운드 5경기에서 같은 티어 세트가 늘 앞 세트에만 몰려(예: 티트와라트 R1 3T가 2 · 2 · 1 · 2 · 3세트) 그 시간에 못 오는 선수가 라운드 내내 못 나가는 문제 → **세트 순서만** 바꿈.
   대진 · 날짜 · 홈/원정 · 티어별 맵(티어와 같이 이동) · 4세트 팀플 · 7세트 ACE · R1-1~R1-5(끝남 · 엔트리 있음)는 그대로. **R1-6 ~ R3-45 중 38경기**의 `pl_sets.set_no`만 바꿈(행 통째로 이동, 엔트리 없을 때). 코드 변경 없음.
-- 결과: 같은 팀이 같은 티어를 같은 세트 자리에서 또 하는 경우 R1 34 → 8(3은 끝난 경기끼리, 남은 경기로는 최소) · R2 · R3 30 → 0(모든 팀이 각 티어를 1 · 2 · 3 · 5 · 6세트에 한 번씩). 경기별 전 → 후: **`docs/PL_S4_SET_ORDER.md`**, admin_logs "PL 세트 순서 재배치".
+- 결과: 같은 팀이 같은 티어를 같은 세트 자리에서 또 하는 경우 R2 · R3 30 → 0(모든 팀이 각 티어를 1 · 2 · 3 · 5 · 6세트에 한 번씩) · R1 34 → 13. 경기별 전 → 후: **`docs/PL_S4_SET_ORDER.md`**, admin_logs "PL 세트 순서 재배치".
+- **R1-6은 원래 순서로 확정**(10/23 00:03 Beombu가 결과 입력의 세트 순서 바꾸기로 되돌림, 운영진 결정으로 유지) → 실제로 바뀐 경기는 37경기(R1-7 ~ R3-45). 일정 세트 순서 작업은 이걸로 끝(2026-10-23).
 
 **2026-10-22 · 장식 뱃지 개편 — ELO 보드 › 뱃지 관리 (ELO 담당)**
 - 기존 TuFelo '전역 장식 뱃지'(글자 + 색 10가지 + 정렬, 제작자만, 데이터센터에만 표시)를 **클릭만으로 관리**하게 개편. 새 탭 **ELO 보드 › 뱃지 관리**(`/elo/badges`, 관리자 이상 — `adminOnly` + 서버 확인).
@@ -307,6 +318,7 @@
 | 클랜원 | **실제 DB** (명단 · 필터 · 추가 · 관리자 메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제) | `app/members/`, `components/members/`, `lib/data/members.ts` |
 | ELO 보드 › 데이터센터 | **실제 DB** 선수 프로필(선수 카드 · ELO 그래프 · 최근 20경기 · 상대별 · 맵별 · 맞대결) + 선수를 고르기 전 클랜 통계(종족 상성 · 기간별 경기 수 · 맵별 종족 상성 · ELO 변동성 · 런처 사용) · 필터 | `app/elo/data-center/`, `components/elo/datacenter/`, `lib/data/elo-datacenter.ts`, `lib/data/elo-datacenter-meta.ts`, `lib/elo/datacenter.ts` |
 | ELO 보드 › 뱃지 관리 | **실제 DB** (장식 뱃지 만들기 · 수정 · 받은 선수 · 프로리그 팀 통째로 · 자동 제안 · 순서 · 삭제, 관리자) — `015_decorative_badges.sql` 실행 완료 | `app/elo/badges/`, `components/badges/`, `lib/badges.ts`, `lib/data/badges.ts`, `lib/badge-write.ts` |
+| ELO 보드 › 위클리 베스트 | **실제 DB** (주간 ELO 상승 TOP 5 · 주 넘겨 보기 · 티어 · 주간 기록 · 시즌 위클리 챔피언 · 카톡 글 복사) | `app/elo/weekly/`, `components/elo/weekly-board.tsx`, `lib/data/elo-weekly.ts`, `lib/elo/weekly.ts` |
 | ELO 보드 › 랭킹 | **실제 DB** (시즌 · 티어 · 종족 필터, 요약, 순위 변동, 지난 시즌) | `app/elo/ranking/`, `components/elo/ranking-board.tsx`, `lib/data/elo-ranking.ts` |
 | 관리자 설정 › 활동 로그 | **실제 DB** (`admin_logs`) | `app/admin/logs/`, `lib/data/admin-logs.ts` |
 | 공지 · 건의 | **실제 DB** (공지 작성 · 대문 노출, 건의 작성 · 관리자 답변) — `003_notices.sql` 실행 필요 | `app/notice/`, `components/notice/board.tsx`, `lib/data/board.ts` |
@@ -325,7 +337,7 @@
 - [x] ELO 데이터센터 1단계 (선수 프로필 · 맞대결)
 - [x] ELO 데이터센터 2단계(클랜 통계) · 3단계(런처 통계) — Vercel에 `LAUNCHER_STATS_APPS_SCRIPT_URL` 등록 필요
 - [x] ELO 장식 뱃지 개편 — ELO 보드 › 뱃지 관리 (`docs/sql/015_decorative_badges.sql` 2026-10-22 실행 완료)
-- [ ] ELO 위클리 베스트 탭 (기존 TuFelo 대시보드 '위클리 베스트' 이식) — 전적 기록 탭은 2026-10-22 삭제(대시보드와 중복)
+- [x] ELO 위클리 베스트 탭 (2026-10-23) — 전적 기록 탭은 2026-10-22 삭제(대시보드와 중복). ELO 보드 탭은 모두 구현됨
 - [x] 클랜 공유 API `/api/clan-share` 이전 — Vercel에 `CLAN_API_KEY` 등록 필요 · 보내는 쪽 주소 변경 필요
 - [x] 공지 · 건의 게시판 + 대문 공지 — **`docs/sql/003_notices.sql` 실행 필요**
 - [x] 관리자 설정 › BJ 관리 + 대문 라이브 BJ (`docs/sql/004_clan_bjs.sql` 실행 완료)
@@ -354,6 +366,7 @@ app/
   elo/ranking/page.tsx      ELO 랭킹 (실제 DB)
   elo/data-center/page.tsx  ELO 데이터센터 (선수 프로필 · 맞대결 / 선수를 고르기 전엔 클랜 통계 · 런처, 필터 · 그래프 기간은 주소에)
   elo/actions.ts            ELO 쓰기 서버 액션: 전적 등록 · 수정 · 삭제 · 프로리그 DB전송(미리보기 · 전송)
+  elo/weekly/page.tsx       ELO 위클리 베스트 (주 · 티어는 주소에, 누구나)
   elo/badges/               ELO 뱃지 관리 (page.tsx, 관리자만) + 만들기 · 수정 · 삭제 · 순서 · 받은 선수 · 자동 제안 액션 (actions.ts) + 받은 선수 보기(누구나)
   elo/season/               ELO 시즌 관리 (page.tsx, 관리자만 보기) + 시작 · 다시 계산 · 수정 · 삭제 액션 (actions.ts, 최고 관리자만)
   api/sheets-sync/route.ts  구글 시트(Apps Script) → ELO 전적 등록 (Bearer SHEETS_SYNC_SECRET)
@@ -379,7 +392,7 @@ components/home/            대문 섹션 (RailSection · useRail 가로 슬라�
 components/members/         클랜원 표 + 팝업(메모 · 수정 · 탈퇴 · 복귀 · 완전 삭제)
 components/admin/           관리자 · 권한 화면 (admin-roles.tsx) · BJ 관리 화면 (bj-manager.tsx)
 components/pl/              일정(schedule-board) · 순위(standings-board) · 엔트리(entry-form) · 세트 선수 선택(side-slots) · manage/(PL 관리 패널들)
-components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx) · 데이터센터 (datacenter/)
+components/elo/             ELO 랭킹 화면 (ranking-board.tsx) · 대시보드 검색 · 필터 (dashboard-search.tsx) · 전적 등록 팝업 (register-match.tsx) · 최근 전적 수정 · 삭제 (match-admin.tsx) · 입력 칸 (suggest.tsx) · PL DB전송 팝업 (pl-elo-send.tsx) · 데이터센터 (datacenter/) · 위클리 베스트 (weekly-board.tsx)
 components/badges/          장식 뱃지 한 개 (badge-chip.tsx, 서버 · 화면 공통) · 선수 뱃지 목록 + 받은 선수 팝업 (badge-list.tsx) · 뱃지 관리 화면 (badge-manager.tsx)
 components/notice/          공지 · 건의 게시판 (board.tsx)
 components/ui/              RaceBadge · Crest · Empty · Placeholder · DbError · Pagination(+PageJump) · AdminRequired
@@ -402,12 +415,13 @@ lib/badges.ts               장식 뱃지 정의 (아이콘 · 색 · 등급 · 
 lib/badge-write.ts          장식 뱃지 쓰기 공통 (만들고 부여 · 받은 선수 맞추기 · 시즌 티어별 1위, 서버 전용)
 lib/data/badges.ts          장식 뱃지 조회 (015 전이면 기본값) · 선수별 뱃지 · 받은 선수 · 프로리그 선수단 · 자동 제안
 lib/data/fetch-all.ts       1,000행 넘는 조회 나눠 읽기 (fetchAll)
+lib/data/elo-weekly.ts      위클리 베스트 계산 (주별 집계 · 주간 기록 · 시즌 주별 1위 10분 캐시) · 대문 지난 주 흐름 (fetchWeekTotals)
 lib/data/elo-datacenter-meta.ts  데이터센터 클랜 통계 · ELO 변동성 (10분 캐시) · 런처 통계 (members.last_launcher_used_at + Apps Script)
 docs/sql/                   DB 변경 SQL (Supabase SQL Editor에서 실행)
 lib/supabase/server.ts      조회용 클라이언트 (anon 키)
 lib/supabase/service.ts     쓰기 · 관리자 조회용 클라이언트 (service_role 키, 서버 전용)
 lib/admin-log.ts            admin_logs 기록
-lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 수정 · 되돌리기, 서버 전용) · season.ts(시즌 시작 · 다시 계산 · 수정 · 삭제, 서버 전용) · pl-send.ts(프로리그 → ELO) · filters.ts(대시보드 필터 ↔ 주소) · datacenter.ts(데이터센터 타입 · 위험도 · 천적/호적수 · 주소) · types.ts
+lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화면 공통) · record.ts(전적 기록 · 수정 · 되돌리기, 서버 전용) · season.ts(시즌 시작 · 다시 계산 · 수정 · 삭제, 서버 전용) · pl-send.ts(프로리그 → ELO) · filters.ts(대시보드 필터 ↔ 주소) · datacenter.ts(데이터센터 타입 · 위험도 · 천적/호적수 · 주소) · weekly.ts(위클리 베스트 주 계산 · 타입 · 주소) · types.ts
 ```
 
 ## DB 규칙
@@ -516,7 +530,10 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 ## 기존 사이트(tufelo) 폐쇄 체크리스트
 기존 사이트는 같은 DB를 쓰므로, 아래 정리는 **기존 사이트를 닫은 뒤에** 한다 (닫기 전에 지우면 기존 사이트가 깨짐).
 - [x] 시트 연동 주소 이전 (2026-10-14, Apps Script `API_URL`) · 런처 통계 Apps Script 주소(`LAUNCHER_STATS_APPS_SCRIPT_URL`) 새 Vercel 등록
-- [ ] `/api/clan-share`를 부르는 쪽 주소를 `https://tufelopl.vercel.app/api/clan-share`로 + 새 Vercel에 `CLAN_API_KEY`
+- [x] 새 Vercel에 `CLAN_API_KEY` 등록 · 재배포(2026-10-23 확인). `/api/clan-share`는 지금 쓰는 곳 없음 — 나중에 쓰면 주소만 `https://tufelopl.vercel.app/api/clan-share`로
+- [x] 위클리 베스트 이전 (2026-10-23)
+- [ ] **런처 'ELO보드' 버튼 주소** (`TuFlauncher/main.py` 407줄 `https://tufelo.vercel.app/`)를 `https://tufelopl.vercel.app/`로 바꾼 런처 새 버전 배포
+- [ ] 클랜에 새 사이트 공지 → 기존 주소로 들어오면 새 사이트로 넘겨 주는 리다이렉트(기존 프로젝트에 설정 파일 하나 — 그때만 기존 사이트 수정 허용)
 - [ ] 기존 사이트에서 시즌 시작 · 전적 등록을 더 하지 않기 (새 사이트에서만)
 - [ ] 닫은 뒤 DB 정리: `admins`(새 사이트는 `members.role`) · `site_notice`(공지 배너, 안 옮김) · `daily_visitors`(방문자 수, 안 옮김) 테이블 삭제
 - [ ] 기존 tufelo Vercel 프로젝트 정리 (런처 등에 tufelo 주소가 남아 있는지 확인)

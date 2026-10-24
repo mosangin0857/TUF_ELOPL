@@ -12,6 +12,10 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-10-24 · TFPL S4 개인전 맵 재배치 — 11/03(1R-10M)부터 (PL 담당, DB 데이터만)**
+- 팀별 · 티어별 개인전 맵이 0~5회로 치우쳐 있어서 11/03부터 36경기의 개인전 맵(`pl_sets.map_name`, 홈 지정은 `solo_map`도)만 바꿈. 대진 · 날짜 · 세트 번호별 티어(10-22 재배치) · 팀플 · 11/03 전 9경기는 그대로.
+- 지킨 것: 티어별 전체 6~7회, 한 경기 안 맵 중복 없음, 한 팀 기준 이어지는 두 경기 같은 티어 · 같은 맵 없음. 결과 팀별 · 티어별 1~3회. 경기별 전 → 후: `docs/PL_S4_MAP_REBALANCE.md`.
+
 **2026-10-23 · 광고 차단기가 숨기던 클래스 이름 바꿈 (PL 담당, 공통, main 반영)**
 - `share-wrap` → `tool-pop`, `share-toast` → `tool-pop-msg` (`components/ui/copy-text-button.tsx`, **ELO의 `components/elo/share-link.tsx`도**). 광고 차단 목록(Fanboy Social · Annoyance, EasyList 계열)에 `##.share-wrap` 규칙이 있어서 Opera 기본 차단 · uBlock 등을 켠 사람에게 텍스트 복사 · 공유하기 버튼이 통째로 안 보였다(제보: 일정 텍스트 복사 버튼이 일부 사람에게만 안 보임).
 - **앞으로 클래스 이름에 `share` · `social` · `ad` · `sponsor` · `banner` · `popup` 같은 말은 피할 것** — 그 이름만으로 숨겨질 수 있다. 지금 쓰는 클래스 685개를 목록과 대조했고 걸리는 건 이것 하나였음.

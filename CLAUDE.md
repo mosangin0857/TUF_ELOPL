@@ -532,9 +532,10 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 - [x] 시트 연동 주소 이전 (2026-10-14, Apps Script `API_URL`) · 런처 통계 Apps Script 주소(`LAUNCHER_STATS_APPS_SCRIPT_URL`) 새 Vercel 등록
 - [x] 새 Vercel에 `CLAN_API_KEY` 등록 · 재배포(2026-10-23 확인). `/api/clan-share`는 지금 쓰는 곳 없음 — 나중에 쓰면 주소만 `https://tufelopl.vercel.app/api/clan-share`로
 - [x] 위클리 베스트 이전 (2026-10-23)
-- [ ] **런처 'ELO보드' 버튼 주소** (`TuFlauncher/main.py` 407줄 `https://tufelo.vercel.app/`)를 `https://tufelopl.vercel.app/`로 바꾼 런처 새 버전 배포
-- [ ] 클랜에 새 사이트 공지 → 기존 주소로 들어오면 새 사이트로 넘겨 주는 리다이렉트(기존 프로젝트에 설정 파일 하나 — 그때만 기존 사이트 수정 허용)
-- [ ] 기존 사이트에서 시즌 시작 · 전적 등록을 더 하지 않기 (새 사이트에서만)
+- [ ] **런처 'ELO보드' 버튼 주소** (`TuFlauncher/main.py` 407줄 `https://tufelo.vercel.app/`)를 `https://tufelopl.vercel.app/`로 바꾼 런처 새 버전 배포 — 지금은 리다이렉트로 새 사이트에 가지만 기존 Vercel 프로젝트를 지우기 전에 바꿀 것
+- [x] 클랜에 새 사이트 공지(운영진) · **기존 주소 리다이렉트**(2026-10-25, 기존 레포 `TuFelo/vercel.json`, 임시 307): `/` → `/elo`, `/ranking` → `/elo/ranking`, `/data-center` → `/elo/data-center`, `/admin` · `/creator` → `/elo`, 그 밖은 대문.
+  **`/api/*`만 그대로 살려 둠**(시트 연동 되돌리기용 비상구). 리다이렉트를 풀려면 그 파일을 지우고 푸시
+- [x] 기존 사이트에서 시즌 시작 · 전적 등록을 더 하지 않기 — 리다이렉트로 기존 화면에 못 들어감
 - [ ] 닫은 뒤 DB 정리: `admins`(새 사이트는 `members.role`) · `site_notice`(공지 배너, 안 옮김) · `daily_visitors`(방문자 수, 안 옮김) 테이블 삭제
 - [ ] 기존 tufelo Vercel 프로젝트 정리 (런처 등에 tufelo 주소가 남아 있는지 확인)
 

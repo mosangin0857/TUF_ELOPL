@@ -59,7 +59,13 @@ export const LEAGUE_NAV: NavItem[] = [
 
 export const EXTERNAL_LINKS: NavItem[] = [
   { href: "https://cafe.naver.com/taiscateam", ko: "클랜 카페", en: "", icon: "cafe" },
-  { href: "https://github.com/asd3656/TuFELO_Launcher", ko: "자동화 런처", en: "", icon: "launcher" },
+  {
+    // 클랜 카페 런처 안내 글 (2026-10-25 운영진 요청 — 예전 링크는 GitHub asd3656/TuFELO_Launcher)
+    href: "https://naver.me/F93m6YYa",
+    ko: "자동화 런처",
+    en: "",
+    icon: "launcher",
+  },
   {
     href: "https://docs.google.com/spreadsheets/d/1kKeA8Y8AmO99qS6v4Xsu_95z6kdKnXL8DXLSLXoCUx8/edit",
     ko: "전적시트",

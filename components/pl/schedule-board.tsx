@@ -168,7 +168,7 @@ export function ScheduleBoard({
               {expanded && (
                 <div className="match-detail">
                   <div className="md-meta">
-                    <span>{shortWhen(m.scheduledAt)}</span>
+                    <span className="md-when">{shortWhen(m.scheduledAt)}</span>
                     {!counted && m.status !== "canceled" && !m.teamA.tbd && !m.teamB.tbd && (
                       /* 엔트리 제출 현황: 공개 전에도 누구나 (선수 이름 없이 채운 세트 수만) */
                       <span className="tc-entry md-entry">

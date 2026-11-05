@@ -1,7 +1,5 @@
 /** 아직 구현 전인 화면에 표시할 안내 (구현하면 해당 항목 삭제) */
 export const PLACEHOLDERS: Record<string, { title: string; body: string; items?: string[] }> = {
-  "elo/weekly": { title: "위클리 베스트", body: "주간 ELO 상승 TOP 5." },
-
   "pl/predictions": { title: "승부예측", body: "기존 tufpl 승부예측 기능이 들어갈 자리입니다." },
 
   solo: { title: "개인리그", body: "개인리그 시즌 개요. 조별리그 → 토너먼트 방식을 가정했습니다." },

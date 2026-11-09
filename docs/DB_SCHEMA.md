@@ -21,7 +21,8 @@ seasons ─┬─< matches (season_id)
 
 suggestions ─< suggestion_replies (suggestion_id)
 
-독립: admins, admin_logs, daily_visitors, settings, site_notice
+독립: admin_logs, settings
+(admins · daily_visitors · site_notice는 2026-11-09 삭제 — `docs/sql/016_drop_old_site_tables.sql`, 백업 스키마 `old_site_backup`)
 ```
 
 ## 핵심 테이블
@@ -71,14 +72,8 @@ id, season_id(→seasons), member_id(→members), final_elo, final_wins, final_l
 
 ## 관리자 / 운영
 
-### admins — 자체 관리자 계정 (Supabase Auth 아님)
-| 컬럼 | 타입 | null | 기본값 |
-|---|---|---|---|
-| id | uuid | N | gen_random_uuid() |
-| username | text | N | |
-| password_hash | text | N | |
-| role | text | N | 'admin' |
-| created_at | timestamptz | Y | now() |
+### ~~admins~~ — 기존 사이트 관리자 계정 (2026-11-09 삭제, `016`)
+id, username(UNIQUE), password_hash(bcrypt), role(admin · creator · guest), created_at — 데이터는 `old_site_backup.admins`에 백업. 새 사이트 관리자 구분은 `members.role`
 
 ### admin_logs — 관리자 작업 기록
 id, admin_username, action, target, detail, created_at
@@ -172,9 +167,8 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 |---|---|---|
 | decorative_badges | id, label, sort_order, accent('amber'), created_at + 015: icon('award'), description, grade('normal' · 'shine'), category('pl' · 'solo' · 'team' · 'elo' · 'event') | 장식 뱃지 정의 (새 사이트: ELO 보드 › 뱃지 관리) |
 | member_decorative_badges | badge_id, member_id + 015: awarded_at(기본 now()) · (badge_id, member_id) UNIQUE | 멤버-뱃지 연결 (N:M) |
-| daily_visitors | visit_date, count | 일별 방문자 수 |
-| settings | id(=1), current_version, screp_url, notice, is_maintenance | 단일 행 설정 (런처 버전, 점검 모드) |
-| site_notice | id(=1), title, items(jsonb), updated_at | 단일 행 공지 |
+| settings | id(=1), current_version, screp_url, notice, is_maintenance | 단일 행 설정 (런처 버전, 점검 모드) — 런처가 씀, 지우지 말 것 |
+| ~~daily_visitors~~ · ~~site_notice~~ | visit_date, count / id(=1), title, items(jsonb), updated_at | 기존 사이트 방문자 수 · 공지 배너 — 2026-11-09 삭제(`016`), 백업 `old_site_backup` |
 | suggestions | id, category, content, nickname, user_ip, created_at | 건의사항 |
 | suggestion_replies | id, suggestion_id, admin_username, content, created_at | 건의 답변 |
 
@@ -185,9 +179,8 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 | members | `name` UNIQUE, `race` ∈ {T, P, Z}, `tier` 1~4 |
 | matches | player1 ≠ player2, winner ∈ {player1, player2} |
 | season_rankings | (season_id, member_id) UNIQUE |
-| admins | `username` UNIQUE, `role` ∈ {admin, creator, guest} |
 | suggestions | `category` ∈ {데이터수정, 기능건의, 기타} |
-| settings / site_notice | id = 1 (단일 행) |
+| settings | id = 1 (단일 행) |
 
 tier: **1이 최상위**, 4가 최하위.
 
@@ -210,7 +203,6 @@ tier: **1이 최상위**, 4가 최하위.
 | get_data_center_season_trend(_v2) | 동일 | 시즌별 추이 |
 | get_data_center_page_data | match_limit | 데이터센터 페이지 일괄 로드 |
 | get_distinct_match_meta | - | 맵/매치타입 목록 |
-| increment_daily_visitor | date | 방문자 카운트 |
 | mark_launcher_used | member_name | 런처 사용 기록 |
 | set_updated_at | - | updated_at 트리거 |
 

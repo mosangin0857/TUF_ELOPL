@@ -15,7 +15,7 @@
 **2026-11-09 · 기존 사이트(tufelo) 정리 — 리다이렉트 · 기존 테이블 삭제 (ELO 담당)**
 - 2026-10-25 기존 주소 리다이렉트(기존 레포 `TuFelo/vercel.json`, `/api/*`만 남김) — 자세한 건 아래 "기존 사이트 폐쇄 체크리스트". 같은 날 사이드바 LINKS '자동화 런처'를 클랜 카페 안내 글(`https://naver.me/F93m6YYa`)로.
 - **DB 변경 SQL: `docs/sql/016_drop_old_site_tables.sql`** (2026-11-09 실행 완료) — 기존 사이트만 쓰던 `admins` · `site_notice` · `daily_visitors` 테이블과 함수 `increment_daily_visitor` 삭제. 새 사이트 코드는 이 셋을 안 써서 변경 없음.
-  지우기 전 데이터는 스키마 **`old_site_backup`**에 복사(사이트 · API에서 안 보임, RLS 켬). 한 달쯤 문제 없으면 `drop schema old_site_backup cascade;`. `settings`는 런처가 써서 그대로.
+  지우기 전 데이터를 스키마 `old_site_backup`에 복사해 뒀다가 **같은 날 백업도 삭제**(운영진 결정, 안 옮기기로 한 데이터뿐) → 되돌릴 수 없음. `settings`는 런처가 써서 그대로.
 
 **2026-10-24 · TFPL S4 개인전 맵 재배치 — 11/03(1R-10M)부터 (PL 담당, DB 데이터만)**
 - 팀별 · 티어별 개인전 맵이 0~5회로 치우쳐 있어서 11/03부터 36경기의 개인전 맵(`pl_sets.map_name`, 홈 지정은 `solo_map`도)만 바꿈. 대진 · 날짜 · 세트 번호별 티어(10-22 재배치) · 팀플 · 11/03 전 9경기는 그대로.
@@ -442,7 +442,7 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 | `matches` | 대시보드(조회), 전적 기록 · 되돌리기(`lib/elo/record.ts` — 전적 등록 · 시트 연동 · PL DB전송), 완전 삭제 시 해당 선수 경기 삭제 | 구조 변경 금지. 쓰기는 `lib/elo/record.ts`를 거칠 것 (ELO · 승패 · 연승을 같이 맞춤) |
 | `seasons` | 대시보드 · 복귀 처리(조회), 시즌 관리(쓰기) | 쓰기는 `lib/elo/season.ts`(시즌 관리 액션)에서만. 진행 중 시즌 = `end_date` null 하나 |
 | `members` 로그인 컬럼 | `pin_hash` · `pin_set_at` · `pin_failed_attempts` · `pin_locked_until` · `session_version` · `last_login_at` · `role`(member · admin · super) | 새 사이트가 추가한 컬럼. 로그인 컬럼 쓰기는 `app/auth/actions.ts`, `role` 쓰기는 `app/admin/actions.ts`(임명 · 해제) · `app/members/actions.ts`(탈퇴 시 member로)에서만. anon으로도 조회되므로 명단 조회에 이 컬럼을 넣지 말 것 |
-| ~~`admins`~~ · ~~`site_notice`~~ · ~~`daily_visitors`~~ | 기존 사이트 전용 (관리자 계정 · 공지 배너 · 방문자 수) | **2026-11-09 삭제**(`016`). 백업은 `old_site_backup` 스키마 |
+| ~~`admins`~~ · ~~`site_notice`~~ · ~~`daily_visitors`~~ | 기존 사이트 전용 (관리자 계정 · 공지 배너 · 방문자 수) | **2026-11-09 삭제**(`016`, 백업도 삭제) |
 | `admin_logs` | 모든 관리자 쓰기 작업 기록 (`insertAdminLog`), 활동 로그 화면(조회) | 기존 사이트와 공유 |
 | `notices` | 공지 (새 테이블, `003_notices.sql`) | 쓰기는 `app/notice/actions.ts`에서만. anon 조회 정책 있음 |
 | `suggestions` · `suggestion_replies` | 건의 · 관리자 답변 (기존 테이블) | 기존 사이트와 공유. 새 사이트 글은 `suggestions.member_id`로 작성자 연결 |
@@ -501,7 +501,7 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
 | `super` | 최고 관리자 | 관리자 기능 전부 + **관리자 임명 · 권한 변경 · 해제** |
 
 - 제약 `members_role_check`: `role in ('member', 'admin', 'super')` — `docs/sql/002_admin_roles.sql`. 현재 `super`: Beombu, Tyr.
-- 기존 사이트 로그인용 `admins` 테이블은 2026-11-09에 삭제했다(`016`, 백업 `old_site_backup.admins`).
+- 기존 사이트 로그인용 `admins` 테이블은 2026-11-09에 삭제했다(`016`).
   `admin_logs`는 `admins`와 연결이 없어 계속 쓴다 (새 기록은 클랜원 닉네임으로 남음).
 - 판단 흐름: `lib/auth/session.ts`의 `toMemberRole()` · `toSessionUser()` (`role`, `isAdmin` = admin|super, `isSuper`)
   → `lib/permissions.ts`
@@ -546,7 +546,7 @@ lib/elo/                    index.ts(시작 ELO · ELO 계산 · 팀플 맵, 화
   **`/api/*`만 그대로 살려 둠**(시트 연동 되돌리기용 비상구). 리다이렉트를 풀려면 그 파일을 지우고 푸시
 - [x] 기존 사이트에서 시즌 시작 · 전적 등록을 더 하지 않기 — 리다이렉트로 기존 화면에 못 들어감
 - [x] DB 정리 (2026-11-09): `admins`(새 사이트는 `members.role`) · `site_notice`(공지 배너, 안 옮김) · `daily_visitors`(방문자 수, 안 옮김) 테이블 + `increment_daily_visitor` 삭제 — `docs/sql/016_drop_old_site_tables.sql`. `settings`는 런처가 써서 남김
-- [ ] 한 달쯤 뒤(2026-12 초) 문제 없으면 백업 스키마 삭제: `drop schema old_site_backup cascade;`
+- [x] 백업 스키마 `old_site_backup`도 삭제 (2026-11-09)
 - [ ] 기존 tufelo Vercel 프로젝트 정리 (런처 등에 tufelo 주소가 남아 있는지 확인)
 
 ## 협업 · 배포

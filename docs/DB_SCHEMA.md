@@ -22,7 +22,7 @@ seasons ─┬─< matches (season_id)
 suggestions ─< suggestion_replies (suggestion_id)
 
 독립: admin_logs, settings
-(admins · daily_visitors · site_notice는 2026-11-09 삭제 — `docs/sql/016_drop_old_site_tables.sql`, 백업 스키마 `old_site_backup`)
+(admins · daily_visitors · site_notice는 2026-11-09 삭제 — `docs/sql/016_drop_old_site_tables.sql`, 백업도 같은 날 삭제)
 ```
 
 ## 핵심 테이블
@@ -73,7 +73,7 @@ id, season_id(→seasons), member_id(→members), final_elo, final_wins, final_l
 ## 관리자 / 운영
 
 ### ~~admins~~ — 기존 사이트 관리자 계정 (2026-11-09 삭제, `016`)
-id, username(UNIQUE), password_hash(bcrypt), role(admin · creator · guest), created_at — 데이터는 `old_site_backup.admins`에 백업. 새 사이트 관리자 구분은 `members.role`
+id, username(UNIQUE), password_hash(bcrypt), role(admin · creator · guest), created_at. 새 사이트 관리자 구분은 `members.role`
 
 ### admin_logs — 관리자 작업 기록
 id, admin_username, action, target, detail, created_at
@@ -168,7 +168,7 @@ pl_seasons ─┬─< pl_teams ─< pl_team_members >─ members
 | decorative_badges | id, label, sort_order, accent('amber'), created_at + 015: icon('award'), description, grade('normal' · 'shine'), category('pl' · 'solo' · 'team' · 'elo' · 'event') | 장식 뱃지 정의 (새 사이트: ELO 보드 › 뱃지 관리) |
 | member_decorative_badges | badge_id, member_id + 015: awarded_at(기본 now()) · (badge_id, member_id) UNIQUE | 멤버-뱃지 연결 (N:M) |
 | settings | id(=1), current_version, screp_url, notice, is_maintenance | 단일 행 설정 (런처 버전, 점검 모드) — 런처가 씀, 지우지 말 것 |
-| ~~daily_visitors~~ · ~~site_notice~~ | visit_date, count / id(=1), title, items(jsonb), updated_at | 기존 사이트 방문자 수 · 공지 배너 — 2026-11-09 삭제(`016`), 백업 `old_site_backup` |
+| ~~daily_visitors~~ · ~~site_notice~~ | visit_date, count / id(=1), title, items(jsonb), updated_at | 기존 사이트 방문자 수 · 공지 배너 — 2026-11-09 삭제(`016`) |
 | suggestions | id, category, content, nickname, user_ip, created_at | 건의사항 |
 | suggestion_replies | id, suggestion_id, admin_username, content, created_at | 건의 답변 |
 

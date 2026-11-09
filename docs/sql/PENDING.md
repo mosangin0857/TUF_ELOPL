@@ -6,7 +6,7 @@ main에 올리기 **직전에** Supabase › SQL Editor에서 위에서부터 �
 
 ## 실행 대기
 
-(없음 — 2026-11-09에 016 실행 완료: 기존 사이트 전용 `admins` · `site_notice` · `daily_visitors` 삭제, 백업은 `old_site_backup` 스키마, ELO 담당)
+(없음 — 2026-11-09에 016 실행 완료: 기존 사이트 전용 `admins` · `site_notice` · `daily_visitors` 삭제 · 같은 날 백업 스키마 `old_site_backup`도 삭제, ELO 담당)
 
 실행 방법: 파일 내용을 전부 복사 → SQL Editor에 붙여넣기 → Run → 마지막 줄 확인 쿼리 결과가 나오면 성공.
 

@@ -47,7 +47,7 @@ union all select 'daily_visitors 백업', count(*) from old_site_backup.daily_vi
 union all select 'public에 남은 것', count(*) from information_schema.tables
   where table_schema = 'public' and table_name in ('admins', 'site_notice', 'daily_visitors');
 
--- 4) 나중에(한 달쯤 문제 없으면) 백업도 지우기 — 따로 실행:
+-- 4) 백업 지우기 — 따로 실행 (2026-11-09 실행 완료, 운영진 결정으로 바로 지움 → 아래 '되돌리기'는 더 이상 불가):
 --   drop schema old_site_backup cascade;
 --
 -- 되돌려야 할 때(데이터만 돌아옴, 제약 · RLS 정책은 다시 만들어야 함) — 따로 실행:

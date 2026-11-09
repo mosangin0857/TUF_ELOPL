@@ -3011,11 +3011,16 @@
   .set-row.ace {
     box-shadow: inset 3px 0 0 var(--accent);
   }
+  /*
+   * 캡처(modern-screenshot)는 칸 크기를 고정한 복제본을 그린다. 기기에 따라 글자 폭이 조금만 넓어져도
+   * 줄이 바뀌고 다음 줄과 겹치므로, 세트 줄 · 일시 글자는 줄바꿈하지 않는다 (넘치면 맵 이름만 말줄임)
+   */
   .set-no {
     font-family: var(--font-cond);
     font-weight: 800;
     letter-spacing: 0.06em;
     color: var(--ink-2);
+    white-space: nowrap;
   }
   /* 데스크톱은 SET · 형식 · 맵이 각자 열, 모바일(880px 이하)은 한 줄로 묶음 */
   .set-head {
@@ -3023,6 +3028,11 @@
   }
   .set-fmt {
     min-width: 0;
+    white-space: nowrap;
+  }
+  .set-side .p-cell,
+  .md-when {
+    white-space: nowrap;
   }
   .set-fmt small {
     display: block;
@@ -3353,11 +3363,16 @@
     gap: 8px;
     min-width: 0;
   }
+  .set-row .set-head .set-no,
+  .set-row .set-head .set-fmt {
+    flex: none;
+  }
   .set-row .set-head .set-fmt small {
     display: inline;
     margin-left: 4px;
   }
   .set-row .set-map {
+    flex: 0 1 auto;
     margin-left: auto;
     text-align: right;
   }

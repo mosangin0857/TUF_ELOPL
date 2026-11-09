@@ -17,6 +17,10 @@
 - **DB 변경 SQL: `docs/sql/016_drop_old_site_tables.sql`** (2026-11-09 실행 완료) — 기존 사이트만 쓰던 `admins` · `site_notice` · `daily_visitors` 테이블과 함수 `increment_daily_visitor` 삭제. 새 사이트 코드는 이 셋을 안 써서 변경 없음.
   지우기 전 데이터는 스키마 **`old_site_backup`**에 복사(사이트 · API에서 안 보임, RLS 켬). 한 달쯤 문제 없으면 `drop schema old_site_backup cascade;`. `settings`는 런처가 써서 그대로.
 
+**2026-10-24 · TFPL S4 개인전 맵 재배치 — 11/03(1R-10M)부터 (PL 담당, DB 데이터만)**
+- 팀별 · 티어별 개인전 맵이 0~5회로 치우쳐 있어서 11/03부터 36경기의 개인전 맵(`pl_sets.map_name`, 홈 지정은 `solo_map`도)만 바꿈. 대진 · 날짜 · 세트 번호별 티어(10-22 재배치) · 팀플 · 11/03 전 9경기는 그대로.
+- 지킨 것: 티어별 전체 6~7회, 한 경기 안 맵 중복 없음, 한 팀 기준 이어지는 두 경기 같은 티어 · 같은 맵 없음. 결과 팀별 · 티어별 1~3회. 경기별 전 → 후: `docs/PL_S4_MAP_REBALANCE.md`.
+
 **2026-10-23 · ELO 보드 › 위클리 베스트 (ELO 담당)**
 - 기존 TuFelo 대시보드 '위클리 베스트(ELO 상승 TOP 5)'를 탭으로 옮기고 운영진과 정한 개선을 넣음 (`/elo/weekly`, 누구나).
   파일: 규칙 · 타입 `lib/elo/weekly.ts`(주 계산 · 주소), 계산 `lib/data/elo-weekly.ts`(서버 전용), 화면 `app/elo/weekly/page.tsx` · `components/elo/weekly-board.tsx`. DB 변경 없음(전적으로 계산).

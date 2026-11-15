@@ -9,7 +9,7 @@ import { useAuth } from "@/components/shell/auth-provider"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
 import { matchWhen, shortWhen } from "@/lib/pl/format"
-import { entryDeadline, entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
+import { currentStage, entryDeadline, entryOpen, isCounted, PICK_LABEL, SAENGCON_LABEL, SAENGCON_MAP, setKindLabel, STATUS_LABEL, winTarget, type PlStage } from "@/lib/pl/rules"
 import type { PlMatch, PlSet, PlSetPlayer } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -23,11 +23,10 @@ const TABS: { key: Tab; label: string }[] = [
 const tabOf = (stage: PlStage): Tab => (stage === "FINAL" ? "PO" : stage)
 
 /** 다음 경기가 있는 라운드 → 없으면 마지막 경기 라운드 → 1라운드 */
-function defaultTab(matches: PlMatch[]): Tab {
-  const next = matches.find((m) => m.status === "scheduled" || m.status === "live" || m.status === "postponed")
-  if (next) return tabOf(next.stage)
-  const last = matches[matches.length - 1]
-  return last ? tabOf(last.stage) : "R1"
+/** 처음 열 라운드: 날짜 기준 다음 경기(`currentStage`)의 라운드. now는 서버에서 정해 넘겨 화면 그리기가 어긋나지 않게 */
+function defaultTab(matches: PlMatch[], now: number): Tab {
+  const stage = currentStage(matches, now)
+  return stage ? tabOf(stage) : "R1"
 }
 
 /** 세트 한쪽 선수. 홈(왼쪽)은 이름 → 종족, 원정(오른쪽)은 종족 → 이름 (종족이 가운데 승패 쪽). MVP는 반짝이는 이름 */
@@ -74,16 +73,19 @@ export function ScheduleBoard({
   matches,
   captains,
   bjByMatch = {},
+  now,
 }: {
   seasonName: string
   matches: PlMatch[]
+  /** 처음 열 라운드를 고르는 기준 시각 (서버 시각) */
+  now: number
   /** 경기 id → 방송 BJ */
   bjByMatch?: Record<string, string[]>
   /** 팀 id → 현재 팀장 · 부팀장 member id (엔트리 제출 버튼 표시용, 실제 권한은 서버에서 다시 확인) */
   captains: Record<string, string[]>
 }) {
   const { user } = useAuth()
-  const [tab, setTab] = useState<Tab>(() => defaultTab(matches))
+  const [tab, setTab] = useState<Tab>(() => defaultTab(matches, now))
   const [open, setOpen] = useState<string | null>(null)
   const list = matches.filter((m) => tabOf(m.stage) === tab)
 

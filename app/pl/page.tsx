@@ -38,5 +38,5 @@ export default async function PlSchedulePage() {
   const captains = Object.fromEntries(
     teams.map((t) => [t.id, t.members.filter((m) => !m.leftOn && (m.role === "captain" || m.role === "vice")).map((m) => m.memberId)]),
   )
-  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} bjByMatch={bjByMatch} />
+  return <ScheduleBoard seasonName={season.name} matches={matches} captains={captains} bjByMatch={bjByMatch} now={Date.now()} />
 }

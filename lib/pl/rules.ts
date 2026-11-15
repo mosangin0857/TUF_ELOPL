@@ -225,3 +225,16 @@ export const GAME_LIMITS = { normal: { min: 4, max: 13 }, extra: { min: 2, max: 
 /** 최소 · 최대 경기 위반 1경기당 패널티 (운영진 확정 2026-10-12) */
 export const LOAD_PENALTY_PER_GAME = 5
 
+/**
+ * 일정 화면을 처음 열 때 보여 줄 단계 (날짜 기준): 진행 중인 경기 → 지금 시각 이후 가장 가까운 경기 → 없으면 마지막 경기.
+ * 결과 입력이 늦어도 경기 시각이 지나면 다음 경기 단계로 넘어간다.
+ */
+export function currentStage(matches: { stage: PlStage; status: PlMatchStatus; scheduledAt: string | null }[], now: number): PlStage | null {
+  const live = matches.find((m) => m.status === "live")
+  if (live) return live.stage
+  const next = matches
+    .filter((m) => m.status !== "canceled" && m.scheduledAt && new Date(m.scheduledAt).getTime() > now)
+    .sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!))[0]
+  if (next) return next.stage
+  return matches.length ? matches[matches.length - 1].stage : null
+}

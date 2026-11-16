@@ -1,15 +1,16 @@
 import Link from "next/link"
-import { Bell } from "lucide-react"
-import { HeroSearch, type SearchIndex } from "@/components/home/hero-search"
+import { Bell, Crown } from "lucide-react"
+import { HeroSearch, type SearchIndex, type SearchLink } from "@/components/home/hero-search"
 import { LiveSection } from "@/components/home/live-section"
 import { RailSection } from "@/components/home/rail-section"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
-import { fetchSearchPlayers } from "@/lib/data/elo-dashboard"
+import { fetchMatchCounts, fetchSearchPlayers } from "@/lib/data/elo-dashboard"
 import { EloTopCard } from "@/components/home/elo-top-card"
+import { EloFlowTicker } from "@/components/home/elo-flow-ticker"
 import { fetchHomeNotices } from "@/lib/data/board"
 import { fetchHomeBjs } from "@/lib/data/bjs"
-import { fetchHomePl } from "@/lib/data/pl"
+import { fetchCurrentSeason, fetchHomePl } from "@/lib/data/pl"
 import { teamLogo } from "@/lib/pl/logos"
 import { fetchEloTopByTier, fetchLastWeekEloFlow } from "@/lib/data/elo-ranking"
 import type { ClanBj, EloEntry, HomeNotice, TeamIntro, TeamStanding, Tier, UpcomingMatch } from "@/lib/types"
@@ -37,10 +38,40 @@ async function loadSearchPlayers(): Promise<SearchIndex["players"]> {
   }
 }
 
+/**
+ * 검색 '대회' · '맵': 전적의 경기 유형 · 맵 (경기 많은 순, 1시간 캐시).
+ * 대회 → 진행 중인 프로리그 시즌은 일정, 나머지는 ELO 대시보드 그 경기 유형 / 맵 → 데이터센터 클랜 통계 그 맵 · 전체 기간
+ */
+async function loadSearchExtras(): Promise<Pick<SearchIndex, "leagues" | "maps">> {
+  try {
+    const [counts, plSeason] = await Promise.all([fetchMatchCounts(), fetchCurrentSeason().catch(() => null)])
+    const current = plSeason?.name ?? null
+    const pl = (name: string) => (/^tfpl/i.test(name) ? "프로리그" : undefined)
+    const leagues: SearchLink[] = counts.matchTypes.map(([name, n]) =>
+      name === current
+        ? { name, meta: `진행 중인 프로리그 · ${n.toLocaleString()}경기`, href: "/pl", keys: "프로리그" }
+        : { name, meta: `${n.toLocaleString()}경기`, href: `/elo?type=${encodeURIComponent(name)}`, keys: pl(name) },
+    )
+    // 진행 중인 프로리그 시즌은 맨 앞 (아직 전적이 없어도)
+    const at = leagues.findIndex((l) => l.name === current)
+    if (at > 0) leagues.unshift(...leagues.splice(at, 1))
+    else if (current && at < 0) leagues.unshift({ name: current, meta: "진행 중인 프로리그", href: "/pl", keys: "프로리그" })
+    const maps: SearchLink[] = counts.maps.map(([name, n]) => ({
+      name,
+      meta: `${name.includes("팀플") ? "팀플 · " : ""}${n.toLocaleString()}경기`,
+      href: `/elo/data-center?map=${encodeURIComponent(name)}&season=all`,
+    }))
+    return { leagues, maps }
+  } catch {
+    return { leagues: [], maps: [] }
+  }
+}
+
 export default async function ClanHousePage() {
   // DB 연결에 실패해도 대문은 그대로 보여주고 해당 섹션만 비운다
-  const [players, eloTopByTier, weekly, notices, bjs] = await Promise.all([
+  const [players, extras, eloTopByTier, weekly, notices, bjs] = await Promise.all([
     loadSearchPlayers(),
+    loadSearchExtras(),
     fetchEloTopByTier(8).catch((): Record<Tier, EloEntry[]> => ({ 1: [], 2: [], 3: [], 4: [] })),
     fetchLastWeekEloFlow(12).catch(() => ({ weekStart: "", weekEnd: "", entries: [] as EloEntry[] })),
     fetchHomeNotices(3).catch((): HomeNotice[] => []),
@@ -55,7 +86,7 @@ export default async function ClanHousePage() {
 
   return (
     <main className="content">
-      <HeroSearch index={{ players, leagues: [], maps: [] }} />
+      <HeroSearch index={{ players, ...extras }} />
 
       <div className="notice-list">
         {notices.length ? (
@@ -87,13 +118,13 @@ export default async function ClanHousePage() {
         empty="예정된 경기가 없어요."
         emptyHint="프로리그 일정을 등록하면 여기에 표시돼요."
         action={
-          <Link className="more" href="/schedule">
+          <Link className="more" href="/pl">
             전체 일정 →
           </Link>
         }
       >
         {upcoming.map((m) => (
-          <Link key={m.id} className="ev-card bounce" href="/pl">
+          <Link key={m.id} className="ev-card bounce" href={`/pl?match=${m.id}`}>
             <span className="crests">
               <Crest team={m.teamA.name} color={m.teamA.color} />
               <Crest team={m.teamB.name} color={m.teamB.color} />
@@ -148,7 +179,7 @@ export default async function ClanHousePage() {
                     {standings.map((s, i) => {
                       const diff = s.setsWon - s.setsLost
                       return (
-                        <tr key={s.team} className={i === 3 ? "cut" : undefined}>
+                        <tr key={s.team} className={cn(i === 0 && "lead", i === 3 && "cut")}>
                           <td>
                             <span
                               className={cn("rk g", i < 4 ? `g${i + 1}` : "g0")}
@@ -158,10 +189,11 @@ export default async function ClanHousePage() {
                             </span>
                           </td>
                           <td>
-                            <span className="st-team">
+                            <Link className="st-team" href={`/pl/teams?team=${encodeURIComponent(s.team)}`} title={`${s.team} 팀 · 선수단`}>
                               <Crest team={s.team} color={s.color} />
                               {s.team}
-                            </span>
+                              {i === 0 && <Crown className="lead-crown" strokeWidth={2.2} aria-label="1위" />}
+                            </Link>
                           </td>
                           <td className="hide-sm">{s.wins + s.losses}</td>
                           <td>{s.wins}</td>
@@ -170,11 +202,23 @@ export default async function ClanHousePage() {
                           <td className="pts">{s.points ?? s.wins * 3}</td>
                           <td className="hide-sm">
                             <span className="form">
-                              {s.form.slice(-5).map((c, j) => (
-                                <i key={j} className={c}>
-                                  {c === "W" ? "승" : "패"}
-                                </i>
-                              ))}
+                              {s.formGames
+                                ? s.formGames.map((g) => (
+                                    <Link
+                                      key={g.matchId}
+                                      className="form-go"
+                                      href={`/pl/results?match=${g.matchId}`}
+                                      data-tip={`vs ${g.opponent}`}
+                                      aria-label={`${g.result === "W" ? "승" : "패"} vs ${g.opponent} — 경기 결과 보기`}
+                                    >
+                                      <i className={g.result}>{g.result === "W" ? "승" : "패"}</i>
+                                    </Link>
+                                  ))
+                                : s.form.slice(-5).map((c, j) => (
+                                    <i key={j} className={c}>
+                                      {c === "W" ? "승" : "패"}
+                                    </i>
+                                  ))}
                             </span>
                           </td>
                         </tr>
@@ -207,24 +251,7 @@ export default async function ClanHousePage() {
           </Link>
         </div>
         {eloWeekly.length ? (
-          <div className="ticker">
-            {eloWeekly.map((p) => {
-              const d = p.weeklyDelta ?? 0
-              return (
-                <div key={p.name} className="tk">
-                  <div className="tk-top">
-                    {p.name}
-                    <small>· {p.tier}티어</small>
-                  </div>
-                  <div className="tk-elo">{p.elo.toLocaleString()}</div>
-                  <div className={cn("tk-d", d > 0 ? "up" : d < 0 ? "down" : undefined)}>
-                    {d > 0 ? "▲ " : d < 0 ? "▼ " : ""}
-                    {Math.abs(d)}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <EloFlowTicker entries={eloWeekly} />
         ) : (
           <Empty hint="지난 주 월요일부터 일요일까지 치른 경기의 ELO 변동 합계를 보여줘요.">지난 주에 치른 경기가 없어요.</Empty>
         )}

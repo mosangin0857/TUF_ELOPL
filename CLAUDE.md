@@ -12,6 +12,24 @@
   - DB 구조 정리는 `docs/DB_SCHEMA.md`
 
 ## 최근 변경 (다른 담당자가 알아야 할 것)
+**2026-11-16 · 휴대폰 메뉴 고정 · 대문 다가오는 경기 → 그 경기 펼침 · 팀 순위 링크 · 지난 주 ELO 흐름 자동으로 흐름 · 검색 목록 잘림 (ELO 담당, 공통) ⚠️ PL 담당 확인**
+- **대문 프로리그 팀 순위**: 팀 이름 → `/pl/teams?team=<팀 이름>` — 팀 · 선수단(`components/pl/teams-board.tsx`, 카드에 `data-team`)의 `TeamFocus`(`components/pl/team-focus.tsx`)가 그 카드로 스크롤(화면에 다 들어가면 위 고정 바 아래 칸의 가운데, 길면 카드 위쪽을 바 아래에) + 금색 테두리 잠깐(`.tm-card.is-focus`).
+  최근 5경기 칸 → `/pl/results?match=<id>`, 올리면 'vs 상대 팀' 툴팁(`.form-go`, 숨길 땐 `display: none` — 자리만 차지해도 표 가로 스크롤이 생김). 이를 위해 `computeStandings`가 `formGames`(form과 같은 순서의 경기 id · 상대 팀)도 채움(`TeamStanding.formGames`, 선택).
+  경기 결과(`components/pl/results-board.tsx`)는 `?match=`로 들어왔을 때 좁은 화면(1000px 이하)이면 결과 쪽으로 내려 줌(고를 때와 같은 동작).
+- **대문 검색 '대회' · '맵' 연결**(처음 설계 때 화면만 있고 빈 목록이었음): 대회 = 전적의 경기 유형, 맵 = 전적의 맵, 둘 다 경기 많은 순 · 경기 수 표시. `fetchMatchCounts`(`lib/data/elo-dashboard.ts`, 1시간 캐시)를 필터 선택지(`fetchFilterOptions`)와 같이 씀.
+  대회 → 진행 중인 프로리그 시즌(`pl_seasons` 현재)은 맨 앞 · 일정(`/pl`), 나머지는 ELO 대시보드 그 경기 유형(`/elo?type=`). 맵 → 데이터센터 클랜 통계 그 맵 · 전체 기간(`/elo/data-center?map=&season=all`). ELO 시즌은 안 넣음(운영진 결정).
+  검색은 대소문자 · 띄어쓰기 · 밑줄 · 괄호 무시('tfpl s1' → TFPL_S1, '헌터 팀플' → 헌터(팀플)), TFPL 시즌은 '프로리그'로도 걸림(`SearchLink.keys`).
+- **대문 팀 순위 1위**: 순위 배지에 4초에 한 번 빛이 지나가고(`tr.lead .rk.g1::after`) 팀 이름 옆 왕관. 프로리그 › 순위 화면은 그대로.
+- **지난 주 ELO 흐름의 위클리 베스트 1위**(맨 앞 선수, ELO가 올랐을 때만): 카드 위 금색 선 · 옅은 금빛 · 왕관, 이름은 프로리그 MVP처럼 금빛이 지나감(`.mvp-name` 재사용, `.tk.is-best`).
+- **대문 검색 목록이 맨 위 검은 상자(`.hero`)에 잘리던 것**: `.hero`의 `overflow: hidden`을 없애고 배경 층(canvas · ::after)만 `border-radius: inherit`로 자름 + `.hero { z-index: 5 }`(아래 섹션 화살표보다 위). `.hero` 안에 넘치면 안 되는 걸 넣을 땐 그 요소에서 자를 것.
+- **휴대폰 메뉴**(사이트 전체): 메뉴가 열려 있는 동안 뒤 페이지 스크롤을 막음(`html.menu-open`, `components/shell/app-shell.tsx`) + 메뉴 높이를 `100dvh` 대신 위 · 아래 끝에 맞춤.
+  웨일처럼 주소창이 아래 있는 브라우저에서 메뉴를 연 채 스크롤하면 주소창이 숨으면서 메뉴 아래가 그만큼 떠 보였다. `body`까지 `overflow: hidden`하면 `body` 높이가 화면 높이라 스크롤 위치가 맨 위로 튀니 `html`만 막을 것.
+- **대문 다가오는 경기 → `/pl?match=<경기 id>`**: 프로리그 › 일정(`components/pl/schedule-board.tsx`)이 주소의 `match`를 화면에서 읽어 그 경기 라운드 탭을 열고 · 펼치고 · 그 경기로 스크롤(위 고정 바만큼 `scroll-margin-top`), 잠깐 금색으로 비춤(`.match-item.is-focus`).
+  페이지는 정적 그대로(서버에서 주소를 안 읽음). 경기 행에 `id="match-<id>"`. 없는 id면 예전처럼 날짜 기준 라운드. 다가오는 경기 '전체 일정 →'도 `/schedule`(준비 중) → `/pl`.
+- **대문 지난 주 ELO 흐름**: 카드 줄이 칸보다 길면 같은 목록 두 벌을 이어 붙여 왼쪽으로 천천히(초당 30px) 끝없이 흘러감 — `components/home/elo-flow-ticker.tsx`(두 번째 벌은 `aria-hidden`, 위치는 requestAnimationFrame으로 `transform`).
+  양옆 화살표(`.rail-btn`, 칸 폭 절반쯤 떨어진 카드 경계로, 터치 화면 `(hover: none)`에서는 숨김) · 끌기/밀기로 직접 넘김 → 4초 쉬고 다시 흐름. 마우스를 올리거나 누르고 있으면 멈춤. 선수 이름 → 그 선수 데이터센터.
+  칸에 다 들어가면 멈춘 목록(화살표 없음), '동작 줄이기' 설정이면 저절로는 안 흐름(화살표 · 끌기만). 구조가 `.tk-wrap > .ticker > .tk-track > .tk-group > .tk`로 바뀜.
+
 **2026-11-09 · 기존 사이트(tufelo) 정리 — 리다이렉트 · 기존 테이블 삭제 (ELO 담당)**
 - 2026-10-25 기존 주소 리다이렉트(기존 레포 `TuFelo/vercel.json`, `/api/*`만 남김) — 자세한 건 아래 "기존 사이트 폐쇄 체크리스트". 같은 날 사이드바 LINKS '자동화 런처'를 클랜 카페 안내 글(`https://naver.me/F93m6YYa`)로.
 - **DB 변경 SQL: `docs/sql/016_drop_old_site_tables.sql`** (2026-11-09 실행 완료) — 기존 사이트만 쓰던 `admins` · `site_notice` · `daily_visitors` 테이블과 함수 `increment_daily_visitor` 삭제. 새 사이트 코드는 이 셋을 안 써서 변경 없음.

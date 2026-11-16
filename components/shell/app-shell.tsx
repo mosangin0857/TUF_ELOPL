@@ -32,6 +32,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => setToday(seoulDate().replaceAll("-", ".")), [])
 
+  // 휴대폰 메뉴가 열려 있는 동안 뒤 페이지 스크롤을 막는다 (globals.css `html.menu-open`)
+  // — 스크롤하면 웨일 · 크롬 주소창이 숨거나 나타나면서 메뉴 아래가 떠 보였다
+  useEffect(() => {
+    if (!open) return
+    const root = document.documentElement
+    root.classList.add("menu-open")
+    return () => root.classList.remove("menu-open")
+  }, [open])
+
   return (
     <AuthProvider>
       <div className="app">

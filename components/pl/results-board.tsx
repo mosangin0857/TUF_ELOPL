@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
@@ -57,6 +57,12 @@ export function ResultsBoard({
   const sel = matches.find((m) => m.id === selId) ?? null
   const [open, setOpen] = useState<Set<Group>>(() => new Set(sel ? [groupOf(sel.stage)] : []))
   const detailRef = useRef<HTMLElement>(null)
+
+  // `?match=`로 들어왔는데(대문 팀 순위 최근 5경기 등) 한 줄로 쌓이는 좁은 화면이면 결과 쪽으로 내려 준다
+  useEffect(() => {
+    if (!initialMatch || !matches.some((m) => m.id === initialMatch)) return
+    if (window.matchMedia("(max-width: 1000px)").matches) detailRef.current?.scrollIntoView({ block: "start" })
+  }, [initialMatch, matches])
 
   const toggle = (g: Group) =>
     setOpen((prev) => {

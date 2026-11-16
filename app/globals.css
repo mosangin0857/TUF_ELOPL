@@ -689,10 +689,12 @@
   }
 
   /* ---------- home: hero + search ---------- */
+  /* overflow: hidden을 쓰지 않는다 — 검색 목록(.suggest)이 아래로 펼쳐질 때 잘렸다. 모서리는 배경 층마다 둥글게 자름.
+     z-index는 아래 섹션(가로 슬라이드 화살표 등)보다 검색 목록이 위에 오게 */
   .hero {
     position: relative;
+    z-index: 5;
     border-radius: 14px;
-    overflow: hidden;
     background: var(--side-bg);
     color: var(--side-fg);
     padding: 40px 36px 34px;
@@ -704,12 +706,14 @@
     width: 100%;
     height: 100%;
     z-index: -1;
+    border-radius: inherit;
   }
   .hero::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
+    border-radius: inherit;
     background: radial-gradient(120% 90% at 85% 0%, color-mix(in oklab, var(--accent) 38%, transparent), transparent 60%);
   }
   .hero .eyebrow {
@@ -1540,6 +1544,85 @@
   .form i.L {
     background: var(--up);
   }
+  /* 대문 팀 순위 1위: 순위 배지에 천천히 빛이 지나가고(4초에 한 번) 팀 이름 옆 왕관 */
+  .st-table tr.lead .rk.g1 {
+    position: relative;
+    overflow: hidden;
+  }
+  .st-table tr.lead .rk.g1::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in oklab, #fff 70%, transparent) 50%, transparent 70%);
+    background-size: 260% 100%;
+    background-position: 120% 0;
+    animation: lead-shine 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes lead-shine {
+    0%,
+    35% {
+      background-position: 120% 0;
+    }
+    75%,
+    100% {
+      background-position: -20% 0;
+    }
+  }
+  .lead-crown {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--accent-text);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .st-table tr.lead .rk.g1::after {
+      animation: none;
+    }
+  }
+  /* 대문 팀 순위: 팀 이름 → 팀 · 선수단, 최근 5경기 칸 → 경기 결과 (올리면 'vs 상대 팀') */
+  a.st-team {
+    color: inherit;
+    text-decoration: none;
+  }
+  a.st-team:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 3px;
+  }
+  .form-go {
+    position: relative;
+    display: inline-flex;
+    border-radius: 4px;
+    text-decoration: none;
+  }
+  .form-go:hover i,
+  .form-go:focus-visible i {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* 숨겨 둘 때는 display: none — 보이지 않아도 자리를 차지하면 표(.table-wrap) 가로 스크롤이 생김 */
+  .form-go::after {
+    content: attr(data-tip);
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--surface);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .form-go:hover::after,
+  .form-go:focus-visible::after {
+    display: block;
+  }
   .po-note {
     display: flex;
     align-items: center;
@@ -1644,9 +1727,18 @@
     font-weight: 500;
   }
   .ticker {
-    display: flex;
     overflow-x: auto;
     scrollbar-width: thin;
+  }
+  .tk-track,
+  .tk-group {
+    display: flex;
+  }
+  .tk-track {
+    min-width: 100%;
+  }
+  .tk-group {
+    flex: 1 0 auto;
   }
   .tk {
     flex: 1 0 150px;
@@ -1655,6 +1747,61 @@
   }
   .tk:first-child {
     border-left: 0;
+  }
+  .tk-name {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* 지난 주 위클리 베스트 1위 카드: 위쪽 금색 선 · 옅은 금빛 · 왕관, 이름은 프로리그 MVP처럼 금빛이 지나감(.mvp-name) */
+  .tk.is-best {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 12%, transparent), transparent 75%);
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+  .tk-crown {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--accent-text);
+  }
+  .tk-name:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 3px;
+  }
+  /* 칸보다 길면 두 벌을 이어 붙여 왼쪽으로 천천히 흘러감 · 화살표 · 끌기 (elo-flow-ticker.tsx가 위치를 매 프레임 옮김) */
+  .tk-wrap {
+    position: relative;
+  }
+  .ticker.is-looping {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+    touch-action: pan-y;
+    user-select: none;
+    cursor: grab;
+  }
+  .ticker.is-looping:active {
+    cursor: grabbing;
+  }
+  .ticker.is-looping .tk-track {
+    width: max-content;
+    min-width: 0;
+    will-change: transform;
+  }
+  .ticker.is-looping .tk-group {
+    flex: none;
+  }
+  .ticker.is-looping .tk {
+    flex: 0 0 auto;
+    min-width: 150px;
+  }
+  .ticker.is-looping .tk:first-child {
+    border-left: 1px solid var(--line);
+  }
+  /* 화살표는 대문 다른 가로 슬라이드처럼 패널 테두리에 걸침 (.rail-btn 기본 위치). 터치 화면(휴대폰)은 화살표 없이 밀기만 */
+  @media (hover: none) {
+    .tk-wrap .rail-btn {
+      display: none;
+    }
   }
   .tk-top {
     display: flex;
@@ -2743,13 +2890,21 @@
     left: 0;
     top: 0;
     bottom: 0;
+    /* 높이는 위 · 아래 끝에 맞춤 — 100dvh는 주소창이 숨을 때 늦게 바뀌어 메뉴 아래가 떴다 */
+    height: auto;
     width: min(84vw, var(--side-w));
     transform: translateX(-100%);
     transition: transform 0.22s ease;
     padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    overscroll-behavior: contain;
   }
   .side.open {
     transform: none;
+  }
+  /* 메뉴가 열려 있는 동안 뒤 페이지 스크롤 막기 (app-shell.tsx)
+     html만 — body는 높이가 화면 높이(100%)라 같이 막으면 스크롤 위치가 맨 위로 튄다 */
+  html.menu-open {
+    overflow: hidden;
   }
   .scrim {
     display: block;
@@ -2864,6 +3019,8 @@
   /* 일정: 경기 행 (목업 .match-row 기준) */
   .match-item {
     border-top: 1px solid var(--line);
+    /* `?match=`로 스크롤해 올 때 위 고정 바(58px)에 가리지 않게 */
+    scroll-margin-top: calc(70px + env(safe-area-inset-top, 0px));
   }
   .match-row {
     width: 100%;
@@ -2954,6 +3111,20 @@
   }
   .match-item.open .match-caret {
     transform: rotate(180deg);
+  }
+  /* 대문에서 눌러 온 경기: 잠깐 금색으로 비춤 */
+  .match-item.is-focus {
+    animation: match-focus 2.4s ease-out 0.3s both;
+  }
+  @keyframes match-focus {
+    from {
+      background: color-mix(in oklab, var(--accent) 18%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .match-item.is-focus {
+      animation: none;
+    }
   }
   .pill.st-live {
     background: var(--live);
@@ -5329,6 +5500,23 @@
     overflow: hidden;
     scroll-margin-top: 16px;
     display: grid;
+  }
+  /* 대문 팀 순위에서 눌러 온 팀 (team-focus.tsx): 잠깐 금색 테두리 */
+  .tm-card.is-focus {
+    animation: team-focus 3.4s ease-in 0.4s both;
+  }
+  @keyframes team-focus {
+    from,
+    40% {
+      box-shadow:
+        0 0 0 3px var(--accent),
+        0 0 28px color-mix(in oklab, var(--accent) 45%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tm-card.is-focus {
+      animation: none;
+    }
   }
   .tm-head {
     display: grid;

@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
 import { Empty } from "@/components/ui/empty"
 import { Crest, RaceBadge } from "@/components/ui/race"
+import { TeamFocus } from "./team-focus"
 import { shortWhen } from "@/lib/pl/format"
 import { isCounted, ROLE_LABEL, type PlTeamRole } from "@/lib/pl/rules"
 import type { PlMatch, PlPlayerLoad, PlPlayerStat, PlTeam, PlTeamMember, PlTeamStanding, Race } from "@/lib/types"
@@ -68,6 +69,7 @@ export function TeamsBoard({
         </nav>
       </section>
 
+      <TeamFocus />
       <div className="tm-grid">
         {teams.map((t) => {
           const rankIdx = standings.findIndex((s) => s.teamId === t.id)
@@ -82,7 +84,7 @@ export function TeamsBoard({
           const diff = st ? st.setsWon - st.setsLost : 0
 
           return (
-            <article key={t.id} id={`team-${t.id}`} className="panel tm-card" style={{ "--team": t.color } as React.CSSProperties} data-capture>
+            <article key={t.id} id={`team-${t.id}`} data-team={t.name} className="panel tm-card" style={{ "--team": t.color } as React.CSSProperties} data-capture>
               <header className="tm-head">
                 <span className="tm-crest">
                   <Crest team={t.name} color={t.color} />

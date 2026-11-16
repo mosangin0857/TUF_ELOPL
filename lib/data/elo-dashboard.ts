@@ -52,23 +52,33 @@ export interface FilterOptions {
   maps: string[]
 }
 
-/** 필터 선택지: 시즌 · 전체 전적의 경기 유형 · 맵 (전적 전체를 훑어서 1시간 캐시) */
+/** 전적 전체의 경기 유형 · 맵별 경기 수 (많은 순) — 필터 선택지와 대문 검색(대회 · 맵)이 같이 씀, 1시간 캐시 */
+export const fetchMatchCounts = unstable_cache(
+  async (): Promise<{ matchTypes: [string, number][]; maps: [string, number][] }> => {
+    const rows = await fetchAll<{ match_type: string | null; map_name: string | null }>((db) => db.from("matches").select("match_type, map_name").order("id"))
+    const byCount = (values: (string | null)[]): [string, number][] => {
+      const count = new Map<string, number>()
+      for (const v of values) if (v?.trim()) count.set(v.trim(), (count.get(v.trim()) ?? 0) + 1)
+      return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+    }
+    return { matchTypes: byCount(rows.map((r) => r.match_type)), maps: byCount(rows.map((r) => r.map_name)) }
+  },
+  ["elo-match-counts"],
+  { revalidate: 3600 },
+)
+
+/** 필터 선택지: 시즌 · 전체 전적의 경기 유형 · 맵 (1시간 캐시) */
 export const fetchFilterOptions = unstable_cache(
   async (): Promise<FilterOptions> => {
     const supabase = createReadClient()
-    const [{ data: seasons }, rows] = await Promise.all([
+    const [{ data: seasons }, counts] = await Promise.all([
       supabase.from("seasons").select("id, name").order("start_date", { ascending: false }),
-      fetchAll<{ match_type: string | null; map_name: string | null }>((db) => db.from("matches").select("match_type, map_name").order("id")),
+      fetchMatchCounts(),
     ])
-    const byCount = (values: (string | null)[]) => {
-      const count = new Map<string, number>()
-      for (const v of values) if (v?.trim()) count.set(v.trim(), (count.get(v.trim()) ?? 0) + 1)
-      return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko")).map(([v]) => v)
-    }
     return {
       seasons: [...(seasons ?? []).map((s) => ({ id: s.id as string, name: s.name as string })), ...VIRTUAL_SEASONS.map(({ id, name }) => ({ id, name }))],
-      matchTypes: byCount(rows.map((r) => r.match_type)),
-      maps: byCount(rows.map((r) => r.map_name)),
+      matchTypes: counts.matchTypes.map(([v]) => v),
+      maps: counts.maps.map(([v]) => v),
     }
   },
   ["elo-filter-options"],

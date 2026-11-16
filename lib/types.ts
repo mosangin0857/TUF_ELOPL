@@ -107,6 +107,8 @@ export interface TeamStanding {
   setsWon: number
   setsLost: number
   form: ("W" | "L")[]
+  /** form과 같은 순서의 경기 (대문 최근 5경기: 누르면 경기 결과 · 'vs 상대 팀' 툴팁) */
+  formGames?: { matchId: string; opponent: string; result: "W" | "L" }[]
   /** 승점 (없으면 승 × 3) */
   points?: number
 }

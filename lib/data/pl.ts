@@ -323,7 +323,7 @@ export function computeStandings(teams: PlTeam[], matches: PlMatch[], winPoints:
   const rows = new Map<string, PlTeamStanding>(
     teams.map((t) => [
       t.id,
-      { teamId: t.id, team: t.name, color: t.color, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, points: 0, penalty: penalties[t.id] ?? 0, form: [] },
+      { teamId: t.id, team: t.name, color: t.color, played: 0, wins: 0, losses: 0, setsWon: 0, setsLost: 0, points: 0, penalty: penalties[t.id] ?? 0, form: [], formGames: [] },
     ]),
   )
 
@@ -343,8 +343,13 @@ export function computeStandings(teams: PlTeam[], matches: PlMatch[], winPoints:
     l.losses++
     w.form.push("W")
     l.form.push("L")
+    w.formGames!.push({ matchId: m.id, opponent: l.team, result: "W" })
+    l.formGames!.push({ matchId: m.id, opponent: w.team, result: "L" })
   }
-  for (const r of rows.values()) r.form = r.form.slice(-5)
+  for (const r of rows.values()) {
+    r.form = r.form.slice(-5)
+    r.formGames = r.formGames!.slice(-5)
+  }
 
   const diff = (r: PlTeamStanding) => r.setsWon - r.setsLost
   const cmp = (x: PlTeamStanding, y: PlTeamStanding) => y.points - x.points || y.wins - x.wins || x.penalty - y.penalty || diff(y) - diff(x)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type CSSProperties } from "react"
+import { useEffect, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { ChevronDown, ClipboardList, PenLine } from "lucide-react"
 import { CaptureButton } from "@/components/ui/capture-button"
@@ -87,7 +87,24 @@ export function ScheduleBoard({
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>(() => defaultTab(matches, now))
   const [open, setOpen] = useState<string | null>(null)
+  const [focusId, setFocusId] = useState<string | null>(null)
   const list = matches.filter((m) => tabOf(m.stage) === tab)
+
+  // `?match=<id>`(대문 '다가오는 경기')로 들어오면 그 경기 라운드를 열고 펼친 뒤 그 경기로 스크롤.
+  // 페이지를 정적으로 두려고 주소는 화면에서 읽는다
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("match")
+    const target = id ? matches.find((m) => m.id === id) : undefined
+    if (!target) return
+    setTab(tabOf(target.stage))
+    setOpen(target.id)
+    setFocusId(target.id)
+  }, [matches])
+  useEffect(() => {
+    if (!focusId) return
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    document.getElementById(`match-${focusId}`)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" })
+  }, [focusId])
 
   const isCaptainOf = (m: PlMatch) =>
     !!user && ((captains[m.teamA.id] ?? []).includes(user.id) || (captains[m.teamB.id] ?? []).includes(user.id))
@@ -124,7 +141,7 @@ export function ScheduleBoard({
           const expanded = open === m.id
           const canEntry = isCaptainOf(m) && entryOpen(m.status, m.entryRevealAt)
           return (
-            <div key={m.id} className={cn("match-item", expanded && "open")} data-capture>
+            <div key={m.id} id={`match-${m.id}`} className={cn("match-item", expanded && "open", focusId === m.id && "is-focus")} data-capture>
               <button type="button" className="match-row" onClick={() => setOpen(expanded ? null : m.id)} aria-expanded={expanded}>
                 <div className="match-date">
                   {when ? (

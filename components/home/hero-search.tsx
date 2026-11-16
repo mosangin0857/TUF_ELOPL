@@ -7,24 +7,35 @@ import { ChevronRight, Search } from "lucide-react"
 import { RaceBadge } from "@/components/ui/race"
 import type { Race } from "@/lib/types"
 
+/** 대회 · 맵 검색 한 줄: 누르면 href로. keys = 이름 말고도 걸리는 말 (예: TFPL → '프로리그') */
+export interface SearchLink {
+  name: string
+  meta: string
+  href: string
+  keys?: string
+}
+
 export interface SearchIndex {
   /** 실제 DB: 활동 중인 클랜원 */
   players: { name: string; race: Race; tier: number; elo: number }[]
-  /** 프로리그 · 개인리그 연결 후 채움 */
-  leagues: { name: string; meta: string }[]
-  /** 맵 통계 연결 후 채움 */
-  maps: { name: string; meta: string }[]
+  /** 대회 = 전적의 경기 유형 (진행 중인 프로리그는 일정, 나머지는 ELO 대시보드 그 경기 유형) */
+  leagues: SearchLink[]
+  /** 맵 = 전적의 맵 (데이터센터 클랜 통계 · 그 맵 · 전체 기간) */
+  maps: SearchLink[]
 }
 
 const EMPTY_HINT: Record<Category, string> = {
   all: "",
   p: "",
-  l: "대회 검색은 프로리그 · 개인리그 데이터를 연결한 뒤 사용할 수 있어요.",
-  m: "맵 검색은 맵 통계를 연결한 뒤 사용할 수 있어요.",
+  l: "대회는 전적의 경기 유형이에요 (예: TFPL_S3 · 친선 · 팀매배).",
+  m: "",
 }
 
 type Category = "all" | "p" | "l" | "m"
-type Item = { kind: "p" | "l" | "m"; name: string; node: ReactNode }
+type Item = { kind: "p" | "l" | "m"; name: string; href?: string; node: ReactNode }
+
+/** 검색 비교용: 대소문자 · 띄어쓰기 · 밑줄 · 괄호 무시 ('tfpl s1' → TFPL_S1, '헌터 팀플' → 헌터(팀플)) */
+const norm = (s: string) => s.toLowerCase().replace(/[\s_\-.·()]/g, "")
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const i = text.toLowerCase().indexOf(query.toLowerCase())
@@ -97,9 +108,10 @@ export function HeroSearch({ index }: { index: SearchIndex }) {
   const [active, setActive] = useState(0)
 
   const groups = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = norm(query)
     if (!q) return []
-    const hit = <T extends { name: string }>(arr: T[]) => arr.filter((x) => x.name.toLowerCase().includes(q)).slice(0, 5)
+    const hit = <T extends { name: string; keys?: string }>(arr: T[]) =>
+      arr.filter((x) => norm(x.name).includes(q) || (!!x.keys && norm(x.keys).includes(q))).slice(0, 5)
     const out: { label: string; items: Item[] }[] = []
     if (cat === "all" || cat === "p")
       out.push({
@@ -120,12 +132,13 @@ export function HeroSearch({ index }: { index: SearchIndex }) {
           ),
         })),
       })
-    const simple = (label: string, kind: "l" | "m", arr: { name: string; meta: string }[]) =>
+    const simple = (label: string, kind: "l" | "m", arr: SearchLink[]) =>
       out.push({
         label,
         items: hit(arr).map((x) => ({
           kind,
           name: x.name,
+          href: x.href,
           node: (
             <>
               <span>
@@ -145,9 +158,7 @@ export function HeroSearch({ index }: { index: SearchIndex }) {
 
   const pick = (item: Item) => {
     setOpen(false)
-    if (item.kind === "p") router.push(`/elo?p1=${encodeURIComponent(item.name)}`)
-    else if (item.kind === "l") router.push("/pl")
-    else router.push("/elo/data-center")
+    router.push(item.kind === "p" ? `/elo?p1=${encodeURIComponent(item.name)}` : (item.href ?? "/"))
   }
 
   useEffect(() => {
